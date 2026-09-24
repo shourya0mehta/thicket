@@ -1,0 +1,9 @@
+dist
+coverage
+node_modules
+playwright-report
+test-results
+screenshots
+public/demo
+src/api/generated.ts
+package-lock.json

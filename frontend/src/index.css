@@ -1,0 +1,172 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Theme tokens. Values are RGB channels so Tailwind opacity modifiers work
+ * (bg-mark/20). Border tokens carry their own alpha.
+ * Contrast (WCAG): ink/canvas 14.5:1, muted/card 6.1:1, forest-600/card 5.6:1,
+ * dark ink/card 13.7:1, dark muted/card 7.4:1.
+ */
+@layer base {
+  :root {
+    color-scheme: light;
+    --canvas: 245 243 236;
+    --ink: 22 36 29;
+    --muted: 84 100 91;
+    --subtle: 95 111 102;
+    --accent: 47 92 71;
+    --raised: 255 255 255;
+    --mark: 55 113 87;
+    --line: 22 36 29 / 0.11;
+    --line-strong: 22 36 29 / 0.22;
+    --surface: 255 255 255 / 0.8;
+    --surface-muted: 22 36 29 / 0.035;
+    --warn: 138 83 0;
+    --warn-soft: 252 244 226;
+    --danger: 163 50 43;
+    --danger-soft: 252 238 235;
+    --ok: 47 92 71;
+    --ok-soft: 231 241 235;
+    --info: 44 88 120;
+    --info-soft: 234 242 247;
+    --focus: 55 113 87;
+    --wash: 223 235 228 / 0.75;
+  }
+
+  .dark {
+    color-scheme: dark;
+    --canvas: 15 23 20;
+    --ink: 230 236 232;
+    --muted: 162 178 169;
+    --subtle: 139 155 146;
+    --accent: 149 186 166;
+    --raised: 27 36 32;
+    --mark: 111 174 140;
+    --line: 255 255 255 / 0.1;
+    --line-strong: 255 255 255 / 0.2;
+    --surface: 255 255 255 / 0.045;
+    --surface-muted: 255 255 255 / 0.035;
+    --warn: 233 181 96;
+    --warn-soft: 43 36 21;
+    --danger: 240 154 144;
+    --danger-soft: 49 29 27;
+    --ok: 149 186 166;
+    --ok-soft: 24 41 33;
+    --info: 142 188 220;
+    --info-soft: 22 35 45;
+    --focus: 149 186 166;
+    --wash: 34 66 53 / 0.32;
+  }
+
+  html {
+    background-color: rgb(var(--canvas));
+    color: rgb(var(--ink));
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: 'cv11', 'ss03';
+  }
+
+  body {
+    min-height: 100vh;
+    background-color: rgb(var(--canvas));
+    background-image: radial-gradient(1100px 520px at 12% -8%, rgb(var(--wash)), transparent 65%);
+    background-repeat: no-repeat;
+  }
+
+  ::selection {
+    background-color: rgb(var(--mark) / 0.25);
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--focus));
+    outline-offset: 2px;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  .panel {
+    @apply rounded-2xl border border-line bg-surface shadow-soft backdrop-blur-sm;
+  }
+
+  .well {
+    @apply rounded-xl bg-surface-muted;
+  }
+
+  .eyebrow {
+    @apply text-[0.6875rem] font-semibold uppercase tracking-[0.09em] text-muted;
+  }
+
+  .field-label {
+    @apply mb-1.5 block text-sm font-medium text-ink;
+  }
+
+  .field-input {
+    @apply block w-full rounded-xl border border-line-strong bg-raised px-3 py-2 text-sm text-ink shadow-sm transition-colors placeholder:text-subtle hover:border-mark/60 focus-visible:border-mark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mark/30 disabled:cursor-not-allowed disabled:opacity-60 aria-[invalid=true]:border-danger;
+  }
+
+  .field-hint {
+    @apply mt-1 text-xs text-muted;
+  }
+
+  .field-error {
+    @apply mt-1 text-xs font-medium text-danger;
+  }
+
+  .link {
+    @apply font-medium text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent;
+  }
+
+  .sci {
+    @apply italic;
+  }
+
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+}
+
+/* Leaflet popups follow the theme. */
+.leaflet-container {
+  font-family: inherit;
+}
+
+.dark .leaflet-popup-content-wrapper,
+.dark .leaflet-popup-tip {
+  background: rgb(var(--raised));
+  color: rgb(var(--ink));
+}
+
+.dark .leaflet-control-attribution {
+  background: rgb(15 23 20 / 0.8) !important;
+  color: rgb(var(--muted));
+}
+
+.dark .leaflet-control-attribution a {
+  color: rgb(var(--accent));
+}
