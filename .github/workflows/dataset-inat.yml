@@ -1,0 +1,119 @@
+# Builds the thicket-inat-v1 feature dataset from research-grade,
+# CC-licensed iNaturalist sound observations. Downloads are rate limited
+# (about 2 files/s across all shards) per iNaturalist API guidance.
+# Output: branch data/inat-v1 with manifest, attribution, BirdNET and
+# (optionally) Perch 2.0 window embeddings. Raw audio is never committed.
+name: Dataset (iNaturalist v1)
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Max recordings per shard (0 = all)"
+        default: "0"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dataset-inat
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install requests
+      - run: python ml/pipeline/collect_inat.py plan --config ml/configs/inat_v1.json --out work/plan.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plan
+          path: work/
+          retention-days: 7
+
+  embed:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: System deps
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Python deps
+        run: pip install -e "backend[birdnet]" requests
+      - uses: actions/download-artifact@v4
+        with:
+          name: plan
+          path: work/
+      - name: Download audio and compute BirdNET embeddings
+        run: |
+          python ml/pipeline/collect_inat.py embed \
+            --config ml/configs/inat_v1.json --plan work/plan.csv \
+            --shard ${{ matrix.shard }} --num-shards 8 \
+            --out out --audio-dir audio --limit ${{ inputs.limit || 0 }} \
+            --max-rate 0.5 --download-workers 2
+      - name: Perch 2.0 embeddings (optional)
+        continue-on-error: true
+        timeout-minutes: 150
+        run: |
+          part=$(printf %02d ${{ matrix.shard }})
+          python -m venv /tmp/perch
+          /tmp/perch/bin/pip install -q "tensorflow>=2.20,<2.21" kagglehub numpy scipy soundfile
+          /tmp/perch/bin/python ml/pipeline/perch_embed.py \
+            --manifest out/manifest_part_${part}.csv --audio-dir audio \
+            --out out/perch_part_${part}.npz --config ml/configs/inat_v1.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shard-${{ matrix.shard }}
+          path: out/
+          retention-days: 7
+
+  merge:
+    needs: [plan, embed]
+    if: always() && needs.plan.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install numpy
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: shard-*
+          path: shards/
+      - uses: actions/download-artifact@v4
+        with:
+          name: plan
+          path: work/
+      - name: Merge shards
+        run: |
+          python ml/pipeline/collect_inat.py merge --inputs shards/* --out /tmp/dataset/datasets/inat_v1
+          cp work/plan_report.json /tmp/dataset/datasets/inat_v1/
+          cp ml/configs/inat_v1.json /tmp/dataset/datasets/inat_v1/config.json
+          cp ml/pipeline/DATASET_README.md /tmp/dataset/README.md
+          ls -la /tmp/dataset/datasets/inat_v1
+      - name: Publish to data/inat-v1 branch
+        run: |
+          set -euo pipefail
+          cd /tmp/dataset
+          git init -q -b data/inat-v1
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Dataset thicket-inat-v1 from ${GITHUB_SHA::7} (run ${GITHUB_RUN_ID})"
+          git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          git push -f origin data/inat-v1

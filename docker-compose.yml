@@ -1,0 +1,31 @@
+# Local production-like run: docker compose up --build
+# Then open http://localhost:8000 (frontend) or http://localhost:8000/api/docs.
+services:
+  thicket:
+    build: .
+    image: thicket:local
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      ENVIRONMENT: production
+      THICKET_DATA_DIR: /data
+      # Same-origin by default (frontend served by the API). Add origins for a
+      # separately hosted frontend, comma separated, no wildcards.
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000}
+      RETAIN_AUDIO: ${RETAIN_AUDIO:-false}
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-1}
+    volumes:
+      - thicket-data:/data
+    restart: unless-stopped
+    mem_limit: 2g
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  thicket-data:

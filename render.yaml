@@ -1,0 +1,39 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+# One Docker web service with a persistent disk for the database and assets.
+# The "standard" plan has 2 GB RAM, which BirdNET needs; keep one instance.
+services:
+  - type: web
+    name: thicket
+    runtime: docker
+    plan: standard
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/v1/health
+    numInstances: 1
+    autoDeploy: true
+    disk:
+      name: thicket-data
+      mountPath: /data
+      sizeGB: 5
+    envVars:
+      - key: PORT
+        value: "8000"
+      - key: ENVIRONMENT
+        value: production
+      - key: THICKET_DATA_DIR
+        value: /data
+      # Set to your public origin(s) if the frontend is hosted elsewhere.
+      - key: ALLOWED_ORIGINS
+        value: https://thicket.onrender.com
+      # Render's proxy sets X-Forwarded-For; trust it so rate limits see client IPs.
+      - key: FORWARDED_ALLOW_IPS
+        value: "*"
+      - key: WORKER_CONCURRENCY
+        value: "1"
+      - key: RETAIN_AUDIO
+        value: "false"
+      - key: RATE_LIMIT_PER_MINUTE
+        value: "30"
+      - key: LOG_LEVEL
+        value: INFO

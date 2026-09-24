@@ -1,0 +1,37 @@
+.git
+.github
+.env
+.env.*
+!.env.example
+**/.DS_Store
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+**/*.egg-info
+**/.coverage
+**/htmlcov
+
+# Local environments and runtime data (never bake user audio into images)
+backend/.venv
+backend/var
+var
+**/*.sqlite3
+**/*.db
+
+# Node
+**/node_modules
+frontend/dist
+frontend/coverage
+frontend/test-results
+frontend/playwright-report
+frontend/screenshots
+
+# ML scratch and datasets
+ml/data
+ml/cache
+ml/reports
+
+# Tests are not needed in the image
+backend/tests
