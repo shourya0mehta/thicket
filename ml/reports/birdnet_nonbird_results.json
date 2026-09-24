@@ -1,0 +1,1254 @@
+{
+ "meta": {
+  "date": "2026-09-24",
+  "birdnet_sha256": "55f3e4055b1a13bfa9a2452731d0d34f6a02d6b775a334362665892794165e4c",
+  "esc50_commit": "33c8ce9eb2cf0b1c2f8bcf322eb349b6be34dbb6",
+  "n_boot": 1000,
+  "hop_seconds": 1.0,
+  "thresholds": [
+   0.1,
+   0.2,
+   0.3,
+   0.4,
+   0.5,
+   0.6,
+   0.7,
+   0.8,
+   0.9
+  ]
+ },
+ "tasks": {
+  "amphibian": {
+   "positives": [
+    "frog"
+   ],
+   "n_pos": 40,
+   "n_neg": 1960,
+   "n_birdnet_labels": 41,
+   "ap": [
+    0.46875719325220133,
+    0.22233275639644384,
+    0.6997563027628342
+   ],
+   "auc": [
+    0.8013647959183674,
+    0.6928369664309575,
+    0.899026480559174
+   ],
+   "median_score_positives": 0.06271111965179443,
+   "median_score_negatives": 0.0008592476369813085,
+   "by_threshold": [
+    {
+     "threshold": 0.1,
+     "tp": 19,
+     "fp": 23,
+     "fn": 21,
+     "precision": [
+      0.4523809523809524,
+      0.3122316381863852,
+      0.6005113725287732,
+      19,
+      42
+     ],
+     "recall": [
+      0.475,
+      0.32935229550181694,
+      0.6250289314607027,
+      19,
+      40
+     ],
+     "recall_by_class": {
+      "frog": [
+       0.475,
+       0.32935229550181694,
+       0.6250289314607027,
+       19,
+       40
+      ]
+     },
+     "false_positive_rate": [
+      0.01173469387755102,
+      0.007832054068906419,
+      0.017547589584634683,
+      23,
+      1960
+     ],
+     "recall_first_window_only": [
+      0.475,
+      0.32935229550181694,
+      0.6250289314607027,
+      19,
+      40
+     ],
+     "top_false_positive_classes": [
+      [
+       "cow",
+       10
+      ],
+      [
+       "sheep",
+       7
+      ],
+      [
+       "chainsaw",
+       2
+      ],
+      [
+       "laughing",
+       1
+      ],
+      [
+       "crickets",
+       1
+      ]
+     ]
+    },
+    {
+     "threshold": 0.2,
+     "tp": 19,
+     "fp": 15,
+     "fn": 21,
+     "precision": [
+      0.5588235294117647,
+      0.3945361778918369,
+      0.7111675978470325,
+      19,
+      34
+     ],
+     "recall": [
+      0.475,
+      0.32935229550181694,
+      0.6250289314607027,
+      19,
+      40
+     ],
+     "recall_by_class": {
+      "frog": [
+       0.475,
+       0.32935229550181694,
+       0.6250289314607027,
+       19,
+       40
+      ]
+     },
+     "false_positive_rate": [
+      0.007653061224489796,
+      0.0046433066181067835,
+      0.012589040430657231,
+      15,
+      1960
+     ],
+     "recall_first_window_only": [
+      0.45,
+      0.30705075280944694,
+      0.6017117011155924,
+      18,
+      40
+     ],
+     "top_false_positive_classes": [
+      [
+       "cow",
+       7
+      ],
+      [
+       "sheep",
+       4
+      ],
+      [
+       "chainsaw",
+       1
+      ],
+      [
+       "laughing",
+       1
+      ],
+      [
+       "crickets",
+       1
+      ]
+     ]
+    },
+    {
+     "threshold": 0.3,
+     "tp": 17,
+     "fp": 12,
+     "fn": 23,
+     "precision": [
+      0.5862068965517241,
+      0.40737528478515245,
+      0.7448706472035449,
+      17,
+      29
+     ],
+     "recall": [
+      0.425,
+      0.28509168524815875,
+      0.5780519956394001,
+      17,
+      40
+     ],
+     "recall_by_class": {
+      "frog": [
+       0.425,
+       0.28509168524815875,
+       0.5780519956394001,
+       17,
+       40
+      ]
+     },
+     "false_positive_rate": [
+      0.006122448979591836,
+      0.0035057405990875537,
+      0.010671370222885054,
+      12,
+      1960
+     ],
+     "recall_first_window_only": [
+      0.4,
+      0.2634811061240136,
+      0.5540438017260649,
+      16,
+      40
+     ],
+     "top_false_positive_classes": [
+      [
+       "cow",
+       7
+      ],
+      [
+       "sheep",
+       2
+      ],
+      [
+       "laughing",
+       1
+      ],
+      [
+       "crickets",
+       1
+      ],
+      [
+       "airplane",
+       1
+      ]
+     ]
+    },
+    {
+     "threshold": 0.4,
+     "tp": 17,
+     "fp": 8,
+     "fn": 23,
+     "precision": [
+      0.68,
+      0.48409913734576715,
+      0.8279501248310887,
+      17,
+      25
+     ],
+     "recall": [
+      0.425,
+      0.28509168524815875,
+      0.5780519956394001,
+      17,
+      40
+     ],
+     "recall_by_class": {
+      "frog": [
+       0.425,
+       0.28509168524815875,
+       0.5780519956394001,
+       17,
+       40
+      ]
+     },
+     "false_positive_rate": [
+      0.004081632653061225,
+      0.0020696425969512562,
+      0.00803381992263281,
+      8,
+      1960
+     ],
+     "recall_first_window_only": [
+      0.4,
+      0.2634811061240136,
+      0.5540438017260649,
+      16,
+      40
+     ],
+     "top_false_positive_classes": [
+      [
+       "cow",
+       4
+      ],
+      [
+       "laughing",
+       1
+      ],
+      [
+       "crickets",
+       1
+      ],
+      [
+       "airplane",
+       1
+      ],
+      [
+       "sheep",
+       1
+      ]
+     ]
+    },
+    {
+     "threshold": 0.5,
+     "tp": 16,
+     "fp": 7,
+     "fn": 24,
+     "precision": [
+      0.6956521739130435,
+      0.49133870939427393,
+      0.8439617197902755,
+      16,
+      23
+     ],
+     "recall": [
+      0.4,
+      0.2634811061240136,
+      0.5540438017260649,
+      16,
+      40
+     ],
+     "recall_by_class": {
+      "frog": [
+       0.4,
+       0.2634811061240136,
+       0.5540438017260649,
+       16,
+       40
+      ]
+     },
+     "false_positive_rate": [
+      0.0035714285714285713,
+      0.0017310515074653388,
+      0.007353998936521589,
+      7,
+      1960
+     ],
+     "recall_first_window_only": [
+      0.4,
+      0.2634811061240136,
+      0.5540438017260649,
+      16,
+      40
+     ],
+     "top_false_positive_classes": [
+      [
+       "cow",
+       4
+      ],
+      [
+       "laughing",
+       1
+      ],
+      [
+       "crickets",
+       1
+      ],
+      [
+       "sheep",
+       1
+      ]
+     ]
+    },
+    {
+     "threshold": 0.6,
+     "tp": 16,
+     "fp": 6,
+     "fn": 24,
+     "precision": [
+      0.7272727272727273,
+      0.5184787630099802,
+      0.8684941798418556,
+      16,
+      22
+     ],
+     "recall": [
+      0.4,
+      0.2634811061240136,
+      0.5540438017260649,
+      16,
+      40
+     ],
+     "recall_by_class": {
+      "frog": [
+       0.4,
+       0.2634811061240136,
+       0.5540438017260649,
+       16,
+       40
+      ]
+     },
+     "false_positive_rate": [
+      0.003061224489795918,
+      0.0014036995002806906,
+      0.006662938868109103,
+      6,
+      1960
+     ],
+     "recall_first_window_only": [
+      0.375,
+      0.2422277353579172,
+      0.529678399454681,
+      15,
+      40
+     ],
+     "top_false_positive_classes": [
+      [
+       "cow",
+       3
+      ],
+      [
+       "laughing",
+       1
+      ],
+      [
+       "crickets",
+       1
+      ],
+      [
+       "sheep",
+       1
+      ]
+     ]
+    },
+    {
+     "threshold": 0.7,
+     "tp": 15,
+     "fp": 4,
+     "fn": 25,
+     "precision": [
+      0.7894736842105263,
+      0.5666528575973392,
+      0.9149246150840843,
+      15,
+      19
+     ],
+     "recall": [
+      0.375,
+      0.2422277353579172,
+      0.529678399454681,
+      15,
+      40
+     ],
+     "recall_by_class": {
+      "frog": [
+       0.375,
+       0.2422277353579172,
+       0.529678399454681,
+       15,
+       40
+      ]
+     },
+     "false_positive_rate": [
+      0.0020408163265306124,
+      0.0007938981281016928,
+      0.005235916089093829,
+      4,
+      1960
+     ],
+     "recall_first_window_only": [
+      0.375,
+      0.2422277353579172,
+      0.529678399454681,
+      15,
+      40
+     ],
+     "top_false_positive_classes": [
+      [
+       "laughing",
+       1
+      ],
+      [
+       "crickets",
+       1
+      ],
+      [
+       "sheep",
+       1
+      ],
+      [
+       "cow",
+       1
+      ]
+     ]
+    },
+    {
+     "threshold": 0.8,
+     "tp": 14,
+     "fp": 4,
+     "fn": 26,
+     "precision": [
+      0.7777777777777778,
+      0.5478497354769452,
+      0.90999218086618,
+      14,
+      18
+     ],
+     "recall": [
+      0.35,
+      0.2213433317104915,
+      0.5049440300646263,
+      14,
+      40
+     ],
+     "recall_by_class": {
+      "frog": [
+       0.35,
+       0.2213433317104915,
+       0.5049440300646263,
+       14,
+       40
+      ]
+     },
+     "false_positive_rate": [
+      0.0020408163265306124,
+      0.0007938981281016928,
+      0.005235916089093829,
+      4,
+      1960
+     ],
+     "recall_first_window_only": [
+      0.35,
+      0.2213433317104915,
+      0.5049440300646263,
+      14,
+      40
+     ],
+     "top_false_positive_classes": [
+      [
+       "laughing",
+       1
+      ],
+      [
+       "crickets",
+       1
+      ],
+      [
+       "sheep",
+       1
+      ],
+      [
+       "cow",
+       1
+      ]
+     ]
+    },
+    {
+     "threshold": 0.9,
+     "tp": 14,
+     "fp": 2,
+     "fn": 26,
+     "precision": [
+      0.875,
+      0.6397666856325173,
+      0.9650232506629428,
+      14,
+      16
+     ],
+     "recall": [
+      0.35,
+      0.2213433317104915,
+      0.5049440300646263,
+      14,
+      40
+     ],
+     "recall_by_class": {
+      "frog": [
+       0.35,
+       0.2213433317104915,
+       0.5049440300646263,
+       14,
+       40
+      ]
+     },
+     "false_positive_rate": [
+      0.0010204081632653062,
+      0.0002798714804158175,
+      0.003713118585585432,
+      2,
+      1960
+     ],
+     "recall_first_window_only": [
+      0.3,
+      0.18074670915695296,
+      0.454303106543204,
+      12,
+      40
+     ],
+     "top_false_positive_classes": [
+      [
+       "laughing",
+       1
+      ],
+      [
+       "crickets",
+       1
+      ]
+     ]
+    }
+   ],
+   "top_labels_on_positives_at_0.1": [
+    [
+     "Hyliola regilla_Pacific Chorus Frog",
+     14
+    ],
+    [
+     "Dryophytes versicolor_Gray Treefrog",
+     2
+    ],
+    [
+     "Pseudacris feriarum_Upland Chorus Frog",
+     2
+    ],
+    [
+     "Dryophytes cinereus_Green Treefrog",
+     1
+    ]
+   ],
+   "top1_taxon_on_positives": {
+    "frog": {
+     "amphibian": 19,
+     "bird": 20,
+     "anthropogenic": 1
+    }
+   }
+  },
+  "insect": {
+   "positives": [
+    "insects",
+    "crickets"
+   ],
+   "n_pos": 80,
+   "n_neg": 1920,
+   "n_birdnet_labels": 42,
+   "ap": [
+    0.4416303967942554,
+    0.3120910140356522,
+    0.569675330662893
+   ],
+   "auc": [
+    0.8859635416666667,
+    0.8390236843193126,
+    0.9282114930958406
+   ],
+   "median_score_positives": 0.019459407776594162,
+   "median_score_negatives": 0.00043818989070132375,
+   "by_threshold": [
+    {
+     "threshold": 0.1,
+     "tp": 21,
+     "fp": 9,
+     "fn": 59,
+     "precision": [
+      0.7,
+      0.5212387898833981,
+      0.8333543735604105,
+      21,
+      30
+     ],
+     "recall": [
+      0.2625,
+      0.1785727122600286,
+      0.3681916624656446,
+      21,
+      80
+     ],
+     "recall_by_class": {
+      "insects": [
+       0.2,
+       0.10499864973166874,
+       0.34757607381856676,
+       8,
+       40
+      ],
+      "crickets": [
+       0.325,
+       0.20084316962661725,
+       0.4798254191110201,
+       13,
+       40
+      ]
+     },
+     "false_positive_rate": [
+      0.0046875,
+      0.002468048322176298,
+      0.008885069314951416,
+      9,
+      1920
+     ],
+     "recall_first_window_only": [
+      0.2375,
+      0.15764551183088749,
+      0.3414098497080144,
+      19,
+      80
+     ],
+     "top_false_positive_classes": [
+      [
+       "mouse_click",
+       4
+      ],
+      [
+       "airplane",
+       1
+      ],
+      [
+       "keyboard_typing",
+       1
+      ],
+      [
+       "water_drops",
+       1
+      ],
+      [
+       "toilet_flush",
+       1
+      ]
+     ]
+    },
+    {
+     "threshold": 0.2,
+     "tp": 16,
+     "fp": 6,
+     "fn": 64,
+     "precision": [
+      0.7272727272727273,
+      0.5184787630099802,
+      0.8684941798418556,
+      16,
+      22
+     ],
+     "recall": [
+      0.2,
+      0.1270273637929335,
+      0.3004644779658116,
+      16,
+      80
+     ],
+     "recall_by_class": {
+      "insects": [
+       0.15,
+       0.07061091708507435,
+       0.2907262603902003,
+       6,
+       40
+      ],
+      "crickets": [
+       0.25,
+       0.14186967895549518,
+       0.40194259066970106,
+       10,
+       40
+      ]
+     },
+     "false_positive_rate": [
+      0.003125,
+      0.0014329588266121418,
+      0.006801398929244683,
+      6,
+      1920
+     ],
+     "recall_first_window_only": [
+      0.2,
+      0.1270273637929335,
+      0.3004644779658116,
+      16,
+      80
+     ],
+     "top_false_positive_classes": [
+      [
+       "mouse_click",
+       4
+      ],
+      [
+       "keyboard_typing",
+       1
+      ],
+      [
+       "water_drops",
+       1
+      ]
+     ]
+    },
+    {
+     "threshold": 0.3,
+     "tp": 15,
+     "fp": 4,
+     "fn": 65,
+     "precision": [
+      0.7894736842105263,
+      0.5666528575973392,
+      0.9149246150840843,
+      15,
+      19
+     ],
+     "recall": [
+      0.1875,
+      0.11705207812728378,
+      0.2865852570380757,
+      15,
+      80
+     ],
+     "recall_by_class": {
+      "insects": [
+       0.15,
+       0.07061091708507435,
+       0.2907262603902003,
+       6,
+       40
+      ],
+      "crickets": [
+       0.225,
+       0.1231595325467853,
+       0.3750339640409305,
+       9,
+       40
+      ]
+     },
+     "false_positive_rate": [
+      0.0020833333333333333,
+      0.0008104435754731215,
+      0.005344740926203108,
+      4,
+      1920
+     ],
+     "recall_first_window_only": [
+      0.1375,
+      0.07854633679551142,
+      0.22967297199630554,
+      11,
+      80
+     ],
+     "top_false_positive_classes": [
+      [
+       "mouse_click",
+       3
+      ],
+      [
+       "water_drops",
+       1
+      ]
+     ]
+    },
+    {
+     "threshold": 0.4,
+     "tp": 10,
+     "fp": 2,
+     "fn": 70,
+     "precision": [
+      0.8333333333333334,
+      0.5519636426153274,
+      0.9530358523851776,
+      10,
+      12
+     ],
+     "recall": [
+      0.125,
+      0.06933483036777514,
+      0.2150299718306562,
+      10,
+      80
+     ],
+     "recall_by_class": {
+      "insects": [
+       0.025,
+       0.0044267174077949195,
+       0.1288165948800778,
+       1,
+       40
+      ],
+      "crickets": [
+       0.225,
+       0.1231595325467853,
+       0.3750339640409305,
+       9,
+       40
+      ]
+     },
+     "false_positive_rate": [
+      0.0010416666666666667,
+      0.000285703085407095,
+      0.003790308162088541,
+      2,
+      1920
+     ],
+     "recall_first_window_only": [
+      0.0875,
+      0.04303145464743989,
+      0.1697698277708346,
+      7,
+      80
+     ],
+     "top_false_positive_classes": [
+      [
+       "mouse_click",
+       1
+      ],
+      [
+       "water_drops",
+       1
+      ]
+     ]
+    },
+    {
+     "threshold": 0.5,
+     "tp": 8,
+     "fp": 1,
+     "fn": 72,
+     "precision": [
+      0.8888888888888888,
+      0.5649937852319399,
+      0.9801096286728695,
+      8,
+      9
+     ],
+     "recall": [
+      0.1,
+      0.05154699917768554,
+      0.18510878983397458,
+      8,
+      80
+     ],
+     "recall_by_class": {
+      "insects": [
+       0.0,
+       0.0,
+       0.08762453925039232,
+       0,
+       40
+      ],
+      "crickets": [
+       0.2,
+       0.10499864973166874,
+       0.34757607381856676,
+       8,
+       40
+      ]
+     },
+     "false_positive_rate": [
+      0.0005208333333333333,
+      9.19434243635271e-05,
+      0.0029444811960418122,
+      1,
+      1920
+     ],
+     "recall_first_window_only": [
+      0.075,
+      0.03482477485108787,
+      0.15412200097380097,
+      6,
+      80
+     ],
+     "top_false_positive_classes": [
+      [
+       "water_drops",
+       1
+      ]
+     ]
+    },
+    {
+     "threshold": 0.6,
+     "tp": 6,
+     "fp": 0,
+     "fn": 74,
+     "precision": [
+      1.0,
+      0.6096569663469354,
+      0.9999999999999999,
+      6,
+      6
+     ],
+     "recall": [
+      0.075,
+      0.03482477485108787,
+      0.15412200097380097,
+      6,
+      80
+     ],
+     "recall_by_class": {
+      "insects": [
+       0.0,
+       0.0,
+       0.08762453925039232,
+       0,
+       40
+      ],
+      "crickets": [
+       0.15,
+       0.07061091708507435,
+       0.2907262603902003,
+       6,
+       40
+      ]
+     },
+     "false_positive_rate": [
+      0.0,
+      0.0,
+      0.0019968379933150426,
+      0,
+      1920
+     ],
+     "recall_first_window_only": [
+      0.0625,
+      0.026988977697985535,
+      0.1381032915335177,
+      5,
+      80
+     ],
+     "top_false_positive_classes": []
+    },
+    {
+     "threshold": 0.7,
+     "tp": 5,
+     "fp": 0,
+     "fn": 75,
+     "precision": [
+      1.0,
+      0.5655085052479191,
+      1.0,
+      5,
+      5
+     ],
+     "recall": [
+      0.0625,
+      0.026988977697985535,
+      0.1381032915335177,
+      5,
+      80
+     ],
+     "recall_by_class": {
+      "insects": [
+       0.0,
+       0.0,
+       0.08762453925039232,
+       0,
+       40
+      ],
+      "crickets": [
+       0.125,
+       0.05459419773541284,
+       0.26112420670238146,
+       5,
+       40
+      ]
+     },
+     "false_positive_rate": [
+      0.0,
+      0.0,
+      0.0019968379933150426,
+      0,
+      1920
+     ],
+     "recall_first_window_only": [
+      0.0625,
+      0.026988977697985535,
+      0.1381032915335177,
+      5,
+      80
+     ],
+     "top_false_positive_classes": []
+    },
+    {
+     "threshold": 0.8,
+     "tp": 5,
+     "fp": 0,
+     "fn": 75,
+     "precision": [
+      1.0,
+      0.5655085052479191,
+      1.0,
+      5,
+      5
+     ],
+     "recall": [
+      0.0625,
+      0.026988977697985535,
+      0.1381032915335177,
+      5,
+      80
+     ],
+     "recall_by_class": {
+      "insects": [
+       0.0,
+       0.0,
+       0.08762453925039232,
+       0,
+       40
+      ],
+      "crickets": [
+       0.125,
+       0.05459419773541284,
+       0.26112420670238146,
+       5,
+       40
+      ]
+     },
+     "false_positive_rate": [
+      0.0,
+      0.0,
+      0.0019968379933150426,
+      0,
+      1920
+     ],
+     "recall_first_window_only": [
+      0.0625,
+      0.026988977697985535,
+      0.1381032915335177,
+      5,
+      80
+     ],
+     "top_false_positive_classes": []
+    },
+    {
+     "threshold": 0.9,
+     "tp": 4,
+     "fp": 0,
+     "fn": 76,
+     "precision": [
+      1.0,
+      0.5100999795960008,
+      1.0,
+      4,
+      4
+     ],
+     "recall": [
+      0.05,
+      0.01961323712729557,
+      0.121624525510822,
+      4,
+      80
+     ],
+     "recall_by_class": {
+      "insects": [
+       0.0,
+       0.0,
+       0.08762453925039232,
+       0,
+       40
+      ],
+      "crickets": [
+       0.1,
+       0.03957888759557486,
+       0.23052074380473897,
+       4,
+       40
+      ]
+     },
+     "false_positive_rate": [
+      0.0,
+      0.0,
+      0.0019968379933150426,
+      0,
+      1920
+     ],
+     "recall_first_window_only": [
+      0.0375,
+      0.012834336300788757,
+      0.10454891974394322,
+      3,
+      80
+     ],
+     "top_false_positive_classes": []
+    }
+   ],
+   "top_labels_on_positives_at_0.1": [
+    [
+     "Apis mellifera_Honey Bee",
+     8
+    ],
+    [
+     "Oecanthus nigricornis_Blackhorned Tree Cricket",
+     2
+    ],
+    [
+     "Amblycorypha oblongifolia_Oblong-winged Katydid",
+     1
+    ],
+    [
+     "Neoconocephalus ensiger_Sword-bearing Conehead",
+     1
+    ],
+    [
+     "Microcentrum rhombifolium_Greater Angle-wing",
+     1
+    ],
+    [
+     "Neoconocephalus retusus_Round-tipped Conehead",
+     1
+    ],
+    [
+     "Gryllus pennsylvanicus_Fall Field Cricket",
+     1
+    ],
+    [
+     "Oecanthus quadripunctatus_Four-spotted Tree Cricket",
+     1
+    ]
+   ],
+   "top1_taxon_on_positives": {
+    "insects": {
+     "bird": 16,
+     "insect": 8,
+     "human": 7,
+     "anthropogenic": 8,
+     "mammal": 1
+    },
+    "crickets": {
+     "bird": 21,
+     "insect": 17,
+     "anthropogenic": 1,
+     "amphibian": 1
+    }
+   }
+  }
+ },
+ "summary": [
+  "Amphibian, at the product default 0.60: recall 0.40 (frog 16/40), precision 0.73, 6 false positives among 1960 other clips. BirdNET's single top label is a bird label on 20 of 40 positive clips.",
+  "Amphibian: at 0.5, recall 0.40 with precision 0.70; at 0.1, recall 0.47 with precision 0.45 and 23 false positives among 1960 negatives.",
+  "Insect, at the product default 0.60: recall 0.07 (insects 0/40; crickets 6/40), precision 1.00, 0 false positives among 1920 other clips. BirdNET's single top label is a bird label on 37 of 80 positive clips.",
+  "Insect: at 0.5, recall 0.10 with precision 0.89; at 0.1, recall 0.26 with precision 0.70 and 9 false positives among 1920 negatives."
+ ],
+ "smoke": {
+  "file": "https://raw.githubusercontent.com/kitzeslab/opensoundscape/master/tests/audio/great_plains_toad.wav",
+  "duration_s": 44.57,
+  "n_windows": 15,
+  "top5": [
+   [
+    "Dryophytes femoralis_Pine Woods Treefrog",
+    0.41,
+    "amphibian"
+   ],
+   [
+    "Campylorhynchus brunneicapillus_Cactus Wren",
+    0.358,
+    "bird"
+   ],
+   [
+    "Icteria virens_Yellow-breasted Chat",
+    0.164,
+    "bird"
+   ],
+   [
+    "Anaxyrus cognatus_Great Plains Toad",
+    0.158,
+    "amphibian"
+   ],
+   [
+    "Mimus gilvus_Tropical Mockingbird",
+    0.057,
+    "bird"
+   ]
+  ],
+  "max_amphibian": 0.41,
+  "great_plains_toad_prob": 0.158
+ }
+}
