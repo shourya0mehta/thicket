@@ -1,19 +1,20 @@
 # Thicket developer tasks. Ports: API 8000 (thicket.config.API_PORT),
 # Vite dev server 5173 (thicket.config.FRONTEND_DEV_PORT).
 
-PYTHON ?= python3.11
+PYTHON ?= $(shell command -v python3.11 || command -v python3.12 || command -v python3.13 || command -v python3)
 VENV := backend/.venv
 BIN := $(VENV)/bin
 API_PORT = $(shell $(BIN)/python -c "from thicket.config import API_PORT; print(API_PORT)" 2>/dev/null || echo 8000)
 IMAGE ?= thicket:local
 
-.PHONY: help setup dev-backend dev-frontend test lint fmt schema docker-build docker-run
+.PHONY: help setup dev-backend dev-frontend test e2e lint fmt schema docker-build docker-run
 
 help:
 	@echo "setup         create backend/.venv, install backend[birdnet,ml,dev] and frontend deps"
 	@echo "dev-backend   API with auto-reload on http://127.0.0.1:8000"
 	@echo "dev-frontend  Vite dev server on http://localhost:5173 (proxies /api to :8000)"
-	@echo "test          backend pytest (and frontend unit tests when present)"
+	@echo "test          backend pytest, ml pipeline tests, frontend unit tests"
+	@echo "e2e           Playwright end-to-end tests (mocked API)"
 	@echo "lint          ruff check + format check (and frontend lint/typecheck)"
 	@echo "fmt           ruff format + autofix"
 	@echo "schema        regenerate shared/api.schema.json (and frontend types)"
@@ -36,11 +37,15 @@ dev-frontend:
 
 test:
 	cd backend && .venv/bin/pytest -q
+	$(BIN)/pytest -q ml/tests
 	@if [ -f frontend/package.json ]; then cd frontend && npm test; fi
+
+e2e:
+	cd frontend && npx playwright test
 
 lint:
 	$(BIN)/ruff check backend ml
-	$(BIN)/ruff format --check backend
+	$(BIN)/ruff format --check backend ml
 	@if [ -f frontend/package.json ]; then cd frontend && npm run lint && npm run typecheck; fi
 
 fmt:
