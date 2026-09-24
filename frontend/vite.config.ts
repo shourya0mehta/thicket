@@ -5,6 +5,8 @@ import react from '@vitejs/plugin-react';
 function normalizeBase(raw: string | undefined): string {
   const value = (raw ?? '').trim();
   if (!value || value === '/') return '/';
+  // Relative base for hosts that serve the build from an unknown sub-path.
+  if (value === '.' || value === './') return './';
   const withLeading = value.startsWith('/') || /^https?:\/\//.test(value) ? value : `/${value}`;
   return withLeading.endsWith('/') ? withLeading : `${withLeading}/`;
 }
