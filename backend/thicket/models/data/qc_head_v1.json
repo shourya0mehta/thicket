@@ -1,0 +1,538 @@
+{
+ "name": "Thicket soundscape QC head",
+ "version": "qc_head_v1",
+ "created": "2026-09-24",
+ "status": "experimental; warnings only; not validated on field recordings",
+ "artifact": "qc_head_v1.npz",
+ "artifact_sha256": "6d0c2787c6eeb06a85e2922194c5d350a721cf5e09a550842b846a0ce5b8126c",
+ "model_card": "docs/model-cards/qc-soundscape-v1.md",
+ "report": "ml/reports/qc_esc50_v1.md",
+ "intended_use": "Flag likely contamination (rain, wind, thunder, water, engines and machinery, human non-speech sounds, domestic animals) and non-target sound sources in field audio, as warnings next to BirdNET results. Not a species classifier and not a detector of weather events. The bird, insect and frog scores are for internal diagnostics only until validated on field audio.",
+ "warning_rule_used_by_backend": "score > max(0.5, thresholds[category]) for categories whose kind is geophony, anthropophony or biophony_non_target",
+ "inputs": "BirdNET v2.4 1024-d embeddings of 3 s windows at 48 kHz (thicket.models.birdnet_runtime.BirdNETRuntime.infer).",
+ "pooling": "concat(mean, max) over the windows of a segment (2 windows); recording score per category = k-th highest segment probability, k = max(1, ceil(0.25 * n_segments)) (recording_pooling=segment_quantile). predict_segments gives per-segment scores.",
+ "categories": {
+  "rain": {
+   "kind": "geophony",
+   "esc50_classes": [
+    "rain"
+   ]
+  },
+  "wind": {
+   "kind": "geophony",
+   "esc50_classes": [
+    "wind"
+   ]
+  },
+  "thunder": {
+   "kind": "geophony",
+   "esc50_classes": [
+    "thunderstorm"
+   ]
+  },
+  "water": {
+   "kind": "geophony",
+   "esc50_classes": [
+    "sea_waves",
+    "water_drops",
+    "pouring_water",
+    "toilet_flush"
+   ]
+  },
+  "engine_machinery": {
+   "kind": "anthropophony",
+   "esc50_classes": [
+    "engine",
+    "train",
+    "airplane",
+    "helicopter",
+    "chainsaw",
+    "hand_saw",
+    "vacuum_cleaner",
+    "washing_machine",
+    "siren",
+    "car_horn"
+   ]
+  },
+  "human_nonspeech": {
+   "kind": "anthropophony",
+   "esc50_classes": [
+    "crying_baby",
+    "sneezing",
+    "clapping",
+    "breathing",
+    "coughing",
+    "footsteps",
+    "laughing",
+    "brushing_teeth",
+    "snoring",
+    "drinking_sipping"
+   ]
+  },
+  "domestic_animal": {
+   "kind": "biophony_non_target",
+   "esc50_classes": [
+    "dog",
+    "cat",
+    "hen",
+    "rooster",
+    "cow",
+    "pig",
+    "sheep"
+   ]
+  },
+  "bird": {
+   "kind": "biophony",
+   "esc50_classes": [
+    "chirping_birds",
+    "crow"
+   ]
+  },
+  "insect": {
+   "kind": "biophony",
+   "esc50_classes": [
+    "insects",
+    "crickets"
+   ]
+  },
+  "frog": {
+   "kind": "biophony",
+   "esc50_classes": [
+    "frog"
+   ]
+  }
+ },
+ "negative_esc50_classes": [
+  "crackling_fire",
+  "church_bells",
+  "fireworks",
+  "door_wood_knock",
+  "door_wood_creaks",
+  "mouse_click",
+  "keyboard_typing",
+  "can_opening",
+  "clock_alarm",
+  "clock_tick",
+  "glass_breaking"
+ ],
+ "thresholds": {
+  "rain": 0.4255,
+  "wind": 0.3895,
+  "thunder": 0.6696,
+  "water": 0.4785,
+  "engine_machinery": 0.373,
+  "human_nonspeech": 0.3704,
+  "domestic_animal": 0.3551,
+  "bird": 0.3874,
+  "insect": 0.3311,
+  "frog": 0.293
+ },
+ "thresholds_high_precision": {
+  "rain": 0.57,
+  "wind": 0.734,
+  "thunder": 0.6643,
+  "water": 0.5361,
+  "engine_machinery": 0.7875,
+  "human_nonspeech": 0.6112,
+  "domestic_animal": 0.5551,
+  "bird": 0.3537,
+  "insect": 0.5188,
+  "frog": 0.293
+ },
+ "backbone": {
+  "name": "BirdNET GLOBAL 6K V2.4 (FP32 TFLite)",
+  "sha256": "55f3e4055b1a13bfa9a2452731d0d34f6a02d6b775a334362665892794165e4c",
+  "license": "CC BY-NC-SA 4.0"
+ },
+ "training_data": {
+  "name": "ESC-50",
+  "url": "https://github.com/karolpiczak/ESC-50",
+  "commit": "33c8ce9eb2cf0b1c2f8bcf322eb349b6be34dbb6",
+  "license": "CC BY-NC 3.0 (dataset as a whole)",
+  "clips": 2000,
+  "notes": "Curated 5 s Freesound clips, not passive field recordings."
+ },
+ "evaluation": {
+  "protocol": "ESC-50 official 5 folds; hyperparameters, Platt scaling and thresholds chosen on training folds only; metrics pooled over test folds; 95% CIs by cluster bootstrap over source recordings",
+  "macro": {
+   "precision": [
+    0.8017,
+    0.7642,
+    0.8337
+   ],
+   "recall": [
+    0.8001,
+    0.7671,
+    0.831
+   ],
+   "f1": [
+    0.8002,
+    0.7685,
+    0.8266
+   ],
+   "ap": [
+    0.8664,
+    0.8354,
+    0.8961
+   ],
+   "auc": [
+    0.9824,
+    0.9775,
+    0.987
+   ]
+  },
+  "micro": {
+   "precision": [
+    0.8302,
+    0.8115,
+    0.85
+   ],
+   "recall": [
+    0.8429,
+    0.8246,
+    0.8615
+   ],
+   "f1": [
+    0.8365,
+    0.8194,
+    0.8524
+   ],
+   "ap": [
+    0.9081,
+    0.8928,
+    0.9214
+   ]
+  },
+  "per_category": {
+   "rain": {
+    "precision": [
+     0.7,
+     0.5555,
+     0.8368
+    ],
+    "recall": [
+     0.7,
+     0.5517,
+     0.8261
+    ],
+    "f1": [
+     0.7,
+     0.5679,
+     0.8041
+    ],
+    "ap": [
+     0.7338,
+     0.5974,
+     0.8462
+    ],
+    "auc": [
+     0.971,
+     0.9442,
+     0.9915
+    ]
+   },
+   "wind": {
+    "precision": [
+     0.5294,
+     0.2776,
+     0.742
+    ],
+    "recall": [
+     0.45,
+     0.2221,
+     0.6667
+    ],
+    "f1": [
+     0.4865,
+     0.2641,
+     0.6668
+    ],
+    "ap": [
+     0.5795,
+     0.3237,
+     0.758
+    ],
+    "auc": [
+     0.9646,
+     0.9317,
+     0.987
+    ]
+   },
+   "thunder": {
+    "precision": [
+     0.8049,
+     0.6304,
+     0.9394
+    ],
+    "recall": [
+     0.825,
+     0.6818,
+     0.9512
+    ],
+    "f1": [
+     0.8148,
+     0.6753,
+     0.9167
+    ],
+    "ap": [
+     0.8808,
+     0.778,
+     0.9614
+    ],
+    "auc": [
+     0.996,
+     0.992,
+     0.9992
+    ]
+   },
+   "water": {
+    "precision": [
+     0.8291,
+     0.7602,
+     0.8919
+    ],
+    "recall": [
+     0.8187,
+     0.7456,
+     0.8785
+    ],
+    "f1": [
+     0.8239,
+     0.7677,
+     0.8699
+    ],
+    "ap": [
+     0.9026,
+     0.8608,
+     0.939
+    ],
+    "auc": [
+     0.9815,
+     0.9696,
+     0.9904
+    ]
+   },
+   "engine_machinery": {
+    "precision": [
+     0.8047,
+     0.7572,
+     0.8521
+    ],
+    "recall": [
+     0.855,
+     0.8184,
+     0.8906
+    ],
+    "f1": [
+     0.8291,
+     0.7929,
+     0.8609
+    ],
+    "ap": [
+     0.8908,
+     0.8544,
+     0.923
+    ],
+    "auc": [
+     0.9702,
+     0.9613,
+     0.978
+    ]
+   },
+   "human_nonspeech": {
+    "precision": [
+     0.8612,
+     0.8234,
+     0.8964
+    ],
+    "recall": [
+     0.8375,
+     0.7989,
+     0.8741
+    ],
+    "f1": [
+     0.8492,
+     0.8174,
+     0.8758
+    ],
+    "ap": [
+     0.918,
+     0.893,
+     0.9405
+    ],
+    "auc": [
+     0.9749,
+     0.9674,
+     0.9818
+    ]
+   },
+   "domestic_animal": {
+    "precision": [
+     0.8505,
+     0.8013,
+     0.8969
+    ],
+    "recall": [
+     0.9143,
+     0.8786,
+     0.9457
+    ],
+    "f1": [
+     0.8812,
+     0.8473,
+     0.91
+    ],
+    "ap": [
+     0.9401,
+     0.9118,
+     0.9635
+    ],
+    "auc": [
+     0.9887,
+     0.9841,
+     0.9928
+    ]
+   },
+   "bird": {
+    "precision": [
+     0.9467,
+     0.8787,
+     1.0
+    ],
+    "recall": [
+     0.8875,
+     0.8,
+     0.9577
+    ],
+    "f1": [
+     0.9161,
+     0.8592,
+     0.9636
+    ],
+    "ap": [
+     0.9819,
+     0.9603,
+     0.9948
+    ],
+    "auc": [
+     0.9991,
+     0.9983,
+     0.9998
+    ]
+   },
+   "insect": {
+    "precision": [
+     0.8125,
+     0.7142,
+     0.9091
+    ],
+    "recall": [
+     0.8125,
+     0.701,
+     0.9032
+    ],
+    "f1": [
+     0.8125,
+     0.7272,
+     0.8842
+    ],
+    "ap": [
+     0.8792,
+     0.7974,
+     0.9455
+    ],
+    "auc": [
+     0.9799,
+     0.9594,
+     0.996
+    ]
+   },
+   "frog": {
+    "precision": [
+     0.878,
+     0.725,
+     0.9787
+    ],
+    "recall": [
+     0.9,
+     0.7714,
+     1.0
+    ],
+    "f1": [
+     0.8889,
+     0.7887,
+     0.961
+    ],
+    "ap": [
+     0.9573,
+     0.8896,
+     0.9946
+    ],
+    "auc": [
+     0.9983,
+     0.9953,
+     0.9999
+    ]
+   }
+  },
+  "ece_calibrated": 0.0044,
+  "macro_at_backend_rule": {
+   "precision": [
+    0.854,
+    0.815,
+    0.8857
+   ],
+   "recall": [
+    0.7448,
+    0.71,
+    0.7776
+   ],
+   "f1": [
+    0.7922,
+    0.7573,
+    0.8213
+   ],
+   "ap": [
+    0.8664,
+    0.8354,
+    0.8961
+   ],
+   "auc": [
+    0.9824,
+    0.9775,
+    0.987
+   ]
+  },
+  "long_recording_check_backend_rule": {
+   "detected_contamination_half_of_30s": 0.8,
+   "detected_contamination_all_of_30s": 0.929,
+   "detected_short_burst_5s_in_30s": 0.05,
+   "false_warning_clean_30s": 0.047,
+   "false_warning_clean_60s": 0.01,
+   "note": "synthetic recordings built from ESC-50 test-fold windows"
+  },
+  "noise_stress_contaminant_flag_rate": {
+   "rain@+10dB": 0.095,
+   "rain@+0dB": 0.215,
+   "rain@-10dB": 0.475,
+   "wind@+10dB": 0.025,
+   "wind@+0dB": 0.045,
+   "wind@-10dB": 0.115,
+   "engine@+10dB": 0.095,
+   "engine@+0dB": 0.275,
+   "engine@-10dB": 0.425
+  },
+  "experiment_a_50_class_accuracy": {
+   "mean": 0.844,
+   "std": 0.0142
+  }
+ },
+ "limitations": [
+  "Trained and evaluated only on ESC-50: short, curated, mostly close-range clips. Field recordings differ (distance, overlap, recorder noise, long durations).",
+  "Metrics are ESC-50 cross-validation estimates, not field accuracy. No field validation has been done.",
+  "Each ESC-50 clip has one label, so co-occurring sources were never seen together in training; contamination mixed under a louder target is often missed (see noise_stress_contaminant_flag_rate).",
+  "Short contamination bursts are not flagged at the recording level by design (segment_quantile pooling); use predict_segments to localize them.",
+  "The bird, insect and frog categories come from few ESC-50 classes and are not species or region specific; on one real dawn-chorus recording the bird score stayed low."
+ ],
+ "license": "CC BY-NC-SA 4.0 (derived from BirdNET v2.4 embeddings, CC BY-NC-SA 4.0, and ESC-50, CC BY-NC 3.0). Non-commercial use only."
+}
