@@ -2,7 +2,7 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest';
 import { MAX_FILE_BYTES } from '../config';
 import { holdRequests, installFakeBackend } from './fakeBackend';
-import { ANALYSIS_ID, buildAnalysis } from './fixtures/analysis';
+import { ANALYSIS_ID, PREVIEW_ID, buildAnalysis } from './fixtures/analysis';
 import { audioFile, chooseFile, fileInput, metricValue, renderApp, runAnalysis } from './utils';
 
 describe('file intake', () => {
@@ -398,6 +398,60 @@ describe('results', () => {
     expect(screen.getAllByText('Location not provided').length).toBeGreaterThan(0);
   });
 
+  it('shows the Map tab for 0,0 like the backend does (valid numbers, not missing)', async () => {
+    installFakeBackend({ analysis: { recording: { latitude: 0, longitude: 0 } } });
+    const { user } = renderApp();
+    chooseFile(audioFile());
+    await runAnalysis(user);
+    expect(screen.getByRole('tab', { name: 'Map' })).toBeInTheDocument();
+    expect(screen.getByTestId('location-status')).toHaveTextContent('Location on map');
+  });
+
+  it('says when every wildlife event above the threshold was excluded', async () => {
+    const backend = installFakeBackend();
+    for (const e of buildAnalysis().events) {
+      if (e.counted_in_metrics) backend.reviews[e.id] = 'rejected';
+    }
+    const { user } = renderApp();
+    chooseFile(audioFile());
+    await screen.findByRole('radio', { name: /Birds and more/ });
+    await user.click(screen.getByRole('button', { name: 'Run analysis' }));
+
+    const empty = await screen.findByTestId('no-detections', {}, { timeout: 5000 });
+    expect(empty).toHaveTextContent('No counted species at 60%');
+    expect(empty).toHaveTextContent('rejected in review or flagged as unlikely');
+    expect(empty).not.toHaveTextContent('did not find any species');
+    expect(metricValue('metric-richness')).toBe('0');
+    // The excluded events are still there to review.
+    expect(screen.getAllByTestId('event-row').length).toBeGreaterThan(0);
+  });
+
+  it('shows a corrected event under its new species and says what the model heard', async () => {
+    installFakeBackend({
+      analysis: {
+        corrections: {
+          'evt_agelaius-phoeniceus_18': {
+            scientific_name: 'Quiscalus quiscula',
+            common_name: 'Common Grackle',
+            reviewed_label: 'grackle',
+          },
+        },
+      },
+    });
+    const { user } = renderApp();
+    chooseFile(audioFile());
+    await runAnalysis(user);
+
+    const row = screen
+      .getAllByTestId('event-row')
+      .find((r) => r.textContent?.includes('Common Grackle'))!;
+    expect(within(row).getByTestId('detected-as')).toHaveTextContent(
+      'Detected as Red-winged Blackbird',
+    );
+    expect(row).toHaveTextContent('Corrected to Common Grackle');
+    expect(within(screen.getByTestId('species-table')).getByText('Common Grackle')).toBeVisible();
+  });
+
   it('renders a calm no-detections state as a valid result', async () => {
     installFakeBackend({ analysis: { confidenceScale: 0.5 } });
     const { user } = renderApp();
@@ -460,6 +514,30 @@ describe('results', () => {
     await user.keyboard('{End}');
     expect(screen.getByRole('tab', { name: 'Methods' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByText('Settings recorded with this analysis')).toBeInTheDocument();
+  });
+});
+
+describe('preview cleanup', () => {
+  it('deletes the server-side preview on Clear and when another file replaces it', async () => {
+    const backend = installFakeBackend();
+    const { user } = renderApp();
+    const deletes = () => backend.urls('DELETE');
+
+    chooseFile(audioFile());
+    await user.click(screen.getByRole('button', { name: 'Generate spectrogram' }));
+    await screen.findByTestId('decoded-duration');
+    await user.click(screen.getByRole('button', { name: 'Clear' }));
+    await waitFor(() => expect(deletes()).toEqual([`/api/v1/previews/${PREVIEW_ID}`]));
+
+    chooseFile(audioFile());
+    await user.click(screen.getByRole('button', { name: 'Generate spectrogram' }));
+    await screen.findByTestId('decoded-duration');
+    chooseFile(audioFile('second-take.wav'));
+    await waitFor(() => expect(deletes()).toHaveLength(2));
+    // Nothing to delete when no preview was made.
+    chooseFile(audioFile('third-take.wav'));
+    await user.click(screen.getByRole('button', { name: 'Clear' }));
+    expect(deletes()).toHaveLength(2);
   });
 });
 

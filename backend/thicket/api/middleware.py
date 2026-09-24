@@ -3,8 +3,11 @@ structured access logs, in one pure ASGI layer.
 
 * Rate limit: an in-memory token bucket per client IP applied to POST
   requests (``RATE_LIMIT_PER_MINUTE``; 0 disables). Over the limit returns
-  429 ``rate_limited`` with ``Retry-After``. Behind a reverse proxy, run
-  uvicorn with ``--proxy-headers`` so the client IP is the real one.
+  429 ``rate_limited`` with ``Retry-After``. The client IP is the connection
+  address, or, when ``CLIENT_IP_HEADER`` is set, that header as written by
+  the edge proxy (Fly sets and overwrites ``Fly-Client-IP``). Do not trust
+  ``X-Forwarded-For`` from any peer (``FORWARDED_ALLOW_IPS=*``): its left end
+  is whatever the client sent, so every request could claim a new IP.
 * Timeout: ``REQUEST_TIMEOUT_SECONDS`` per request, plus
   ``ANALYSIS_TIMEOUT_SECONDS`` for ``?wait=true``. A timed-out request gets
   504 ``request_timeout`` if nothing was sent yet.
@@ -81,6 +84,24 @@ class RequestMiddleware:
         self.settings = settings
         self.limiter = TokenBucketLimiter(settings.rate_limit_per_minute)
 
+    def _client_key(self, scope: Scope) -> str:
+        """Rate-limit key: the configured proxy header, else the connection address.
+
+        If the header is repeated or holds a list, the last entry is used: it is
+        the one the nearest proxy wrote, so a client cannot choose it.
+        """
+        name = self.settings.client_ip_header
+        if name:
+            wanted = name.encode("latin-1")
+            found = ""
+            for key, value in scope.get("headers") or []:
+                if key.lower() == wanted:
+                    found = value.decode("latin-1").split(",")[-1].strip() or found
+            if found:
+                return found[:64]
+        client = scope.get("client")
+        return client[0] if client else "unknown"
+
     def _timeout(self, scope: Scope) -> float:
         timeout = self.settings.request_timeout_seconds
         qs = parse_qs(scope.get("query_string", b"").decode("latin-1"))
@@ -111,8 +132,7 @@ class RequestMiddleware:
 
         try:
             if method == "POST" and path.startswith("/api/"):
-                client = scope.get("client")
-                allowed, wait = self.limiter.allow(client[0] if client else "unknown")
+                allowed, wait = self.limiter.allow(self._client_key(scope))
                 if not allowed:
                     retry = max(1, math.ceil(wait))
                     resp = error_response(

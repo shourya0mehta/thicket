@@ -16,19 +16,47 @@ export function isUnlikely(item: { plausibility?: string | null }): boolean {
   return item.plausibility === 'unlikely';
 }
 
-/** Species that count toward metrics: biodiversity taxa, not flagged unlikely. */
+/**
+ * Species that count toward metrics. The server's species table is built from
+ * the counted event set only, so it is used as is.
+ */
 export function countedSpecies(analysis: Analysis): SpeciesSummary[] {
-  return analysis.species.filter((s) => isBiodiversityTaxon(s.taxon) && !isUnlikely(s));
+  return analysis.species;
 }
 
-/** Biodiversity events shown in the events list (including reviewer-rejected ones). */
+/** Left out of the metrics because of a review (rejected, or corrected to an unknown label). */
+export function isExcludedByReview(event: DetectionEvent): boolean {
+  return (
+    !event.counted_in_metrics &&
+    (event.review_status === 'rejected' || event.review_status === 'corrected')
+  );
+}
+
+/** A reviewer corrected the event to another label the models know; it counts under that one. */
+export function isRelabeled(event: DetectionEvent): boolean {
+  return (
+    event.review_status === 'corrected' && event.scientific_name !== event.detected_scientific_name
+  );
+}
+
+/**
+ * Wildlife events for the events table: the counted ones plus those a
+ * reviewer took out, so the review can be seen and undone. Membership comes
+ * from the server's counted_in_metrics flag; nothing is re-derived here.
+ */
 export function listedEvents(analysis: Analysis): DetectionEvent[] {
   return analysis.events
-    .filter((e) => isBiodiversityTaxon(e.taxon) && !isUnlikely(e))
+    .filter((e) => isBiodiversityTaxon(e.taxon) && (e.counted_in_metrics || isExcludedByReview(e)))
     .slice()
     .sort(
       (a, b) => a.start_seconds - b.start_seconds || a.common_name.localeCompare(b.common_name),
     );
+}
+
+/** "Corrected to Purple Finch": the species it now counts as, else the reviewer's text. */
+export function correctedCopy(event: DetectionEvent): string {
+  const to = isRelabeled(event) ? event.common_name : event.reviewed_label;
+  return to ? `Corrected to ${to}` : 'Corrected';
 }
 
 export function isRejected(event: DetectionEvent): boolean {
@@ -72,10 +100,19 @@ function groupEvents(events: DetectionEvent[], key: (e: DetectionEvent) => strin
   );
 }
 
-/** Species detected above threshold but outside the expected range or season. */
+/**
+ * Wildlife detected above threshold but not counted because it is outside the
+ * expected range or season (and no reviewer accepted or corrected it).
+ */
 export function unlikelyGroups(analysis: Analysis): EventGroup[] {
   return groupEvents(
-    analysis.events.filter((e) => isBiodiversityTaxon(e.taxon) && isUnlikely(e)),
+    analysis.events.filter(
+      (e) =>
+        !e.counted_in_metrics &&
+        isBiodiversityTaxon(e.taxon) &&
+        isUnlikely(e) &&
+        !isExcludedByReview(e),
+    ),
     (e) => e.scientific_name,
   );
 }
@@ -83,9 +120,15 @@ export function unlikelyGroups(analysis: Analysis): EventGroup[] {
 /** Human voices, engines, wind and similar labels. Never counted as species. */
 export function otherSoundGroups(analysis: Analysis): EventGroup[] {
   return groupEvents(
-    analysis.events.filter((e) => !isBiodiversityTaxon(e.taxon)),
+    analysis.events.filter((e) => !e.counted_in_metrics && !isBiodiversityTaxon(e.taxon)),
     (e) => `${e.taxon}|${e.common_name}`,
   );
+}
+
+/** Wildlife events above the threshold that do not count (rejected, corrected away or unlikely). */
+export function excludedWildlifeCount(analysis: Analysis): number {
+  return analysis.events.filter((e) => !e.counted_in_metrics && isBiodiversityTaxon(e.taxon))
+    .length;
 }
 
 export function hasValidCoordinates(
@@ -95,10 +138,9 @@ export function hasValidCoordinates(
   const { latitude, longitude } = recording;
   if (typeof latitude !== 'number' || typeof longitude !== 'number') return false;
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return false;
-  if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return false;
-  // 0,0 is the classic "missing value" placeholder, never a real field site here.
-  if (latitude === 0 && longitude === 0) return false;
-  return true;
+  // Same rule as the backend: any in-range pair is a location, 0,0 included.
+  // Missing coordinates are null, never a placeholder value.
+  return Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180;
 }
 
 export function modelRunMap(analysis: Analysis): Map<string, ModelRun> {
@@ -194,6 +236,5 @@ export function topSpeciesNames(analysis: Analysis, limit = 3): string[] {
 }
 
 export function hasNoDetections(analysis: Analysis): boolean {
-  const total = analysis.metrics?.total_detection_events ?? 0;
-  return total === 0 && countedSpecies(analysis).length === 0;
+  return !analysis.events.some((e) => e.counted_in_metrics);
 }

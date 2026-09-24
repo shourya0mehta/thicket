@@ -482,7 +482,7 @@ class AnalysisService:
             )
             if not ok:
                 raise AnalysisCancelled()
-            self.repo.register_event_refs(aid, [e.id for e in events])
+            self.repo.register_event_refs(aid, {e.id: e.contributing_detection_ids for e in events})
             log.info(
                 "analysis completed",
                 extra={
@@ -625,7 +625,9 @@ class AnalysisService:
         bundle = self._bundle(analysis_id)
         analysis, derived = results.build_analysis(bundle, threshold)
         if derived is not None:
-            self.repo.register_event_refs(analysis_id, [e.id for e in derived.events])
+            self.repo.register_event_refs(
+                analysis_id, {e.id: e.contributing_detection_ids for e in derived.events}
+            )
         return analysis
 
     def list_recent(self, limit: int = 20) -> AnalysisList:
@@ -652,12 +654,36 @@ class AnalysisService:
             shutil.rmtree(self.storage.analysis_tmp(analysis_id), ignore_errors=True)
         log.info("analysis deleted", extra={"analysis_id": analysis_id})
 
+    def _event_windows(
+        self, analysis_id: str, event_id: str, threshold: float | None
+    ) -> list[str] | None:
+        """Raw detection ids of an event registered before schema 2 (no ids stored).
+
+        Looks for the event at the requested threshold, then at the analysis's
+        own. None when it cannot be found; the review then applies by id only.
+        """
+        bundle = self.repo.load_bundle(analysis_id)
+        if bundle is None or bundle.analysis.status != "completed":
+            return None
+        a = bundle.analysis
+        candidates = [a.decision_threshold]
+        if threshold is not None:
+            candidates.insert(0, results.validate_threshold(threshold, a.raw_threshold, 0.0))
+        for t in candidates:
+            for e in results.derive_bundle(bundle, t).events:
+                if e.id == event_id:
+                    return list(e.contributing_detection_ids)
+        return None
+
     def review(self, event_id: str, update: EventReviewUpdate, threshold: float | None) -> Analysis:
         if not is_valid_event_id(event_id):
             raise event_not_found()
-        analysis_id = self.repo.event_analysis_id(event_id)
-        if analysis_id is None:
+        ref = self.repo.event_ref(event_id)
+        if ref is None:
             raise event_not_found()
+        analysis_id, detection_ids = ref
+        if detection_ids is None:
+            detection_ids = self._event_windows(analysis_id, event_id, threshold)
         label = clean_text(update.reviewed_label, 200, "reviewed_label")
         note = clean_text(update.review_note, 2000, "review_note")
         resolved = None
@@ -677,6 +703,7 @@ class AnalysisService:
             reviewed_label=label,
             review_note=note,
             resolved=resolved,
+            detection_ids=detection_ids,
         )
         log.info(
             "event reviewed",

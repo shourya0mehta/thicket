@@ -61,6 +61,13 @@ class Settings(BaseSettings):
         30, ge=0, description="POST requests per client IP; 0 disables."
     )
     request_timeout_seconds: float = Field(300.0, gt=0)
+    client_ip_header: str | None = Field(
+        None,
+        description=(
+            "Header the edge proxy sets to the client IP (e.g. Fly-Client-IP). When set, "
+            "the rate limiter keys on it instead of the connection address."
+        ),
+    )
 
     # Upload and audio limits
     max_upload_bytes: int = Field(50 * MB, ge=1024)
@@ -124,6 +131,18 @@ class Settings(BaseSettings):
     @classmethod
     def _absolute(cls, v: Path | None) -> Path | None:
         return v.expanduser().resolve() if v is not None else None
+
+    @field_validator("client_ip_header", mode="before")
+    @classmethod
+    def _header_name(cls, v: object) -> object:
+        if isinstance(v, str):
+            name = v.strip()
+            if not name:
+                return None
+            if not all(c.isalnum() or c in "-_" for c in name):
+                raise ValueError(f"CLIENT_IP_HEADER {name!r} is not a valid header name.")
+            return name.lower()
+        return v
 
     @field_validator("database_url", mode="before")
     @classmethod

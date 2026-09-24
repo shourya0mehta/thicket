@@ -160,7 +160,7 @@
           ]
         },
         "schema_version": {
-          "default": "1.1.0",
+          "default": "1.2.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -345,7 +345,7 @@
           ]
         },
         "schema_version": {
-          "default": "1.1.0",
+          "default": "1.2.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -640,6 +640,7 @@
     },
     "DetectionEvent": {
       "additionalProperties": false,
+      "description": "One consolidated detection event at the requested decision threshold.\n\n``scientific_name``, ``common_name`` and ``taxon`` are the species the event\ncounts under: the model's label, or the reviewer's correction when an event\nwas corrected to a label the models know. ``detected_*`` always hold the\nmodel's own label, so a correction never hides what the model said.",
       "properties": {
         "common_name": {
           "title": "Common Name",
@@ -652,6 +653,23 @@
           "title": "Contributing Detection Ids",
           "type": "array"
         },
+        "counted_in_metrics": {
+          "description": "True when the event is in the counted set behind species, metrics and charts: a wildlife taxon, not rejected, and not flagged unlikely unless a reviewer accepted or corrected it.",
+          "title": "Counted In Metrics",
+          "type": "boolean"
+        },
+        "detected_common_name": {
+          "title": "Detected Common Name",
+          "type": "string"
+        },
+        "detected_scientific_name": {
+          "description": "The model's label for this event.",
+          "title": "Detected Scientific Name",
+          "type": "string"
+        },
+        "detected_taxon": {
+          "$ref": "#/$defs/Taxon"
+        },
         "end_seconds": {
           "title": "End Seconds",
           "type": "number"
@@ -661,6 +679,7 @@
           "type": "string"
         },
         "max_confidence": {
+          "description": "Model score for the detected label.",
           "title": "Max Confidence",
           "type": "number"
         },
@@ -678,6 +697,7 @@
         },
         "plausibility": {
           "default": "unknown",
+          "description": "Range and season check of the detected label; reviews do not change it.",
           "enum": [
             "plausible",
             "unlikely",
@@ -715,6 +735,7 @@
           "title": "Reviewed Label"
         },
         "scientific_name": {
+          "description": "Species the event counts under (see detected_*).",
           "title": "Scientific Name",
           "type": "string"
         },
@@ -731,13 +752,17 @@
         "scientific_name",
         "common_name",
         "taxon",
+        "detected_scientific_name",
+        "detected_common_name",
+        "detected_taxon",
         "model_run_id",
         "start_seconds",
         "end_seconds",
         "max_confidence",
         "mean_confidence",
         "n_windows",
-        "contributing_detection_ids"
+        "contributing_detection_ids",
+        "counted_in_metrics"
       ],
       "title": "DetectionEvent",
       "type": "object"
@@ -1709,5 +1734,5 @@
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "ThicketAPI",
-  "x-schema-version": "1.1.0"
+  "x-schema-version": "1.2.0"
 }

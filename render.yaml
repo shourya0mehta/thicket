@@ -26,9 +26,12 @@ services:
       # Set to your public origin(s) if the frontend is hosted elsewhere.
       - key: ALLOWED_ORIGINS
         value: https://thicket.onrender.com
-      # Render's proxy sets X-Forwarded-For; trust it so rate limits see client IPs.
-      - key: FORWARDED_ALLOW_IPS
-        value: "*"
+      # Rate limits key on the last X-Forwarded-For entry, the address Render's
+      # proxy appended, which a client cannot choose. Never set
+      # FORWARDED_ALLOW_IPS="*": uvicorn would then trust the left end, which any
+      # client can set to bypass the limit.
+      - key: CLIENT_IP_HEADER
+        value: X-Forwarded-For
       - key: WORKER_CONCURRENCY
         value: "1"
       - key: RETAIN_AUDIO

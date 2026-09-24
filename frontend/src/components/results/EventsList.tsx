@@ -1,6 +1,6 @@
 import { memo, useMemo } from 'react';
 import type { DetectionEvent, ReviewStatus } from '../../api/types';
-import { eventsAtTime, isRejected } from '../../lib/analysis';
+import { correctedCopy, eventsAtTime, isRejected, isRelabeled } from '../../lib/analysis';
 import { cx } from '../../lib/cx';
 import { formatClockPrecise, formatPercent, pluralize } from '../../lib/format';
 import { TAXON_LABEL } from '../../lib/taxa';
@@ -26,11 +26,7 @@ function ReviewBadge({ event }: { event: DetectionEvent }) {
         </Badge>
       );
     case 'corrected':
-      return (
-        <Badge tone="info">
-          Corrected{event.reviewed_label ? ` to ${event.reviewed_label}` : ''}
-        </Badge>
-      );
+      return <Badge tone="info">{correctedCopy(event)}</Badge>;
     default:
       return <Badge tone="neutral">Not reviewed</Badge>;
   }
@@ -55,7 +51,8 @@ const EventRow = memo(function EventRow({
   onSelect,
   onReview,
 }: RowProps) {
-  const rejected = isRejected(event);
+  const excluded = !event.counted_in_metrics;
+  const relabeled = isRelabeled(event);
   const status = event.review_status ?? 'unreviewed';
   const disabled = reviewing || reviewDisabledReason !== null;
   const range = `${formatClockPrecise(event.start_seconds)} to ${formatClockPrecise(event.end_seconds)}`;
@@ -100,16 +97,21 @@ const EventRow = memo(function EventRow({
         <span
           className={cx(
             'block font-medium text-ink',
-            rejected && 'line-through decoration-danger/60',
+            excluded && 'line-through decoration-danger/60',
           )}
         >
           {event.common_name}
         </span>
         <span className="sci block text-xs text-muted">{event.scientific_name}</span>
+        {relabeled ? (
+          <span className="block text-xs text-muted" data-testid="detected-as">
+            Detected as {event.detected_common_name}
+          </span>
+        ) : null}
         <span className="num mt-0.5 block text-xs text-muted md:hidden">
           {formatPercent(event.max_confidence)} max · {TAXON_LABEL[event.taxon]}
           {status !== 'unreviewed'
-            ? ` · ${status === 'accepted' ? 'Accepted' : status === 'rejected' ? 'Rejected' : 'Corrected'}`
+            ? ` · ${status === 'accepted' ? 'Accepted' : status === 'rejected' ? 'Rejected' : correctedCopy(event)}`
             : ''}
         </span>
       </td>
@@ -131,7 +133,7 @@ const EventRow = memo(function EventRow({
       <td className="hidden px-3 py-2.5 md:table-cell">
         <div className="flex flex-col items-start gap-1">
           <ReviewBadge event={event} />
-          {rejected ? (
+          {excluded ? (
             <span className="text-[0.6875rem] text-muted">Excluded from metrics</span>
           ) : null}
         </div>

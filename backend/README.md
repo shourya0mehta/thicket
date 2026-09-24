@@ -82,6 +82,7 @@ directory). [`.env.example`](.env.example) documents every one with its default.
 | `REQUEST_TIMEOUT_SECONDS` | 300 | Per-request deadline (plus the analysis timeout for `?wait=true`) |
 | `WORKER_CONCURRENCY` | 1 | Analyses processed in parallel per process |
 | `RATE_LIMIT_PER_MINUTE` | 30 | POSTs per client IP; 0 disables |
+| `CLIENT_IP_HEADER` | unset | Proxy header with the client IP for rate limits (`Fly-Client-IP` on Fly; last entry if a list) |
 | `SERVE_FRONTEND_DIR` | none | Serve a built frontend at `/` with SPA fallback |
 | `LOG_LEVEL` / `LOG_FORMAT` | `INFO` / `json` | Structured JSON logs to stdout |
 | `JANITOR_INTERVAL_SECONDS` | 600 | Cleanup cadence |
@@ -99,13 +100,14 @@ All endpoints are under `/api/v1`. Every error is an `ErrorResponse`
 | POST | `/previews` | 201 `Preview`: file facts, signal QC and spectrogram, no model |
 | GET | `/previews/{id}` | `Preview` until it expires |
 | GET | `/previews/{id}/spectrogram.png` | PNG |
+| DELETE | `/previews/{id}` | 204; deletes the preview's audio, spectrogram and facts now |
 | POST | `/analyses` | 202 queued `Analysis` (poll it), or 201 completed with `?wait=true` |
 | GET | `/analyses` | `AnalysisList`, most recent 20 (`?limit=` up to 100) |
 | GET | `/analyses/{id}?threshold=` | Full `Analysis` recomputed at `threshold` (default: its own) |
-| DELETE | `/analyses/{id}` | 204; removes rows, reviews, spectrogram and retained audio |
+| DELETE | `/analyses/{id}` | 204; removes rows, reviews, spectrogram, retained audio and a site no other recording uses |
 | GET | `/analyses/{id}/spectrogram.png` | PNG, 0 to 16 kHz, low frequencies at the bottom |
 | GET | `/analyses/{id}/audio` | 48 kHz mono WAV, only when `RETAIN_AUDIO=true` |
-| GET | `/analyses/{id}/export.csv?threshold=` | One row per event at the threshold |
+| GET | `/analyses/{id}/export.csv?threshold=` | One row per event at the threshold; `counted_in_metrics` marks the counted set |
 | GET | `/analyses/{id}/export.json?threshold=` | `AnalysisExport`: the Analysis plus `export_metadata` |
 | PATCH | `/events/{event_id}?threshold=` | Review an event; returns the recomputed `Analysis` |
 
@@ -229,19 +231,29 @@ every number a user sees comes from the same event set.
 
 Counted events exclude non-wildlife labels (human, noise, engines), events
 rejected in review and birds that are `unlikely` for the location and date.
-Excluded events stay listed with their status and are explained in `warnings`.
+Excluded events stay listed with their status and are explained in `warnings`;
+every event carries `counted_in_metrics`, true exactly for the counted set.
 Metrics are detection-derived: every completed analysis carries the warning
 "Metrics are based on acoustic detection events and do not estimate individual
 abundance."
-
-Event ids are deterministic hashes of (analysis, model run, species, start,
-end), so a review stays attached to an event across threshold changes as long
-as the event's extent is unchanged.
 
 Review rules: `rejected` excludes the event from metrics; `corrected` moves it
 to the reviewer's label when that matches a known model label (scientific,
 common or raw name), otherwise excludes it; `accepted` also overrides an
 `unlikely` range flag; `unreviewed` clears the review.
+
+Reviews follow the reviewed audio, not the event id. A review stores the raw
+windows of the event it was made on. At any threshold, windows of a rejected or
+corrected event are set aside before consolidation and listed as that event
+(same id and status), so a rejected call never comes back merged with weaker
+windows at a lower threshold; windows nobody reviewed form their own,
+unreviewed events. An event inherits an acceptance only when all its windows
+are inside the accepted event. The full rule is in `thicket/services/results.py`.
+
+A corrected event's row names the species it counts under (`scientific_name`,
+`common_name`, `taxon`); `detected_*` keep the model's label and
+`reviewed_label` the reviewer's text. Confidences and `plausibility` always
+describe the detected label.
 
 ### Combined models
 
@@ -299,12 +311,15 @@ byte-for-byte deterministic.
 
 * Uploaded audio lives only in a per-analysis temp folder and is deleted when
   the analysis ends (success or failure). Set `RETAIN_AUDIO=true` to keep a
-  normalized copy. Previews keep their upload until `PREVIEW_TTL_MINUTES`.
+  normalized copy. Previews keep their upload until `PREVIEW_TTL_MINUTES`, until
+  an analysis takes it, or until `DELETE /previews/{id}` (the web app calls it
+  on Clear and when another file replaces a previewed one).
 * A janitor thread removes orphaned temp folders, expired previews and orphaned
   assets every `JANITOR_INTERVAL_SECONDS`.
 * Client filenames are display metadata only; storage names are random, and ids
   are validated with strict patterns before any path is built.
-* Strict CORS (exact origins), per-IP rate limiting of POSTs, request and
+* Strict CORS (exact origins), per-IP rate limiting of POSTs (keyed on
+  `CLIENT_IP_HEADER` behind a proxy), request and
   analysis timeouts, security headers, and no internals in error messages.
 * Logs are JSON lines with ids, stages, timings and error codes. They never
   contain audio, filenames, notes or coordinates.
@@ -338,9 +353,11 @@ docker compose up --build                    # same, with a named volume
 
 `render.yaml` and `fly.toml` deploy one instance with 2 GB RAM and a volume at
 `/data`. Run exactly one uvicorn worker per instance: the model is loaded per
-worker process. Behind a proxy set `FORWARDED_ALLOW_IPS` so rate limits see
-real client IPs, and set `ALLOWED_ORIGINS` to your public origin when the
-frontend is hosted separately.
+worker process. Behind a proxy set `CLIENT_IP_HEADER` to the header the proxy
+writes with the client IP (`Fly-Client-IP` on Fly) so rate limits see real
+clients; never set `FORWARDED_ALLOW_IPS="*"`, because the left end of
+`X-Forwarded-For` is whatever the client sent. Set `ALLOWED_ORIGINS` to your
+public origin when the frontend is hosted separately.
 
 Licensing: BirdNET v2.4 weights are CC BY-NC-SA 4.0 (non-commercial). Clear
 commercial use with the BirdNET team before offering Thicket commercially.

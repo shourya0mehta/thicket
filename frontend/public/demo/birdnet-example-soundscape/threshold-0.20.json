@@ -1,10 +1,10 @@
 {
- "schema_version": "1.1.0",
- "id": "ana_d2e0dc4ecb06f94eae0625b0",
+ "schema_version": "1.2.0",
+ "id": "ana_59d844c1660035c2aadd7dd3",
  "status": "completed",
  "stage": "completed",
  "recording": {
-  "id": "rec_fdffff959a9000e0499e4e37",
+  "id": "rec_10783e325806e9cbfd506c6b",
   "filename": "soundscape.wav",
   "content_type": "audio/wav",
   "byte_size": 11520046,
@@ -111,7 +111,7 @@
  },
  "model_runs": [
   {
-   "id": "run_e0bc1e7bb22fdb6b",
+   "id": "run_1ba4e74332b6d6e9",
    "adapter": "birdnet",
    "model": "BirdNET GLOBAL 6K V2.4",
    "version": "2.4",
@@ -137,7 +137,7 @@
     "location_filter_applied": false,
     "reason": "no_coordinates"
    },
-   "runtime_ms": 1533,
+   "runtime_ms": 1564,
    "n_windows": 40
   }
  ],
@@ -173,7 +173,7 @@
    "common_name": "House Finch",
    "taxon": "bird",
    "model_run_ids": [
-    "run_e0bc1e7bb22fdb6b"
+    "run_1ba4e74332b6d6e9"
    ],
    "detection_event_count": 8,
    "raw_detection_count": 10,
@@ -189,7 +189,7 @@
    "common_name": "Dark-eyed Junco",
    "taxon": "bird",
    "model_run_ids": [
-    "run_e0bc1e7bb22fdb6b"
+    "run_1ba4e74332b6d6e9"
    ],
    "detection_event_count": 4,
    "raw_detection_count": 5,
@@ -205,7 +205,7 @@
    "common_name": "American Goldfinch",
    "taxon": "bird",
    "model_run_ids": [
-    "run_e0bc1e7bb22fdb6b"
+    "run_1ba4e74332b6d6e9"
    ],
    "detection_event_count": 3,
    "raw_detection_count": 3,
@@ -221,7 +221,7 @@
    "common_name": "Black-capped Chickadee",
    "taxon": "bird",
    "model_run_ids": [
-    "run_e0bc1e7bb22fdb6b"
+    "run_1ba4e74332b6d6e9"
    ],
    "detection_event_count": 1,
    "raw_detection_count": 2,
@@ -237,7 +237,7 @@
    "common_name": "Blue Jay",
    "taxon": "bird",
    "model_run_ids": [
-    "run_e0bc1e7bb22fdb6b"
+    "run_1ba4e74332b6d6e9"
    ],
    "detection_event_count": 1,
    "raw_detection_count": 2,
@@ -253,7 +253,7 @@
    "common_name": "Chestnut-winged Cuckoo",
    "taxon": "bird",
    "model_run_ids": [
-    "run_e0bc1e7bb22fdb6b"
+    "run_1ba4e74332b6d6e9"
    ],
    "detection_event_count": 1,
    "raw_detection_count": 1,
@@ -269,7 +269,7 @@
    "common_name": "Hawfinch",
    "taxon": "bird",
    "model_run_ids": [
-    "run_e0bc1e7bb22fdb6b"
+    "run_1ba4e74332b6d6e9"
    ],
    "detection_event_count": 1,
    "raw_detection_count": 1,
@@ -285,7 +285,7 @@
    "common_name": "Merlin",
    "taxon": "bird",
    "model_run_ids": [
-    "run_e0bc1e7bb22fdb6b"
+    "run_1ba4e74332b6d6e9"
    ],
    "detection_event_count": 1,
    "raw_detection_count": 1,
@@ -299,11 +299,14 @@
  ],
  "events": [
   {
-   "id": "evt_2441b05b0f6b1fb3",
+   "id": "evt_262ed74ce974757a",
    "scientific_name": "Poecile atricapillus",
    "common_name": "Black-capped Chickadee",
    "taxon": "bird",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "detected_scientific_name": "Poecile atricapillus",
+   "detected_common_name": "Black-capped Chickadee",
+   "detected_taxon": "bird",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "start_seconds": 0.0,
    "end_seconds": 6.0,
    "max_confidence": 0.8141,
@@ -316,14 +319,18 @@
    "plausibility": "unknown",
    "review_status": "unreviewed",
    "reviewed_label": null,
-   "review_note": null
+   "review_note": null,
+   "counted_in_metrics": true
   },
   {
-   "id": "evt_fc6642bb3053ed10",
+   "id": "evt_798cf7626b34b3b3",
    "scientific_name": "Haemorhous mexicanus",
    "common_name": "House Finch",
    "taxon": "bird",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "detected_scientific_name": "Haemorhous mexicanus",
+   "detected_common_name": "House Finch",
+   "detected_taxon": "bird",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "start_seconds": 9.0,
    "end_seconds": 12.0,
    "max_confidence": 0.6394,
@@ -335,14 +342,18 @@
    "plausibility": "unknown",
    "review_status": "unreviewed",
    "reviewed_label": null,
-   "review_note": null
+   "review_note": null,
+   "counted_in_metrics": true
   },
   {
-   "id": "evt_2f25bdab9582b4cf",
+   "id": "evt_144ad4454cc3ac78",
    "scientific_name": "Clamator coromandus",
    "common_name": "Chestnut-winged Cuckoo",
    "taxon": "bird",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "detected_scientific_name": "Clamator coromandus",
+   "detected_common_name": "Chestnut-winged Cuckoo",
+   "detected_taxon": "bird",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "start_seconds": 18.0,
    "end_seconds": 21.0,
    "max_confidence": 0.3226,
@@ -354,14 +365,18 @@
    "plausibility": "unknown",
    "review_status": "unreviewed",
    "reviewed_label": null,
-   "review_note": null
+   "review_note": null,
+   "counted_in_metrics": true
   },
   {
-   "id": "evt_34c2b699607a10f9",
+   "id": "evt_217cd57976aaa0d7",
    "scientific_name": "Cyanocitta cristata",
    "common_name": "Blue Jay",
    "taxon": "bird",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "detected_scientific_name": "Cyanocitta cristata",
+   "detected_common_name": "Blue Jay",
+   "detected_taxon": "bird",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "start_seconds": 18.0,
    "end_seconds": 24.0,
    "max_confidence": 0.4353,
@@ -374,14 +389,18 @@
    "plausibility": "unknown",
    "review_status": "unreviewed",
    "reviewed_label": null,
-   "review_note": null
+   "review_note": null,
+   "counted_in_metrics": true
   },
   {
-   "id": "evt_68215f133d8d1334",
+   "id": "evt_96290ff1bfa966dc",
    "scientific_name": "Falco columbarius",
    "common_name": "Merlin",
    "taxon": "bird",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "detected_scientific_name": "Falco columbarius",
+   "detected_common_name": "Merlin",
+   "detected_taxon": "bird",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "start_seconds": 27.0,
    "end_seconds": 30.0,
    "max_confidence": 0.2657,
@@ -393,14 +412,18 @@
    "plausibility": "unknown",
    "review_status": "unreviewed",
    "reviewed_label": null,
-   "review_note": null
+   "review_note": null,
+   "counted_in_metrics": true
   },
   {
-   "id": "evt_2bd2aa0b581b0cd5",
+   "id": "evt_fd205c927ddf424a",
    "scientific_name": "Junco hyemalis",
    "common_name": "Dark-eyed Junco",
    "taxon": "bird",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "detected_scientific_name": "Junco hyemalis",
+   "detected_common_name": "Dark-eyed Junco",
+   "detected_taxon": "bird",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "start_seconds": 27.0,
    "end_seconds": 30.0,
    "max_confidence": 0.2187,
@@ -412,14 +435,18 @@
    "plausibility": "unknown",
    "review_status": "unreviewed",
    "reviewed_label": null,
-   "review_note": null
+   "review_note": null,
+   "counted_in_metrics": true
   },
   {
-   "id": "evt_9546b4490d0f1ed1",
+   "id": "evt_bea1fce05136e182",
    "scientific_name": "Junco hyemalis",
    "common_name": "Dark-eyed Junco",
    "taxon": "bird",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "detected_scientific_name": "Junco hyemalis",
+   "detected_common_name": "Dark-eyed Junco",
+   "detected_taxon": "bird",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "start_seconds": 33.0,
    "end_seconds": 39.0,
    "max_confidence": 0.4591,
@@ -432,14 +459,18 @@
    "plausibility": "unknown",
    "review_status": "unreviewed",
    "reviewed_label": null,
-   "review_note": null
+   "review_note": null,
+   "counted_in_metrics": true
   },
   {
-   "id": "evt_a78a255f50a86652",
+   "id": "evt_c29ad563146a139e",
    "scientific_name": "Haemorhous mexicanus",
    "common_name": "House Finch",
    "taxon": "bird",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "detected_scientific_name": "Haemorhous mexicanus",
+   "detected_common_name": "House Finch",
+   "detected_taxon": "bird",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "start_seconds": 39.0,
    "end_seconds": 42.0,
    "max_confidence": 0.2533,
@@ -451,14 +482,18 @@
    "plausibility": "unknown",
    "review_status": "unreviewed",
    "reviewed_label": null,
-   "review_note": null
+   "review_note": null,
+   "counted_in_metrics": true
   },
   {
-   "id": "evt_fd1f5b4764259e42",
+   "id": "evt_831fa8a0c80a862a",
    "scientific_name": "Junco hyemalis",
    "common_name": "Dark-eyed Junco",
    "taxon": "bird",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "detected_scientific_name": "Junco hyemalis",
+   "detected_common_name": "Dark-eyed Junco",
+   "detected_taxon": "bird",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "start_seconds": 42.0,
    "end_seconds": 45.0,
    "max_confidence": 0.7375,
@@ -470,14 +505,18 @@
    "plausibility": "unknown",
    "review_status": "unreviewed",
    "reviewed_label": null,
-   "review_note": null
+   "review_note": null,
+   "counted_in_metrics": true
   },
   {
-   "id": "evt_bd64b6b4fa21338f",
+   "id": "evt_c8841d87f710ab0d",
    "scientific_name": "Haemorhous mexicanus",
    "common_name": "House Finch",
    "taxon": "bird",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "detected_scientific_name": "Haemorhous mexicanus",
+   "detected_common_name": "House Finch",
+   "detected_taxon": "bird",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "start_seconds": 51.0,
    "end_seconds": 57.0,
    "max_confidence": 0.6071,
@@ -490,14 +529,18 @@
    "plausibility": "unknown",
    "review_status": "unreviewed",
    "reviewed_label": null,
-   "review_note": null
+   "review_note": null,
+   "counted_in_metrics": true
   },
   {
-   "id": "evt_c8c76f3f1e30942b",
+   "id": "evt_eadd73d7fbe050db",
    "scientific_name": "Junco hyemalis",
    "common_name": "Dark-eyed Junco",
    "taxon": "bird",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "detected_scientific_name": "Junco hyemalis",
+   "detected_common_name": "Dark-eyed Junco",
+   "detected_taxon": "bird",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "start_seconds": 60.0,
    "end_seconds": 63.0,
    "max_confidence": 0.555,
@@ -509,14 +552,18 @@
    "plausibility": "unknown",
    "review_status": "unreviewed",
    "reviewed_label": null,
-   "review_note": null
+   "review_note": null,
+   "counted_in_metrics": true
   },
   {
-   "id": "evt_51c64b61a6b23914",
+   "id": "evt_85378d269dfa3526",
    "scientific_name": "Haemorhous mexicanus",
    "common_name": "House Finch",
    "taxon": "bird",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "detected_scientific_name": "Haemorhous mexicanus",
+   "detected_common_name": "House Finch",
+   "detected_taxon": "bird",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "start_seconds": 69.0,
    "end_seconds": 75.0,
    "max_confidence": 0.5638,
@@ -529,14 +576,18 @@
    "plausibility": "unknown",
    "review_status": "unreviewed",
    "reviewed_label": null,
-   "review_note": null
+   "review_note": null,
+   "counted_in_metrics": true
   },
   {
-   "id": "evt_65083b1e465af67b",
+   "id": "evt_30c0f65b46a5125d",
    "scientific_name": "Haemorhous mexicanus",
    "common_name": "House Finch",
    "taxon": "bird",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "detected_scientific_name": "Haemorhous mexicanus",
+   "detected_common_name": "House Finch",
+   "detected_taxon": "bird",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "start_seconds": 78.0,
    "end_seconds": 81.0,
    "max_confidence": 0.2561,
@@ -548,14 +599,18 @@
    "plausibility": "unknown",
    "review_status": "unreviewed",
    "reviewed_label": null,
-   "review_note": null
+   "review_note": null,
+   "counted_in_metrics": true
   },
   {
-   "id": "evt_e4425badb2cfcf27",
+   "id": "evt_903598ca46d66bec",
    "scientific_name": "Coccothraustes coccothraustes",
    "common_name": "Hawfinch",
    "taxon": "bird",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "detected_scientific_name": "Coccothraustes coccothraustes",
+   "detected_common_name": "Hawfinch",
+   "detected_taxon": "bird",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "start_seconds": 81.0,
    "end_seconds": 84.0,
    "max_confidence": 0.2804,
@@ -567,14 +622,18 @@
    "plausibility": "unknown",
    "review_status": "unreviewed",
    "reviewed_label": null,
-   "review_note": null
+   "review_note": null,
+   "counted_in_metrics": true
   },
   {
-   "id": "evt_1a50b075d53369a6",
+   "id": "evt_423769665386303c",
    "scientific_name": "Haemorhous mexicanus",
    "common_name": "House Finch",
    "taxon": "bird",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "detected_scientific_name": "Haemorhous mexicanus",
+   "detected_common_name": "House Finch",
+   "detected_taxon": "bird",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "start_seconds": 84.0,
    "end_seconds": 87.0,
    "max_confidence": 0.2801,
@@ -586,14 +645,18 @@
    "plausibility": "unknown",
    "review_status": "unreviewed",
    "reviewed_label": null,
-   "review_note": null
+   "review_note": null,
+   "counted_in_metrics": true
   },
   {
-   "id": "evt_66c3796286d5278f",
+   "id": "evt_4da0c4a28d7235b6",
    "scientific_name": "Spinus tristis",
    "common_name": "American Goldfinch",
    "taxon": "bird",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "detected_scientific_name": "Spinus tristis",
+   "detected_common_name": "American Goldfinch",
+   "detected_taxon": "bird",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "start_seconds": 90.0,
    "end_seconds": 93.0,
    "max_confidence": 0.419,
@@ -605,14 +668,18 @@
    "plausibility": "unknown",
    "review_status": "unreviewed",
    "reviewed_label": null,
-   "review_note": null
+   "review_note": null,
+   "counted_in_metrics": true
   },
   {
-   "id": "evt_c695f1862f2bc792",
+   "id": "evt_d86f20ef4cc43f35",
    "scientific_name": "Haemorhous mexicanus",
    "common_name": "House Finch",
    "taxon": "bird",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "detected_scientific_name": "Haemorhous mexicanus",
+   "detected_common_name": "House Finch",
+   "detected_taxon": "bird",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "start_seconds": 93.0,
    "end_seconds": 96.0,
    "max_confidence": 0.3168,
@@ -624,14 +691,18 @@
    "plausibility": "unknown",
    "review_status": "unreviewed",
    "reviewed_label": null,
-   "review_note": null
+   "review_note": null,
+   "counted_in_metrics": true
   },
   {
-   "id": "evt_cc4469ca59435320",
+   "id": "evt_1b1eeeb1cd265cac",
    "scientific_name": "Spinus tristis",
    "common_name": "American Goldfinch",
    "taxon": "bird",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "detected_scientific_name": "Spinus tristis",
+   "detected_common_name": "American Goldfinch",
+   "detected_taxon": "bird",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "start_seconds": 96.0,
    "end_seconds": 99.0,
    "max_confidence": 0.4765,
@@ -643,14 +714,18 @@
    "plausibility": "unknown",
    "review_status": "unreviewed",
    "reviewed_label": null,
-   "review_note": null
+   "review_note": null,
+   "counted_in_metrics": true
   },
   {
-   "id": "evt_b1bac7f656156c8c",
+   "id": "evt_57a69d0a7fa0296d",
    "scientific_name": "Haemorhous mexicanus",
    "common_name": "House Finch",
    "taxon": "bird",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "detected_scientific_name": "Haemorhous mexicanus",
+   "detected_common_name": "House Finch",
+   "detected_taxon": "bird",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "start_seconds": 102.0,
    "end_seconds": 105.0,
    "max_confidence": 0.4459,
@@ -662,14 +737,18 @@
    "plausibility": "unknown",
    "review_status": "unreviewed",
    "reviewed_label": null,
-   "review_note": null
+   "review_note": null,
+   "counted_in_metrics": true
   },
   {
-   "id": "evt_084709abebaf055c",
+   "id": "evt_595b68f07292eb84",
    "scientific_name": "Engine",
    "common_name": "Engine",
    "taxon": "anthropogenic",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "detected_scientific_name": "Engine",
+   "detected_common_name": "Engine",
+   "detected_taxon": "anthropogenic",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "start_seconds": 111.0,
    "end_seconds": 117.0,
    "max_confidence": 0.5168,
@@ -682,14 +761,18 @@
    "plausibility": "unknown",
    "review_status": "unreviewed",
    "reviewed_label": null,
-   "review_note": null
+   "review_note": null,
+   "counted_in_metrics": false
   },
   {
-   "id": "evt_9b121de12e8c7e50",
+   "id": "evt_9f3e9baa8b660f19",
    "scientific_name": "Spinus tristis",
    "common_name": "American Goldfinch",
    "taxon": "bird",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "detected_scientific_name": "Spinus tristis",
+   "detected_common_name": "American Goldfinch",
+   "detected_taxon": "bird",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "start_seconds": 117.0,
    "end_seconds": 120.0,
    "max_confidence": 0.3924,
@@ -701,13 +784,14 @@
    "plausibility": "unknown",
    "review_status": "unreviewed",
    "reviewed_label": null,
-   "review_note": null
+   "review_note": null,
+   "counted_in_metrics": true
   }
  ],
  "raw_detections": [
   {
    "id": "det_0",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Poecile atricapillus_Black-capped Chickadee",
    "scientific_name": "Poecile atricapillus",
    "common_name": "Black-capped Chickadee",
@@ -719,7 +803,7 @@
   },
   {
    "id": "det_1",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Poecile atricapillus_Black-capped Chickadee",
    "scientific_name": "Poecile atricapillus",
    "common_name": "Black-capped Chickadee",
@@ -731,7 +815,7 @@
   },
   {
    "id": "det_2",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Baeolophus bicolor_Tufted Titmouse",
    "scientific_name": "Baeolophus bicolor",
    "common_name": "Tufted Titmouse",
@@ -743,7 +827,7 @@
   },
   {
    "id": "det_3",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Haemorhous mexicanus_House Finch",
    "scientific_name": "Haemorhous mexicanus",
    "common_name": "House Finch",
@@ -755,7 +839,7 @@
   },
   {
    "id": "det_4",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Clamator coromandus_Chestnut-winged Cuckoo",
    "scientific_name": "Clamator coromandus",
    "common_name": "Chestnut-winged Cuckoo",
@@ -767,7 +851,7 @@
   },
   {
    "id": "det_5",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Cyanocitta cristata_Blue Jay",
    "scientific_name": "Cyanocitta cristata",
    "common_name": "Blue Jay",
@@ -779,7 +863,7 @@
   },
   {
    "id": "det_6",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Cyanocitta cristata_Blue Jay",
    "scientific_name": "Cyanocitta cristata",
    "common_name": "Blue Jay",
@@ -791,7 +875,7 @@
   },
   {
    "id": "det_7",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Haemorhous mexicanus_House Finch",
    "scientific_name": "Haemorhous mexicanus",
    "common_name": "House Finch",
@@ -803,7 +887,7 @@
   },
   {
    "id": "det_8",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Cyanocitta cristata_Blue Jay",
    "scientific_name": "Cyanocitta cristata",
    "common_name": "Blue Jay",
@@ -815,7 +899,7 @@
   },
   {
    "id": "det_9",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Falco columbarius_Merlin",
    "scientific_name": "Falco columbarius",
    "common_name": "Merlin",
@@ -827,7 +911,7 @@
   },
   {
    "id": "det_10",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Junco hyemalis_Dark-eyed Junco",
    "scientific_name": "Junco hyemalis",
    "common_name": "Dark-eyed Junco",
@@ -839,7 +923,7 @@
   },
   {
    "id": "det_11",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Junco hyemalis_Dark-eyed Junco",
    "scientific_name": "Junco hyemalis",
    "common_name": "Dark-eyed Junco",
@@ -851,7 +935,7 @@
   },
   {
    "id": "det_12",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Falco columbarius_Merlin",
    "scientific_name": "Falco columbarius",
    "common_name": "Merlin",
@@ -863,7 +947,7 @@
   },
   {
    "id": "det_13",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Junco hyemalis_Dark-eyed Junco",
    "scientific_name": "Junco hyemalis",
    "common_name": "Dark-eyed Junco",
@@ -875,7 +959,7 @@
   },
   {
    "id": "det_14",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Haemorhous mexicanus_House Finch",
    "scientific_name": "Haemorhous mexicanus",
    "common_name": "House Finch",
@@ -887,7 +971,7 @@
   },
   {
    "id": "det_15",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Junco hyemalis_Dark-eyed Junco",
    "scientific_name": "Junco hyemalis",
    "common_name": "Dark-eyed Junco",
@@ -899,7 +983,7 @@
   },
   {
    "id": "det_16",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Cyanocitta cristata_Blue Jay",
    "scientific_name": "Cyanocitta cristata",
    "common_name": "Blue Jay",
@@ -911,7 +995,7 @@
   },
   {
    "id": "det_17",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Haemorhous mexicanus_House Finch",
    "scientific_name": "Haemorhous mexicanus",
    "common_name": "House Finch",
@@ -923,7 +1007,7 @@
   },
   {
    "id": "det_18",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Haemorhous mexicanus_House Finch",
    "scientific_name": "Haemorhous mexicanus",
    "common_name": "House Finch",
@@ -935,7 +1019,7 @@
   },
   {
    "id": "det_19",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Haemorhous mexicanus_House Finch",
    "scientific_name": "Haemorhous mexicanus",
    "common_name": "House Finch",
@@ -947,7 +1031,7 @@
   },
   {
    "id": "det_20",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Junco hyemalis_Dark-eyed Junco",
    "scientific_name": "Junco hyemalis",
    "common_name": "Dark-eyed Junco",
@@ -959,7 +1043,7 @@
   },
   {
    "id": "det_21",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Sitta pygmaea_Pygmy Nuthatch",
    "scientific_name": "Sitta pygmaea",
    "common_name": "Pygmy Nuthatch",
@@ -971,7 +1055,7 @@
   },
   {
    "id": "det_22",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Haemorhous mexicanus_House Finch",
    "scientific_name": "Haemorhous mexicanus",
    "common_name": "House Finch",
@@ -983,7 +1067,7 @@
   },
   {
    "id": "det_23",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Haemorhous mexicanus_House Finch",
    "scientific_name": "Haemorhous mexicanus",
    "common_name": "House Finch",
@@ -995,7 +1079,7 @@
   },
   {
    "id": "det_24",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Haemorhous mexicanus_House Finch",
    "scientific_name": "Haemorhous mexicanus",
    "common_name": "House Finch",
@@ -1007,7 +1091,7 @@
   },
   {
    "id": "det_25",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Coccothraustes coccothraustes_Hawfinch",
    "scientific_name": "Coccothraustes coccothraustes",
    "common_name": "Hawfinch",
@@ -1019,7 +1103,7 @@
   },
   {
    "id": "det_26",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Haemorhous mexicanus_House Finch",
    "scientific_name": "Haemorhous mexicanus",
    "common_name": "House Finch",
@@ -1031,7 +1115,7 @@
   },
   {
    "id": "det_27",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Spinus tristis_American Goldfinch",
    "scientific_name": "Spinus tristis",
    "common_name": "American Goldfinch",
@@ -1043,7 +1127,7 @@
   },
   {
    "id": "det_28",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Haemorhous mexicanus_House Finch",
    "scientific_name": "Haemorhous mexicanus",
    "common_name": "House Finch",
@@ -1055,7 +1139,7 @@
   },
   {
    "id": "det_29",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Spinus tristis_American Goldfinch",
    "scientific_name": "Spinus tristis",
    "common_name": "American Goldfinch",
@@ -1067,7 +1151,7 @@
   },
   {
    "id": "det_30",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Haemorhous mexicanus_House Finch",
    "scientific_name": "Haemorhous mexicanus",
    "common_name": "House Finch",
@@ -1079,7 +1163,7 @@
   },
   {
    "id": "det_31",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Haemorhous mexicanus_House Finch",
    "scientific_name": "Haemorhous mexicanus",
    "common_name": "House Finch",
@@ -1091,7 +1175,7 @@
   },
   {
    "id": "det_32",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Poecile atricapillus_Black-capped Chickadee",
    "scientific_name": "Poecile atricapillus",
    "common_name": "Black-capped Chickadee",
@@ -1103,7 +1187,7 @@
   },
   {
    "id": "det_33",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Engine_Engine",
    "scientific_name": "Engine",
    "common_name": "Engine",
@@ -1115,7 +1199,7 @@
   },
   {
    "id": "det_34",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Engine_Engine",
    "scientific_name": "Engine",
    "common_name": "Engine",
@@ -1127,7 +1211,7 @@
   },
   {
    "id": "det_35",
-   "model_run_id": "run_e0bc1e7bb22fdb6b",
+   "model_run_id": "run_1ba4e74332b6d6e9",
    "label_raw": "Spinus tristis_American Goldfinch",
    "scientific_name": "Spinus tristis",
    "common_name": "American Goldfinch",
@@ -1140,11 +1224,11 @@
  ],
  "assets": {
   "audio_url": null,
-  "spectrogram_url": "/api/v1/analyses/ana_d2e0dc4ecb06f94eae0625b0/spectrogram.png",
+  "spectrogram_url": "/api/v1/analyses/ana_59d844c1660035c2aadd7dd3/spectrogram.png",
   "spectrogram_min_hz": 0,
   "spectrogram_max_hz": 16000,
-  "csv_url": "/api/v1/analyses/ana_d2e0dc4ecb06f94eae0625b0/export.csv?threshold=0.2",
-  "json_url": "/api/v1/analyses/ana_d2e0dc4ecb06f94eae0625b0/export.json?threshold=0.2"
+  "csv_url": "/api/v1/analyses/ana_59d844c1660035c2aadd7dd3/export.csv?threshold=0.2",
+  "json_url": "/api/v1/analyses/ana_59d844c1660035c2aadd7dd3/export.json?threshold=0.2"
  },
  "warnings": [
   "Metrics are based on acoustic detection events and do not estimate individual abundance.",
@@ -1154,16 +1238,16 @@
  "error_code": null,
  "error_message": null,
  "software_version": "0.1.0",
- "created_at": "2026-09-24T06:49:59.668214Z",
- "completed_at": "2026-09-24T06:50:02.775875Z",
+ "created_at": "2026-09-24T08:44:21.287682Z",
+ "completed_at": "2026-09-24T08:44:24.511007Z",
  "stage_timings_ms": {
   "queued": 0,
-  "normalizing": 469,
-  "quality": 385,
-  "spectrogram": 392,
-  "model:birdnet": 1533,
-  "consolidating": 164,
-  "metrics": 142,
-  "total": 3085
+  "normalizing": 615,
+  "quality": 370,
+  "spectrogram": 331,
+  "model:birdnet": 1564,
+  "consolidating": 162,
+  "metrics": 160,
+  "total": 3202
  }
 }

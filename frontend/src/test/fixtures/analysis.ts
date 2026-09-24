@@ -185,10 +185,19 @@ export function rawDetections(confidenceScale = 1): RawDetection[] {
   );
 }
 
+/** A reviewer's correction to another known label, keyed by event id. */
+export interface Correction {
+  scientific_name: string;
+  common_name: string;
+  taxon?: Taxon;
+  reviewed_label: string;
+}
+
 function consolidate(
   raw: RawDetection[],
   threshold: number,
   reviews: Record<string, ReviewStatus>,
+  corrections: Record<string, Correction> = {},
 ): DetectionEvent[] {
   const kept = raw.filter((d) => d.confidence + 1e-9 >= threshold);
   const bySpecies = new Map<string, RawDetection[]>();
@@ -208,11 +217,18 @@ function consolidate(
       const end = Math.max(...group.map((g) => g.end_seconds));
       const id = `evt_${slug(first.scientific_name)}_${start.toFixed(0)}`;
       const confs = group.map((g) => g.confidence);
+      const fix = corrections[id];
+      const review = fix ? 'corrected' : (reviews[id] ?? 'unreviewed');
+      const plausibility = first.plausibility ?? 'unknown';
+      const taxon = fix?.taxon ?? first.taxon;
       events.push({
         id,
-        scientific_name: first.scientific_name,
-        common_name: first.common_name,
-        taxon: first.taxon,
+        scientific_name: fix?.scientific_name ?? first.scientific_name,
+        common_name: fix?.common_name ?? first.common_name,
+        taxon,
+        detected_scientific_name: first.scientific_name,
+        detected_common_name: first.common_name,
+        detected_taxon: first.taxon,
         model_run_id: RUN_ID,
         start_seconds: start,
         end_seconds: end,
@@ -221,10 +237,16 @@ function consolidate(
           Math.round((confs.reduce((a, b) => a + b, 0) / confs.length) * 10000) / 10000,
         n_windows: group.length,
         contributing_detection_ids: group.map((g) => g.id),
-        plausibility: first.plausibility ?? 'unknown',
-        review_status: reviews[id] ?? 'unreviewed',
-        reviewed_label: null,
+        plausibility,
+        review_status: review,
+        reviewed_label: fix?.reviewed_label ?? null,
         review_note: null,
+        // The backend rule: wildlife (as counted), not rejected, and not
+        // unlikely unless a reviewer accepted or corrected it.
+        counted_in_metrics:
+          BIODIVERSITY.has(taxon) &&
+          review !== 'rejected' &&
+          (plausibility !== 'unlikely' || review === 'accepted' || review === 'corrected'),
       });
       group = [];
     };
@@ -271,7 +293,10 @@ function summaries(events: DetectionEvent[], raw: RawDetection[]): SpeciesSummar
       total_event_duration_seconds: evs.reduce((a, e) => a + (e.end_seconds - e.start_seconds), 0),
       first_detection_seconds: Math.min(...evs.map((e) => e.start_seconds)),
       last_detection_seconds: Math.max(...evs.map((e) => e.end_seconds)),
-      plausibility: evs.some((e) => e.plausibility === 'unlikely') ? 'unlikely' : 'plausible',
+      // An accepted event overrides the range flag, as on the server.
+      plausibility: evs.some((e) => e.plausibility === 'unlikely' && e.review_status !== 'accepted')
+        ? 'unlikely'
+        : 'plausible',
     });
   }
   return out.sort(
@@ -357,6 +382,8 @@ export const ACOUSTIC_INDICES: AcousticIndices = {
 export interface BuildOptions {
   threshold?: number;
   reviews?: Record<string, ReviewStatus>;
+  /** Corrections to known labels, keyed by event id. */
+  corrections?: Record<string, Correction>;
   recording?: Partial<RecordingInfo>;
   quality?: Partial<QualityReport> | null;
   status?: Analysis['status'];
@@ -372,15 +399,9 @@ export function buildAnalysis(options: BuildOptions = {}): Analysis {
   const threshold = Math.round((options.threshold ?? 0.6) * 100) / 100;
   const id = options.id ?? ANALYSIS_ID;
   const raw = rawDetections(options.confidenceScale ?? 1);
-  const events = consolidate(raw, threshold, options.reviews ?? {});
-  const counted = events.filter(
-    (e) =>
-      BIODIVERSITY.has(e.taxon) && e.plausibility !== 'unlikely' && e.review_status !== 'rejected',
-  );
-  const listedSpecies = summaries(
-    events.filter((e) => BIODIVERSITY.has(e.taxon) && e.review_status !== 'rejected'),
-    raw,
-  );
+  const events = consolidate(raw, threshold, options.reviews ?? {}, options.corrections ?? {});
+  const counted = events.filter((e) => e.counted_in_metrics);
+  // Like the backend, the species table holds counted species only.
   const countedSummaries = summaries(counted, raw);
   const counts = countedSummaries.map((s) => s.detection_event_count);
   const n = counts.reduce((a, b) => a + b, 0);
@@ -395,7 +416,7 @@ export function buildAnalysis(options: BuildOptions = {}): Analysis {
   const completed = status === 'completed';
 
   return {
-    schema_version: '1.0.0',
+    schema_version: '1.2.0',
     id,
     status,
     stage: options.stage ?? (completed ? 'completed' : status === 'failed' ? 'failed' : 'queued'),
@@ -445,7 +466,7 @@ export function buildAnalysis(options: BuildOptions = {}): Analysis {
         }
       : null,
     acoustic_indices: completed ? ACOUSTIC_INDICES : null,
-    species: completed ? listedSpecies : [],
+    species: completed ? countedSummaries : [],
     events: completed ? events : [],
     raw_detections: completed ? raw : [],
     assets: {

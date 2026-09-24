@@ -127,9 +127,13 @@ Routing uses the URL hash (`#/history`, `#/methods`), so deep links work on stat
   exports, renders from the returned analysis and shows the applied threshold.
 - **Review**: `PATCH /events/{id}`, then refetch at the current threshold.
 - **Other sounds** (human, domestic, mechanical, environmental, noise) and species flagged
-  unlikely for the place and season are listed separately and never counted.
-- **Map** only when latitude and longitude are real numbers in range (0,0 counts as missing).
-  There is never a fallback point.
+  unlikely for the place and season are listed separately. Which section an event goes in comes
+  from the server's `counted_in_metrics` flag; the frontend never re-derives the counting rule.
+  A corrected event shows under the species it counts as, with "Detected as" the model's label.
+- **Map** only when latitude and longitude are numbers in range, the same rule as the backend
+  (0,0 is a valid location; missing coordinates are null). There is never a fallback point.
+- **Previews** are deleted on the server (`DELETE /previews/{id}`, fire and forget) on Clear,
+  when another file replaces a previewed one, and when an analysis is opened from history.
 - **Audio** plays from the local file (object URL, revoked on reset) or `assets.audio_url`.
 - **History**: the last three summaries in `localStorage` (`thicket-history`); opening one reloads
   it from the server and removes it if the server no longer has it.

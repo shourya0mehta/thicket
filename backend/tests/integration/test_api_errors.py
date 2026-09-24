@@ -158,6 +158,37 @@ def test_rate_limit_posts(make_client):
     assert client.get("/api/v1/health").status_code == 200  # GETs are not limited
 
 
+def test_rate_limit_keys_on_the_proxy_client_ip_header(make_client):
+    client = make_client(rate_limit_per_minute=2, client_ip_header="Fly-Client-IP")
+
+    def post(fly_ip: str, forwarded: str):
+        return client.post(
+            "/api/v1/previews",
+            files={"x": (None, "1")},
+            headers={"Fly-Client-IP": fly_ip, "X-Forwarded-For": forwarded},
+        )
+
+    # A spoofed X-Forwarded-For does not give a client a fresh bucket.
+    assert post("203.0.113.7", "1.1.1.1").status_code == 422
+    assert post("203.0.113.7", "2.2.2.2").status_code == 422
+    err(post("203.0.113.7", "3.3.3.3"), 429, "rate_limited")
+    # Another client IP (as written by the proxy) has its own bucket.
+    assert post("198.51.100.4", "3.3.3.3").status_code == 422
+
+
+def test_rate_limit_list_header_uses_the_last_entry(make_client):
+    client = make_client(rate_limit_per_minute=1, client_ip_header="X-Forwarded-For")
+
+    def post(forwarded: str):
+        return client.post(
+            "/api/v1/previews", files={"x": (None, "1")}, headers={"X-Forwarded-For": forwarded}
+        )
+
+    assert post("9.9.9.9, 203.0.113.7").status_code == 422
+    # The client controls the left end only; the proxy's entry still matches.
+    err(post("8.8.8.8, 203.0.113.7"), 429, "rate_limited")
+
+
 def test_cors_is_strict(client):
     ok = client.options(
         "/api/v1/analyses",

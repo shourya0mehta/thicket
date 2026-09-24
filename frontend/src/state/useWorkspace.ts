@@ -113,6 +113,16 @@ export function useWorkspace(): Workspace {
     [abortAll],
   );
 
+  /**
+   * Fire and forget: the server deletes the previewed upload now instead of at
+   * its expiry. Used whenever the workspace lets go of a preview.
+   */
+  const discardPreview = useCallback(() => {
+    const { preview } = stateRef.current;
+    if (!preview || isDemoMode()) return;
+    void api.deletePreview(preview.id).catch(() => undefined);
+  }, []);
+
   const rememberInHistory = useCallback((analysis: Analysis) => {
     if (isDemoMode()) return;
     dispatch({ type: 'history', history: addToHistory(entryFromAnalysis(analysis)) });
@@ -122,6 +132,7 @@ export function useWorkspace(): Workspace {
     (file: File | null) => {
       if (!file) return;
       abortAll();
+      discardPreview();
       const check = validateAudioFile(file);
       if (!check.ok) {
         replaceObjectUrl(null);
@@ -131,15 +142,16 @@ export function useWorkspace(): Workspace {
       const url = replaceObjectUrl(file);
       dispatch({ type: 'file_selected', file, url: url ?? '' });
     },
-    [abortAll, replaceObjectUrl],
+    [abortAll, discardPreview, replaceObjectUrl],
   );
 
   const clear = useCallback(() => {
     abortAll();
+    discardPreview();
     replaceObjectUrl(null);
     lastAction.current = null;
     dispatch({ type: 'cleared' });
-  }, [abortAll, replaceObjectUrl]);
+  }, [abortAll, discardPreview, replaceObjectUrl]);
 
   const generatePreview = useCallback(async () => {
     const { file } = stateRef.current;
@@ -345,6 +357,7 @@ export function useWorkspace(): Workspace {
     async (id: string) => {
       if (isDemoMode()) return;
       abortAll();
+      discardPreview();
       replaceObjectUrl(null);
       const ctrl = new AbortController();
       runCtrl.current = ctrl;
@@ -387,7 +400,7 @@ export function useWorkspace(): Workspace {
         dispatch({ type: 'load_failed', error: describeError(error) });
       }
     },
-    [abortAll, finishRun, rememberInHistory, replaceObjectUrl],
+    [abortAll, discardPreview, finishRun, rememberInHistory, replaceObjectUrl],
   );
 
   const loadDemo = useCallback(

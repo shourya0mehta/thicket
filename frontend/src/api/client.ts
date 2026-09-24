@@ -282,6 +282,11 @@ export function listAnalyses(signal?: AbortSignal): Promise<AnalysisList> {
   return requestJson<AnalysisList>('/analyses', { signal });
 }
 
+/** Deletes a preview's uploaded audio and spectrogram on the server now, not at expiry. */
+export async function deletePreview(id: string): Promise<void> {
+  await requestJson<unknown>(`/previews/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
 export async function deleteAnalysis(id: string): Promise<void> {
   await requestJson<unknown>(`/analyses/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }

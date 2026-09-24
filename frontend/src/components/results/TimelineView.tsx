@@ -1,6 +1,12 @@
 import { useId, useMemo, useState, type ReactNode } from 'react';
 import type { Analysis, DetectionEvent, Taxon } from '../../api/types';
-import { buildTimelineLanes, eventsAtTime, isRejected, listedEvents } from '../../lib/analysis';
+import {
+  buildTimelineLanes,
+  eventsAtTime,
+  isRejected,
+  isRelabeled,
+  listedEvents,
+} from '../../lib/analysis';
 import { cx } from '../../lib/cx';
 import { formatClockPrecise, formatPercent, pluralize } from '../../lib/format';
 import { TAXON_LABEL } from '../../lib/taxa';
@@ -71,9 +77,17 @@ function EventBar({
   const left = (event.start_seconds / duration) * 100;
   const width = ((event.end_seconds - event.start_seconds) / duration) * 100;
   const alpha = confidenceAlpha(event.max_confidence, threshold);
-  const rejected = isRejected(event);
+  // Drawn hollow when it does not count (rejected, or corrected to an unknown label).
+  const rejected = !event.counted_in_metrics;
   const showNumber = (width / 100) * trackWidth >= 26;
-  const label = `${event.common_name}, ${formatClockPrecise(event.start_seconds)} to ${formatClockPrecise(event.end_seconds)}, max confidence ${formatPercent(event.max_confidence)}${rejected ? ', rejected by reviewer' : ''}`;
+  const reason = isRejected(event)
+    ? ', rejected by reviewer'
+    : rejected
+      ? ', excluded by reviewer'
+      : isRelabeled(event)
+        ? `, detected as ${event.detected_common_name}`
+        : '';
+  const label = `${event.common_name}, ${formatClockPrecise(event.start_seconds)} to ${formatClockPrecise(event.end_seconds)}, max confidence ${formatPercent(event.max_confidence)}${reason}`;
   return (
     <button
       type="button"

@@ -10,8 +10,10 @@ primary_region = "iad"
   ENVIRONMENT = "production"
   THICKET_DATA_DIR = "/data"
   ALLOWED_ORIGINS = "https://thicket.fly.dev"
-  # Fly's proxy sets X-Forwarded-For; trust it so rate limits see client IPs.
-  FORWARDED_ALLOW_IPS = "*"
+  # Rate limits key on the client IP that Fly's edge writes (and overwrites) in
+  # Fly-Client-IP. Never set FORWARDED_ALLOW_IPS="*": uvicorn would then take the
+  # left end of X-Forwarded-For, which any client can set to bypass the limit.
+  CLIENT_IP_HEADER = "Fly-Client-IP"
   WORKER_CONCURRENCY = "1"
   RETAIN_AUDIO = "false"
   RATE_LIMIT_PER_MINUTE = "30"

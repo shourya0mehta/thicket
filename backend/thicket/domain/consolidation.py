@@ -110,7 +110,24 @@ def consolidate(
     return events
 
 
-def _make_event(cluster: list[WindowDetection], run_id: str, sci: str, analysis_id: str) -> Event:
+def event_from_windows(windows: Sequence[WindowDetection], fixed_id: str) -> Event:
+    """One event spanning ``windows`` (one run and species), with a given id.
+
+    Used for windows a review has claimed: they are listed as the reviewed
+    event, whatever their gaps, instead of being merged with other windows.
+    """
+    cluster = sorted(windows, key=lambda d: (d.start_seconds, d.end_seconds, d.id))
+    first = cluster[0]
+    return _make_event(cluster, first.model_run_id, first.scientific_name, "", fixed_id=fixed_id)
+
+
+def _make_event(
+    cluster: list[WindowDetection],
+    run_id: str,
+    sci: str,
+    analysis_id: str,
+    fixed_id: str | None = None,
+) -> Event:
     start = min(d.start_seconds for d in cluster)
     end = max(d.end_seconds for d in cluster)
     confs = [d.confidence for d in cluster]
@@ -120,7 +137,7 @@ def _make_event(cluster: list[WindowDetection], run_id: str, sci: str, analysis_
     )
     first = cluster[0]
     return Event(
-        id=event_id(analysis_id, run_id, sci, start, end),
+        id=fixed_id or event_id(analysis_id, run_id, sci, start, end),
         scientific_name=sci,
         common_name=first.common_name,
         taxon=first.taxon,

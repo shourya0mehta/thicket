@@ -1,10 +1,10 @@
 {
- "schema_version": "1.1.0",
- "id": "ana_03af88d37595b233e8496d73",
+ "schema_version": "1.2.0",
+ "id": "ana_c2c0f6a7180bdddcf5132fe1",
  "status": "completed",
  "stage": "completed",
  "recording": {
-  "id": "rec_b45001826398d22cc1e033fe",
+  "id": "rec_9d9a29d6b6b850ee3dcfc2fd",
   "filename": "rain_wind.wav",
   "content_type": "audio/wav",
   "byte_size": 2880078,
@@ -122,7 +122,7 @@
  },
  "model_runs": [
   {
-   "id": "run_fd477fa5255d5ada",
+   "id": "run_9b4a168a610e1257",
    "adapter": "birdnet",
    "model": "BirdNET GLOBAL 6K V2.4",
    "version": "2.4",
@@ -148,7 +148,7 @@
     "location_filter_applied": false,
     "reason": "no_coordinates"
    },
-   "runtime_ms": 381,
+   "runtime_ms": 403,
    "n_windows": 10
   }
  ],
@@ -184,7 +184,7 @@
    "common_name": "Power tools",
    "taxon": "bird",
    "model_run_ids": [
-    "run_fd477fa5255d5ada"
+    "run_9b4a168a610e1257"
    ],
    "detection_event_count": 1,
    "raw_detection_count": 1,
@@ -198,11 +198,14 @@
  ],
  "events": [
   {
-   "id": "evt_85ab7420e786bab0",
+   "id": "evt_59e41f9a8388de83",
    "scientific_name": "Engine",
    "common_name": "Engine",
    "taxon": "anthropogenic",
-   "model_run_id": "run_fd477fa5255d5ada",
+   "detected_scientific_name": "Engine",
+   "detected_common_name": "Engine",
+   "detected_taxon": "anthropogenic",
+   "model_run_id": "run_9b4a168a610e1257",
    "start_seconds": 21.0,
    "end_seconds": 24.0,
    "max_confidence": 0.5791,
@@ -214,14 +217,18 @@
    "plausibility": "unknown",
    "review_status": "unreviewed",
    "reviewed_label": null,
-   "review_note": null
+   "review_note": null,
+   "counted_in_metrics": false
   },
   {
-   "id": "evt_936b7aba89f01448",
+   "id": "evt_0c3bd91d719c8b9e",
    "scientific_name": "Power tools",
    "common_name": "Power tools",
    "taxon": "bird",
-   "model_run_id": "run_fd477fa5255d5ada",
+   "detected_scientific_name": "Power tools",
+   "detected_common_name": "Power tools",
+   "detected_taxon": "bird",
+   "model_run_id": "run_9b4a168a610e1257",
    "start_seconds": 21.0,
    "end_seconds": 24.0,
    "max_confidence": 0.2691,
@@ -233,13 +240,14 @@
    "plausibility": "unknown",
    "review_status": "unreviewed",
    "reviewed_label": null,
-   "review_note": null
+   "review_note": null,
+   "counted_in_metrics": true
   }
  ],
  "raw_detections": [
   {
    "id": "det_0",
-   "model_run_id": "run_fd477fa5255d5ada",
+   "model_run_id": "run_9b4a168a610e1257",
    "label_raw": "Engine_Engine",
    "scientific_name": "Engine",
    "common_name": "Engine",
@@ -251,7 +259,7 @@
   },
   {
    "id": "det_1",
-   "model_run_id": "run_fd477fa5255d5ada",
+   "model_run_id": "run_9b4a168a610e1257",
    "label_raw": "Power tools_Power tools",
    "scientific_name": "Power tools",
    "common_name": "Power tools",
@@ -264,11 +272,11 @@
  ],
  "assets": {
   "audio_url": null,
-  "spectrogram_url": "/api/v1/analyses/ana_03af88d37595b233e8496d73/spectrogram.png",
+  "spectrogram_url": "/api/v1/analyses/ana_c2c0f6a7180bdddcf5132fe1/spectrogram.png",
   "spectrogram_min_hz": 0,
   "spectrogram_max_hz": 16000,
-  "csv_url": "/api/v1/analyses/ana_03af88d37595b233e8496d73/export.csv?threshold=0.1",
-  "json_url": "/api/v1/analyses/ana_03af88d37595b233e8496d73/export.json?threshold=0.1"
+  "csv_url": "/api/v1/analyses/ana_c2c0f6a7180bdddcf5132fe1/export.csv?threshold=0.1",
+  "json_url": "/api/v1/analyses/ana_c2c0f6a7180bdddcf5132fe1/export.json?threshold=0.1"
  },
  "warnings": [
   "Metrics are based on acoustic detection events and do not estimate individual abundance.",
@@ -278,16 +286,16 @@
  "error_code": null,
  "error_message": null,
  "software_version": "0.1.0",
- "created_at": "2026-09-24T06:50:04.241308Z",
- "completed_at": "2026-09-24T06:50:05.178458Z",
+ "created_at": "2026-09-24T08:44:26.081097Z",
+ "completed_at": "2026-09-24T08:44:27.040839Z",
  "stage_timings_ms": {
   "queued": 0,
-  "normalizing": 274,
-  "quality": 83,
-  "spectrogram": 150,
-  "model:birdnet": 381,
+  "normalizing": 282,
+  "quality": 89,
+  "spectrogram": 142,
+  "model:birdnet": 403,
   "consolidating": 1,
-  "metrics": 36,
-  "total": 925
+  "metrics": 29,
+  "total": 946
  }
 }

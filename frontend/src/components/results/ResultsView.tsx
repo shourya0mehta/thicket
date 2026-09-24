@@ -4,6 +4,7 @@ import type { Analysis, ModelInfo } from '../../api/types';
 import { isDemoMode } from '../../config';
 import {
   countedSpecies,
+  excludedWildlifeCount,
   hasNoDetections,
   hasValidCoordinates,
   listedEvents,
@@ -212,6 +213,7 @@ export function ResultsView({
                   threshold={applied}
                   lowerTo={lowerTo}
                   onLower={workspace.setThreshold}
+                  excluded={excludedWildlifeCount(analysis)}
                 />
               ) : (
                 <SpeciesFrequencyChart species={species} threshold={applied} dimmed={dimmed} />

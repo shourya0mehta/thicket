@@ -30,6 +30,10 @@ export const CSV_COLUMNS = [
   'plausibility',
   'review_status',
   'reviewed_label',
+  'detected_taxon',
+  'detected_common_name',
+  'detected_scientific_name',
+  'counted_in_metrics',
 ] as const;
 
 type Cell = string | number | null | undefined;
@@ -90,6 +94,10 @@ export function analysisToCsv(analysis: Analysis): string {
       event.plausibility ?? 'unknown',
       event.review_status ?? 'unreviewed',
       event.reviewed_label,
+      event.detected_taxon,
+      event.detected_common_name,
+      event.detected_scientific_name,
+      event.counted_in_metrics ? 'true' : 'false',
     ];
     return cells.map((cell, i) => csvCell(cell, FLOAT_COLUMNS.has(CSV_COLUMNS[i] ?? ''))).join(',');
   });
@@ -100,8 +108,9 @@ export function analysisToCsv(analysis: Analysis): string {
 export const EXPORT_NOTE =
   'Metrics are based on acoustic detection events and do not estimate individual abundance. ' +
   'Species, events and metrics come from consolidated detection events at or above the ' +
-  'decision threshold. Events excluded from metrics (rejected in review, unlikely for the ' +
-  'location and date, or non-wildlife sounds) are listed with their status.';
+  'decision threshold. Every event is listed; counted_in_metrics marks the ones behind the ' +
+  'species and metrics. The others were excluded in review, flagged unlikely for the ' +
+  'location and date, or are non-wildlife sounds.';
 
 /** Client-side equivalent of the backend AnalysisExport. */
 export function analysisToExportJson(analysis: Analysis, schemaVersion: string): string {

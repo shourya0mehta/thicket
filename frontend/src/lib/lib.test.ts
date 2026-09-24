@@ -4,8 +4,11 @@ import {
   buildTimelineLanes,
   countedSpecies,
   eventsAtTime,
+  excludedWildlifeCount,
   hasNoDetections,
   hasValidCoordinates,
+  isRelabeled,
+  listedEvents,
   otherSoundGroups,
   runLabel,
   unlikelyGroups,
@@ -104,11 +107,66 @@ describe('analysis view helpers', () => {
     ]);
   });
 
-  it('rejects fake or missing coordinates', () => {
+  it('takes the sections from counted_in_metrics, not from its own rule', () => {
+    const counted = analysis.events.filter((e) => e.counted_in_metrics).map((e) => e.id);
+    expect(
+      listedEvents(analysis)
+        .map((e) => e.id)
+        .sort(),
+    ).toEqual(counted.sort());
+    // An unlikely event a reviewer accepted is counted: it leaves "Excluded as unlikely".
+    const bunting = analysis.events.find((e) => e.common_name === 'Painted Bunting')!;
+    const accepted = {
+      ...analysis,
+      events: analysis.events.map((e) =>
+        e.id === bunting.id
+          ? { ...e, review_status: 'accepted' as const, counted_in_metrics: true }
+          : e,
+      ),
+    };
+    expect(unlikelyGroups(accepted)).toEqual([]);
+    expect(listedEvents(accepted).map((e) => e.id)).toContain(bunting.id);
+    // A voice corrected to a bird counts as that bird: it leaves "Other sounds".
+    const voice = analysis.events.find((e) => e.taxon === 'human')!;
+    const relabeled = {
+      ...analysis,
+      events: analysis.events.map((e) =>
+        e.id === voice.id
+          ? {
+              ...e,
+              scientific_name: 'Turdus migratorius',
+              common_name: 'American Robin',
+              taxon: 'bird' as const,
+              review_status: 'corrected' as const,
+              reviewed_label: 'robin',
+              counted_in_metrics: true,
+            }
+          : e,
+      ),
+    };
+    const moved = listedEvents(relabeled).find((e) => e.id === voice.id)!;
+    expect(isRelabeled(moved)).toBe(true);
+    expect(otherSoundGroups(relabeled).map((g) => g.commonName)).toEqual(['Engine']);
+    // A rejected event stays in the table (to undo it) and counts as excluded.
+    const target = listedEvents(analysis)[0]!;
+    const rejected = {
+      ...analysis,
+      events: analysis.events.map((e) =>
+        e.id === target.id
+          ? { ...e, review_status: 'rejected' as const, counted_in_metrics: false }
+          : e,
+      ),
+    };
+    expect(listedEvents(rejected).map((e) => e.id)).toContain(target.id);
+    expect(excludedWildlifeCount(rejected)).toBe(excludedWildlifeCount(analysis) + 1);
+  });
+
+  it('rejects missing or out-of-range coordinates but not 0,0', () => {
     const rec = analysis.recording!;
     expect(hasValidCoordinates(rec)).toBe(true);
     expect(hasValidCoordinates({ ...rec, latitude: null })).toBe(false);
-    expect(hasValidCoordinates({ ...rec, latitude: 0, longitude: 0 })).toBe(false);
+    // Valid numbers, and the backend runs the range check there too.
+    expect(hasValidCoordinates({ ...rec, latitude: 0, longitude: 0 })).toBe(true);
     expect(hasValidCoordinates({ ...rec, latitude: 95, longitude: 10 })).toBe(false);
     expect(hasValidCoordinates({ ...rec, latitude: Number.NaN, longitude: 10 })).toBe(false);
     expect(hasValidCoordinates(null)).toBe(false);
@@ -140,7 +198,13 @@ describe('CSV export', () => {
     const robin = csv.split('\n').find((line) => line.includes('Turdus migratorius'))!;
     expect(robin).toContain(',0.0,9.0,0.91,');
     expect(robin).toContain(',-76.4735,');
-    expect(robin.endsWith(',0.6,plausible,unreviewed,')).toBe(true);
+    expect(
+      robin.endsWith(',0.6,plausible,unreviewed,,bird,American Robin,Turdus migratorius,true'),
+    ).toBe(true);
+    const bunting = csv.split('\n').find((line) => line.includes('Passerina ciris'))!;
+    expect(
+      bunting.endsWith(',unlikely,unreviewed,,bird,Painted Bunting,Passerina ciris,false'),
+    ).toBe(true);
     expect(csvCell('=SUM(A1)')).toBe("'=SUM(A1)");
     expect(csvCell(-3)).toBe('-3');
     expect(header).toBe(CSV_COLUMNS.join(','));
@@ -152,20 +216,30 @@ describe('CSV export', () => {
 
   it('carries the reviewer label of corrected events, like the backend', () => {
     const analysis = buildAnalysis({ threshold: 0.6 });
-    const target = analysis.events[0]!;
+    const target = analysis.events.find((e) => e.taxon === 'bird')!;
     const corrected = {
       ...analysis,
       events: analysis.events.map((e) =>
         e.id === target.id
-          ? { ...e, review_status: 'corrected' as const, reviewed_label: 'Purple Finch' }
+          ? {
+              ...e,
+              scientific_name: 'Haemorhous purpureus',
+              common_name: 'Purple Finch',
+              review_status: 'corrected' as const,
+              reviewed_label: 'purple finch',
+            }
           : e,
       ),
     };
     const line = analysisToCsv(corrected)
       .split('\n')
       .find((l) => l.includes(target.id))!;
-    expect(line.endsWith(',corrected,Purple Finch')).toBe(true);
-    expect(line).toContain(`,${target.scientific_name},`);
+    expect(line).toContain(',bird,Purple Finch,Haemorhous purpureus,');
+    expect(
+      line.endsWith(
+        `,corrected,purple finch,bird,${target.detected_common_name},${target.detected_scientific_name},true`,
+      ),
+    ).toBe(true);
   });
 });
 

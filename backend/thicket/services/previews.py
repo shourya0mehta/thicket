@@ -71,12 +71,14 @@ class PreviewService:
                 mono, sr = decode(
                     upload.path, target_sr=TARGET_SR, mono=True, max_seconds=max_s + 1.0
                 )
+                duration = mono.size / float(sr)
+                # Before the uncapped native-rate pass: a header that understates
+                # the length must not buy a full decode of an over-long file.
+                if duration > max_s + 0.05:
+                    raise audio_too_long(duration, self.settings)
                 levels = native_level_stats(upload.path, pr.channels)
             except AudioDecodeError as exc:
                 raise decode_failed() from exc
-            duration = mono.size / float(sr)
-            if duration > max_s + 0.05:
-                raise audio_too_long(duration, self.settings)
             quality = assess_quality(
                 duration_seconds=duration,
                 sample_rate_hz=pr.sample_rate_hz,
@@ -195,6 +197,14 @@ class PreviewService:
         src = d / str(meta.get("stored_name", ""))
         if src.parent == d and src.name and src.name not in (META, SPECTROGRAM):
             src.unlink(missing_ok=True)
+
+    def delete(self, preview_id: str) -> None:
+        """Delete a preview now: uploaded audio, spectrogram and facts."""
+        d = self.storage.preview_dir(preview_id)  # validates the id
+        if not d.is_dir():
+            raise _expired()
+        shutil.rmtree(d, ignore_errors=True)
+        log.info("preview deleted", extra={"preview_id": preview_id})
 
     def purge_expired(self, now: datetime | None = None) -> int:
         """Delete expired or broken previews. Returns how many were removed."""

@@ -78,6 +78,7 @@ export interface MockState {
   analysisGets: string[];
   reviews: Record<string, ReviewStatus>;
   deleted: string[];
+  deletedPreviews: string[];
 }
 
 function json(route: Route, status: number, body: unknown) {
@@ -95,6 +96,7 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     analysisGets: [],
     reviews: {},
     deleted: [],
+    deletedPreviews: [],
   };
   const failures = [...(options.createFailures ?? [])];
   let pollsLeft = options.pollsBeforeComplete ?? 3;
@@ -121,6 +123,11 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     if (method === 'POST' && path === '/previews') {
       state.previewCalls += 1;
       return json(route, 201, PREVIEW);
+    }
+    const previewMatch = /^\/previews\/([^/]+)$/.exec(path);
+    if (previewMatch && method === 'DELETE') {
+      state.deletedPreviews.push(previewMatch[1]!);
+      return route.fulfill({ status: 204, body: '' });
     }
     if (path.endsWith('/spectrogram.png')) {
       return route.fulfill({ status: 200, contentType: 'image/png', body: spectrogramPng() });

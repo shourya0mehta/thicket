@@ -35,15 +35,8 @@ def error(r):
     return ErrorResponse.model_validate(r.json())
 
 
-def counted(analysis: dict, rejected: set[str] = frozenset()) -> list[dict]:
-    return [
-        e
-        for e in analysis["events"]
-        if e["taxon"] in BIODIVERSITY_TAXA
-        and e["plausibility"] != "unlikely"
-        and e["review_status"] not in ("rejected",)
-        and e["id"] not in rejected
-    ]
+def counted(analysis: dict) -> list[dict]:
+    return [e for e in analysis["events"] if e["counted_in_metrics"]]
 
 
 def assert_consistent(a: dict) -> None:
@@ -51,6 +44,13 @@ def assert_consistent(a: dict) -> None:
     t = a["settings"]["decision_threshold"]
     assert all(e["max_confidence"] >= t - 1e-9 for e in a["events"])
     events = counted(a)
+    if all(e["review_status"] == "unreviewed" for e in a["events"]):
+        # Without reviews the flag is exactly the documented rule.
+        assert events == [
+            e
+            for e in a["events"]
+            if e["taxon"] in BIODIVERSITY_TAXA and e["plausibility"] != "unlikely"
+        ]
     species = {e["scientific_name"] for e in events}
     m = a["metrics"]
     assert m["species_richness"] == len(species) == len(a["species"])
@@ -158,6 +158,7 @@ def test_csv_export(client, completed):
         "timezone", "taxon", "common_name", "scientific_name", "event_id", "start_seconds",
         "end_seconds", "max_confidence", "mean_confidence", "n_windows", "model", "model_version",
         "model_run_id", "decision_threshold", "plausibility", "review_status", "reviewed_label",
+        "detected_taxon", "detected_common_name", "detected_scientific_name", "counted_in_metrics",
     ]  # fmt: skip
     body = rows[1:]
     assert len(body) == len(completed["events"])
@@ -165,6 +166,14 @@ def test_csv_export(client, completed):
     assert first["analysis_id"] == aid and first["site_name"] == "Sapsucker Woods"
     assert first["model"] == "BirdNET GLOBAL 6K V2.4" and first["decision_threshold"] == "0.3"
     assert first["review_status"] == "unreviewed"
+    by_id = {
+        e["id"]: e for e in client.get(f"/api/v1/analyses/{aid}?threshold=0.3").json()["events"]
+    }
+    for row in (dict(zip(rows[0], b, strict=True)) for b in body):
+        assert (
+            row["counted_in_metrics"] == str(by_id[row["event_id"]]["counted_in_metrics"]).lower()
+        )
+    assert {r[-1] for r in body} == {"true", "false"}  # the fixture has an unlikely cuckoo
 
 
 def test_json_export(client, completed):
@@ -196,6 +205,7 @@ def test_review_changes_metrics(client, completed):
     ev = next(e for e in a["events"] if e["id"] == finch["id"])
     assert ev["review_status"] == "rejected" and ev["review_note"] == "Car alarm"
     assert a["metrics"]["total_detection_events"] == len(counted(a))
+    assert not ev["counted_in_metrics"]
     # The review sticks across thresholds while the event is unchanged.
     again = client.get(f"/api/v1/analyses/{aid}?threshold=0.5").json()
     assert next(e for e in again["events"] if e["id"] == finch["id"])["review_status"] == "rejected"
@@ -206,14 +216,30 @@ def test_review_changes_metrics(client, completed):
     )
     names = {s["common_name"] for s in r.json()["species"]}
     assert "Purple Finch" in names and "House Finch" not in names
-    # The CSV keeps the model's names and carries the reviewer's label, so the
-    # species table can be reproduced from the export.
+    ev = next(e for e in r.json()["events"] if e["id"] == finch["id"])
+    assert (ev["common_name"], ev["scientific_name"]) == ("Purple Finch", "Haemorhous purpureus")
+    assert (ev["detected_common_name"], ev["detected_scientific_name"]) == (
+        "House Finch",
+        "Haemorhous mexicanus",
+    )
+    assert ev["counted_in_metrics"] and ev["review_status"] == "corrected"
+    assert_consistent(r.json())
+    # The CSV names the species each row counts under, keeps the model's label
+    # and the reviewer's text, and flags the counted rows, so the species table
+    # can be rebuilt from the export alone.
     rows = list(csv.DictReader(io.StringIO(
         client.get(f"/api/v1/analyses/{aid}/export.csv?threshold=0.3").text
     )))  # fmt: skip
     row = next(x for x in rows if x["event_id"] == finch["id"])
-    assert row["common_name"] == "House Finch" and row["review_status"] == "corrected"
-    assert row["reviewed_label"] == "Purple Finch"
+    assert row["common_name"] == "Purple Finch" and row["review_status"] == "corrected"
+    assert row["detected_common_name"] == "House Finch" and row["reviewed_label"] == "Purple Finch"
+    rebuilt: dict[str, int] = {}
+    for x in rows:
+        if x["counted_in_metrics"] == "true":
+            rebuilt[x["scientific_name"]] = rebuilt.get(x["scientific_name"], 0) + 1
+    assert rebuilt == {
+        s["scientific_name"]: s["detection_event_count"] for s in r.json()["species"]
+    }
     # Clear the review.
     r = client.patch(
         f"/api/v1/events/{finch['id']}?threshold=0.3", json={"review_status": "unreviewed"}
@@ -235,6 +261,108 @@ def test_review_errors(client, completed):
     assert r.status_code == 422 and "reviewed_label" in error(r).message
     r = client.patch(f"/api/v1/events/{ev}", json={"review_status": "accepted", "extra": 1})
     assert r.status_code == 422
+
+
+def chickadee_windows(a: dict) -> list[list[str]]:
+    return [
+        e["contributing_detection_ids"]
+        for e in counted(a)
+        if e["detected_common_name"] == "Black-capped Chickadee"
+    ]
+
+
+def test_rejection_at_060_does_not_return_at_010(client, completed):
+    """The case found in review: a chickadee rejected at 0.60 came back at 0.10."""
+    aid = completed["id"]
+    at60 = client.get(f"/api/v1/analyses/{aid}?threshold=0.6").json()
+    chick = next(e for e in at60["events"] if e["common_name"] == "Black-capped Chickadee")
+    low_before = client.get(f"/api/v1/analyses/{aid}?threshold=0.1").json()
+    [merged] = chickadee_windows(low_before)
+    assert set(chick["contributing_detection_ids"]) < set(merged)  # 0.10 merges weaker windows
+
+    # Reviewed the way the web app does it: PATCH, then GET at the slider's threshold.
+    r = client.patch(f"/api/v1/events/{chick['id']}", json={"review_status": "rejected"})
+    assert r.status_code == 200, r.text
+    low = client.get(f"/api/v1/analyses/{aid}?threshold=0.1").json()
+    assert_consistent(low)
+    listed = next(e for e in low["events"] if e["id"] == chick["id"])
+    assert listed["review_status"] == "rejected" and not listed["counted_in_metrics"]
+    assert listed["contributing_detection_ids"] == chick["contributing_detection_ids"]
+    rest = [i for i in merged if i not in chick["contributing_detection_ids"]]
+    assert chickadee_windows(low) == [rest]  # only windows nobody reviewed still count
+    unreviewed = next(
+        e for e in counted(low) if e["detected_common_name"] == "Black-capped Chickadee"
+    )
+    assert unreviewed["review_status"] == "unreviewed" and unreviewed["id"] != chick["id"]
+    assert low["metrics"]["raw_detection_count"] == low_before["metrics"][
+        "raw_detection_count"
+    ] - len(chick["contributing_detection_ids"])
+    # Undoing the review from the 0.10 view releases the windows again.
+    r = client.patch(
+        f"/api/v1/events/{chick['id']}?threshold=0.1", json={"review_status": "unreviewed"}
+    )
+    assert chickadee_windows(r.json()) == [merged]
+
+
+def test_reviewing_an_event_served_before_schema_2(client, completed):
+    """event_refs rows without window ids: the windows are found by re-deriving."""
+    from sqlalchemy import update
+
+    from thicket.persistence.db import EventRefRow, EventReviewRow
+
+    aid = completed["id"]
+    c = client.app.state.container
+    at60 = client.get(f"/api/v1/analyses/{aid}?threshold=0.6").json()
+    chick = next(e for e in at60["events"] if e["common_name"] == "Black-capped Chickadee")
+    with c.db.session() as s:
+        s.execute(update(EventRefRow).values(detection_ids=None))
+    r = client.patch(
+        f"/api/v1/events/{chick['id']}?threshold=0.6", json={"review_status": "rejected"}
+    )
+    assert r.status_code == 200, r.text
+    with c.db.session() as s:
+        stored = s.get(EventReviewRow, chick["id"]).detection_ids
+    assert stored == chick["contributing_detection_ids"]
+    low = client.get(f"/api/v1/analyses/{aid}?threshold=0.1").json()
+    assert all(
+        i not in ids for ids in chickadee_windows(low) for i in chick["contributing_detection_ids"]
+    )
+
+
+def test_accepting_an_unlikely_event_counts_it(client, completed):
+    aid = completed["id"]
+    low = client.get(f"/api/v1/analyses/{aid}?threshold=0.1").json()
+    cuckoo = next(e for e in low["events"] if e["common_name"] == "Chestnut-winged Cuckoo")
+    assert cuckoo["plausibility"] == "unlikely" and not cuckoo["counted_in_metrics"]
+    r = client.patch(
+        f"/api/v1/events/{cuckoo['id']}?threshold=0.1", json={"review_status": "accepted"}
+    )
+    a = r.json()
+    ev = next(e for e in a["events"] if e["id"] == cuckoo["id"])
+    assert ev["counted_in_metrics"] and ev["plausibility"] == "unlikely"
+    assert "Chestnut-winged Cuckoo" in {s["common_name"] for s in a["species"]}
+    assert a["metrics"]["species_richness"] == low["metrics"]["species_richness"] + 1
+    assert_consistent(a)
+    rows = csv.DictReader(
+        io.StringIO(client.get(f"/api/v1/analyses/{aid}/export.csv?threshold=0.1").text)
+    )
+    row = next(x for x in rows if x["event_id"] == cuckoo["id"])
+    assert (row["plausibility"], row["review_status"], row["counted_in_metrics"]) == (
+        "unlikely",
+        "accepted",
+        "true",
+    )
+
+
+def test_delete_removes_orphan_site_only(client, completed):
+    c = client.app.state.container
+    other = post_analysis(client, SOUNDSCAPE, data=META).json()
+    site_id = c.repo.load_bundle(completed["id"]).recording.site_id
+    assert site_id and c.repo.load_bundle(other["id"]).recording.site_id == site_id
+    assert client.delete(f"/api/v1/analyses/{completed['id']}").status_code == 204
+    assert c.repo.get_site(site_id) is not None  # still used by the other recording
+    assert client.delete(f"/api/v1/analyses/{other['id']}").status_code == 204
+    assert c.repo.get_site(site_id) is None  # name and coordinates are gone too
 
 
 def test_list_recent(client, completed):

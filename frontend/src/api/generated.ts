@@ -30,11 +30,6 @@ export type ErrorCode =
   | 'request_timeout';
 /**
  * This interface was referenced by `ThicketAPI`'s JSON-Schema
- * via the `definition` "ReviewStatus".
- */
-export type ReviewStatus = 'unreviewed' | 'accepted' | 'rejected' | 'corrected';
-/**
- * This interface was referenced by `ThicketAPI`'s JSON-Schema
  * via the `definition` "Taxon".
  */
 export type Taxon =
@@ -47,6 +42,11 @@ export type Taxon =
   | 'anthropogenic'
   | 'environmental'
   | 'noise';
+/**
+ * This interface was referenced by `ThicketAPI`'s JSON-Schema
+ * via the `definition` "ReviewStatus".
+ */
+export type ReviewStatus = 'unreviewed' | 'accepted' | 'rejected' | 'corrected';
 /**
  * This interface was referenced by `ThicketAPI`'s JSON-Schema
  * via the `definition` "QualityStatus".
@@ -120,6 +120,10 @@ export interface Assets {
 export interface DetectionEvent {
   common_name: string;
   contributing_detection_ids: string[];
+  counted_in_metrics: boolean;
+  detected_common_name: string;
+  detected_scientific_name: string;
+  detected_taxon: Taxon;
   end_seconds: number;
   id: string;
   max_confidence: number;
@@ -416,4 +420,4 @@ export interface Preview {
 }
 
 /** Schema version these types were generated from. */
-export const API_SCHEMA_VERSION = '1.1.0';
+export const API_SCHEMA_VERSION = '1.2.0';

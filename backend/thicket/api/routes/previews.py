@@ -1,10 +1,10 @@
-"""POST /previews, GET /previews/{id}, GET /previews/{id}/spectrogram.png."""
+"""POST /previews, GET and DELETE /previews/{id}, GET /previews/{id}/spectrogram.png."""
 
 from __future__ import annotations
 
 import shutil
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
 from starlette.concurrency import run_in_threadpool
 
@@ -57,6 +57,13 @@ async def create_preview(request: Request) -> JSONResponse:
 @router.get("/previews/{preview_id}", response_model=Preview, responses=ERRORS)
 def get_preview(preview_id: str, request: Request) -> Preview:
     return container(request).previews.get(preview_id)
+
+
+@router.delete("/previews/{preview_id}", status_code=204, responses=ERRORS)
+def delete_preview(preview_id: str, request: Request) -> Response:
+    """Delete a preview and its uploaded audio now instead of at ``expires_at``."""
+    container(request).previews.delete(preview_id)
+    return Response(status_code=204)
 
 
 @router.get(

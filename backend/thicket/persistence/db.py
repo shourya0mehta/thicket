@@ -14,8 +14,9 @@ so there is one code path for every threshold.
 the event is served, so ``PATCH /events/{event_id}`` can find it (event ids
 are hashes and cannot be inverted).
 
-Schema versioning: ``schema_meta`` holds one row with the schema version.
-Tables are created with ``create_all`` at startup; a database written by a
+Schema versioning: ``schema_meta`` holds one row per applied schema version.
+Tables are created with ``create_all`` at startup, columns added since an
+older version are added by :func:`_migrate`, and a database written by a
 newer version refuses to start.
 """
 
@@ -40,13 +41,15 @@ from sqlalchemy import (
     UniqueConstraint,
     create_engine,
     event,
+    inspect,
     select,
+    text,
 )
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-DB_SCHEMA_VERSION = 1
+DB_SCHEMA_VERSION = 2
 
 
 def utcnow() -> datetime:
@@ -198,6 +201,10 @@ class EventReviewRow(Base):
     resolved_scientific_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     resolved_common_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     resolved_taxon: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    # Raw detection ids the reviewed event was made of (schema 2). The review
+    # follows these windows across thresholds; NULL for reviews written by
+    # schema 1, which still apply by event id only.
+    detection_ids: Mapped[list | None] = mapped_column(JSON, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
 
@@ -207,6 +214,8 @@ class EventRefRow(Base):
     analysis_id: Mapped[str] = mapped_column(
         ForeignKey("analyses.id", ondelete="CASCADE"), index=True
     )
+    # Raw detection ids of the event when it was first served (schema 2).
+    detection_ids: Mapped[list | None] = mapped_column(JSON, nullable=True)
 
 
 class SchemaVersionError(RuntimeError):
@@ -243,6 +252,9 @@ class Database:
                     f"Database schema version {row.version} is newer than this build "
                     f"({DB_SCHEMA_VERSION}). Upgrade Thicket."
                 )
+            elif row.version < DB_SCHEMA_VERSION:
+                _migrate(s, row.version)
+                s.add(SchemaMeta(version=DB_SCHEMA_VERSION))
 
     @contextmanager
     def session(self) -> Iterator[Session]:
@@ -258,6 +270,29 @@ class Database:
 
     def dispose(self) -> None:
         self.engine.dispose()
+
+
+# Columns added after schema 1: (version that added them, table, column, DDL type).
+_ADDED_COLUMNS = [
+    (2, "event_reviews", "detection_ids", "JSON"),
+    (2, "event_refs", "detection_ids", "JSON"),
+]
+
+
+def _migrate(s: Session, from_version: int) -> None:
+    """Bring an older database up to :data:`DB_SCHEMA_VERSION`.
+
+    ``create_all`` adds missing tables but never columns, so added nullable
+    columns are created here with ``ALTER TABLE ... ADD COLUMN`` (valid on
+    SQLite and Postgres). Existing rows keep NULL, which every reader handles.
+    """
+    conn = s.connection()
+    for version, table, column, ddl in _ADDED_COLUMNS:
+        if version <= from_version:
+            continue
+        existing = {c["name"] for c in inspect(conn).get_columns(table)}
+        if column not in existing:
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}"))
 
 
 def _sqlite_pragmas(dbapi_conn, _record) -> None:  # type: ignore[no-untyped-def]

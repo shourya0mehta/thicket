@@ -4,9 +4,14 @@ Both are rendered from the same :class:`~thicket.api.schemas.Analysis` the
 API returns, so exports can never disagree with what the user saw.
 
 CSV: one row per consolidated detection event at the threshold (every
-taxon, every model run), with plausibility and review status so rows that
-do not count toward metrics are visible and filterable. Text cells that
-start with ``= + - @`` are prefixed with ``'`` to defuse spreadsheet
+taxon, every model run). ``counted_in_metrics`` (``true``/``false``) marks the
+rows behind the species table and metrics: filter on it and group by
+``scientific_name`` to reproduce them. ``taxon``, ``common_name`` and
+``scientific_name`` are the species a row counts under; ``detected_*`` keep
+the model's label, which differs only for events a reviewer corrected to
+another known label (``reviewed_label`` holds the reviewer's text).
+Plausibility and review status explain why a row is not counted. Text cells
+that start with ``= + - @`` are prefixed with ``'`` to defuse spreadsheet
 formulas.
 """
 
@@ -41,15 +46,19 @@ CSV_COLUMNS = [
     "decision_threshold",
     "plausibility",
     "review_status",
-    # The reviewer's label for a "corrected" event; the row keeps the model's names.
     "reviewed_label",
+    "detected_taxon",
+    "detected_common_name",
+    "detected_scientific_name",
+    "counted_in_metrics",
 ]
 
 EXPORT_NOTE = (
     "Metrics are based on acoustic detection events and do not estimate individual abundance. "
     "Species, events and metrics come from consolidated detection events at or above the "
-    "decision threshold. Events excluded from metrics (rejected in review, unlikely for the "
-    "location and date, or non-wildlife sounds) are listed with their status."
+    "decision threshold. Every event is listed; counted_in_metrics marks the ones behind the "
+    "species and metrics. The others were excluded in review, flagged unlikely for the "
+    "location and date, or are non-wildlife sounds."
 )
 
 
@@ -104,6 +113,10 @@ def csv_text(a: Analysis) -> str:
                     e.plausibility,
                     e.review_status,
                     e.reviewed_label,
+                    e.detected_taxon,
+                    e.detected_common_name,
+                    e.detected_scientific_name,
+                    "true" if e.counted_in_metrics else "false",
                 )
             ]
         )

@@ -21,15 +21,15 @@ It is built for the people who have to measure habitat outcomes (land trusts, re
 
 | Capability | Status | Evidence |
 |---|---|---|
-| Upload, validation, normalization, temp cleanup | Built | 252 backend tests incl. magic-byte sniffing, 413/415 paths, cleanup on failure |
+| Upload, validation, normalization, temp cleanup | Built | 279 backend tests incl. magic-byte sniffing, 413/415 paths, cleanup on failure |
 | BirdNET v2.4 detections with timestamps | Built | Adapter contract test on a pinned fixture (chickadee 0.81 at 0 s, house finch 0.64 at 9 s, blue jay at 18 s) |
 | Threshold control, consolidation, metrics | Built | Server recomputes at any threshold from stored raw windows; hand-computed metric tests |
 | Range and season plausibility (birds) | Built | Uses BirdNET's meta model; never applied to frogs or insects (it scores them near 0) |
 | Audio quality control | Built | Signal checks plus a trained soundscape head (below) |
 | Acoustic indices (ACI, ADI, AEI, BI, NDSI, Hf, Ht) | Built | Cross-checked against scikit-maad to about 1e-5 |
-| Review (accept, reject, correct) | Built | Rejected events leave the metrics; reviews survive threshold changes |
+| Review (accept, reject, correct) | Built | Rejected events leave the metrics; reviews follow the reviewed windows at every threshold |
 | CSV and JSON export with provenance | Built | Exact header and schema tests |
-| Frontend analysis workspace | Built | 83 unit tests, Playwright e2e with an axe scan in light and dark |
+| Frontend analysis workspace | Built | 92 unit tests, Playwright e2e with an axe scan in light and dark |
 | Soundscape QC head (rain, wind, engines...) | Trained here | ESC-50, 5 official folds, macro AP 0.866 (0.835 to 0.896) |
 | Frog and insect species head | Pipeline ready, not trained | No reachable, openly licensed North American data met the bar tonight. See below. |
 | Accounts, organizations, long-term site trends | Not built | Release D in the spec |
@@ -137,7 +137,7 @@ scripts/    publish.sh
 
 ```bash
 make lint     # ruff, frontend eslint and typecheck
-make test     # backend pytest (252), ml tests (14), frontend vitest (83)
+make test     # backend pytest (279), ml tests (14), frontend vitest (92)
 make e2e      # Playwright with a mocked API, including an axe accessibility scan
 ```
 

@@ -56,6 +56,7 @@ function handle(backend: FakeBackend, method: string, rawUrl: string, body: unkn
     return { status: 200, body: opts.models ?? MODELS };
   }
   if (method === 'POST' && path === '/previews') return { status: 201, body: PREVIEW };
+  if (method === 'DELETE' && /^\/previews\/[^/]+$/.test(path)) return { status: 204, body: null };
   if (method === 'POST' && path === '/analyses') {
     const error = opts.createErrors?.shift();
     if (error) return { status: error.status, body: error.body };

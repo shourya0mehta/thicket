@@ -13,7 +13,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-SCHEMA_VERSION = "1.1.0"
+SCHEMA_VERSION = "1.2.0"
 
 
 class _Model(BaseModel):
@@ -188,21 +188,42 @@ class RawDetection(_Model):
 
 
 class DetectionEvent(_Model):
+    """One consolidated detection event at the requested decision threshold.
+
+    ``scientific_name``, ``common_name`` and ``taxon`` are the species the event
+    counts under: the model's label, or the reviewer's correction when an event
+    was corrected to a label the models know. ``detected_*`` always hold the
+    model's own label, so a correction never hides what the model said.
+    """
+
     id: str
-    scientific_name: str
+    scientific_name: str = Field(description="Species the event counts under (see detected_*).")
     common_name: str
     taxon: Taxon
+    detected_scientific_name: str = Field(description="The model's label for this event.")
+    detected_common_name: str
+    detected_taxon: Taxon
     model_run_id: str
     start_seconds: float
     end_seconds: float
-    max_confidence: float
+    max_confidence: float = Field(description="Model score for the detected label.")
     mean_confidence: float
     n_windows: int
     contributing_detection_ids: list[str]
-    plausibility: Literal["plausible", "unlikely", "unknown"] = "unknown"
+    plausibility: Literal["plausible", "unlikely", "unknown"] = Field(
+        "unknown",
+        description="Range and season check of the detected label; reviews do not change it.",
+    )
     review_status: ReviewStatus = ReviewStatus.unreviewed
     reviewed_label: str | None = None
     review_note: str | None = None
+    counted_in_metrics: bool = Field(
+        description=(
+            "True when the event is in the counted set behind species, metrics and charts: "
+            "a wildlife taxon, not rejected, and not flagged unlikely unless a reviewer "
+            "accepted or corrected it."
+        )
+    )
 
 
 class SpeciesSummary(_Model):

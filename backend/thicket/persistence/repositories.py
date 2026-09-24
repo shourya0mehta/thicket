@@ -4,7 +4,7 @@ the results without holding a session open."""
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -284,39 +284,78 @@ class Repository:
                     .where(AnalysisRow.recording_id == rec.id)
                 ).scalar_one()
                 if not others:
+                    site_id = rec.site_id
                     s.delete(rec)
+                    s.flush()
+                    self._delete_orphan_site(s, site_id)
                     return True, rec
             return True, None
 
+    @staticmethod
+    def _delete_orphan_site(s, site_id: str | None) -> None:  # type: ignore[no-untyped-def]
+        """Drop a site (name and coordinates) once no recording refers to it."""
+        if site_id is None:
+            return
+        users = s.execute(
+            select(func.count()).select_from(RecordingRow).where(RecordingRow.site_id == site_id)
+        ).scalar_one()
+        if not users:
+            s.execute(delete(SiteRow).where(SiteRow.id == site_id))
+
+    def get_site(self, site_id: str) -> SiteRow | None:
+        with self.db.session() as s:
+            return s.get(SiteRow, site_id)
+
     # --------------------------------------------------------------- reviews
-    def register_event_refs(self, analysis_id: str, event_ids: Iterable[str]) -> None:
-        ids = sorted(set(event_ids))
+    def register_event_refs(self, analysis_id: str, events: Mapping[str, Sequence[str]]) -> None:
+        """Record ``event id -> raw detection ids`` for events being served.
+
+        First seen wins; rows written before schema 2 (no ids) are filled in.
+        """
+        ids = sorted(events)
         if not ids:
             return
         for attempt in range(3):
             try:
                 with self.db.session() as s:
-                    existing = set(
-                        s.execute(
-                            select(EventRefRow.event_id).where(EventRefRow.event_id.in_(ids))
+                    existing = {
+                        r.event_id: r
+                        for r in s.execute(
+                            select(EventRefRow).where(EventRefRow.event_id.in_(ids))
                         ).scalars()
-                    )
+                    }
                     missing = [i for i in ids if i not in existing]
                     if missing:
                         s.execute(
                             EventRefRow.__table__.insert(),
-                            [{"event_id": i, "analysis_id": analysis_id} for i in missing],
+                            [
+                                {
+                                    "event_id": i,
+                                    "analysis_id": analysis_id,
+                                    "detection_ids": list(events[i]),
+                                }
+                                for i in missing
+                            ],
                         )
+                    for i, row in existing.items():
+                        if row.detection_ids is None and row.analysis_id == analysis_id:
+                            row.detection_ids = list(events[i])
                 return
             except IntegrityError:
                 if attempt == 2:
                     raise
 
-    def event_analysis_id(self, event_id: str) -> str | None:
+    def event_ref(self, event_id: str) -> tuple[str, list[str] | None] | None:
+        """(analysis id, raw detection ids or None) for a served event id."""
         with self.db.session() as s:
-            return s.execute(
-                select(EventRefRow.analysis_id).where(EventRefRow.event_id == event_id)
-            ).scalar_one_or_none()
+            row = s.get(EventRefRow, event_id)
+            if row is None:
+                return None
+            return row.analysis_id, (list(row.detection_ids) if row.detection_ids else None)
+
+    def event_analysis_id(self, event_id: str) -> str | None:
+        ref = self.event_ref(event_id)
+        return ref[0] if ref else None
 
     def upsert_review(
         self,
@@ -327,8 +366,16 @@ class Repository:
         reviewed_label: str | None,
         review_note: str | None,
         resolved: tuple[str, str, str] | None,
+        detection_ids: Sequence[str] | None = None,
         updated_at: datetime | None = None,
     ) -> None:
+        """Create, update or (``unreviewed``) delete a review.
+
+        ``detection_ids`` are the reviewed event's raw windows. Updating an
+        existing review keeps the windows it already had and adds new ones, so
+        re-reviewing an event shown at a higher threshold (with fewer windows)
+        does not release the windows below it.
+        """
         with self.db.session() as s:
             row = s.get(EventReviewRow, event_id)
             if review_status == "unreviewed":
@@ -344,4 +391,13 @@ class Repository:
             row.resolved_scientific_name, row.resolved_common_name, row.resolved_taxon = (
                 resolved if resolved else (None, None, None)
             )
+            if detection_ids is not None or row.detection_ids is not None:
+                merged = set(row.detection_ids or []) | set(detection_ids or [])
+                row.detection_ids = sorted(merged, key=_detection_sort_key)
             row.updated_at = updated_at or utcnow()
+
+
+def _detection_sort_key(detection_id: str) -> tuple[int, str]:
+    """``det_2`` before ``det_10``; anything unexpected sorts after, by text."""
+    head, _, tail = detection_id.rpartition("_")
+    return (int(tail), head) if tail.isdigit() else (1 << 62, detection_id)

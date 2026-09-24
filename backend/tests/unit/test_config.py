@@ -66,6 +66,7 @@ def test_json_origins(monkeypatch):
         {"min_audio_duration_seconds": 700, "max_audio_duration_seconds": 600},
         {"environment": "staging"},
         {"log_level": "LOUD"},
+        {"client_ip_header": "Fly-Client-IP: 1.2.3.4"},
     ],
 )
 def test_invalid_settings_rejected(kw):
@@ -77,3 +78,9 @@ def test_relative_data_dir_resolved(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     s = make(thicket_data_dir=Path("rel"))
     assert s.data_dir == (tmp_path / "rel").resolve()
+
+
+def test_client_ip_header_is_normalized():
+    assert make().client_ip_header is None
+    assert make(client_ip_header="  ").client_ip_header is None
+    assert make(client_ip_header=" Fly-Client-IP ").client_ip_header == "fly-client-ip"

@@ -110,3 +110,38 @@ def test_preview_errors(make_client, audio):
     assert post_preview(client, audio["corrupt_riff"]).json()["error_code"] == "audio_decode_failed"
     assert client.post("/api/v1/previews", files={"x": (None, "1")}).status_code == 422
     assert not any(client.app.state.container.storage.previews.iterdir())
+
+
+def test_delete_preview(client):
+    p = post_preview(client, SOUNDSCAPE).json()
+    folder = client.app.state.container.storage.preview_dir(p["id"])
+    assert any(f.suffix == ".flac" for f in folder.iterdir())
+    assert client.delete(f"/api/v1/previews/{p['id']}").status_code == 204
+    assert not folder.exists()
+    assert client.get(f"/api/v1/previews/{p['id']}").status_code == 404
+    assert client.get(p["spectrogram_url"]).status_code == 404
+    r = client.delete(f"/api/v1/previews/{p['id']}")
+    assert r.status_code == 404 and r.json()["error_code"] == "not_found"
+    assert client.delete("/api/v1/previews/..%2F..%2Fthicket.sqlite3").status_code == 404
+    assert client.delete("/api/v1/previews/prv_000000000000000000000000").status_code == 404
+
+
+def test_preview_checks_decoded_length_before_the_native_pass(make_client, monkeypatch):
+    """A header that understates the length must not buy an uncapped full decode."""
+    from thicket.services import previews
+    from thicket.services.audio_io import AudioProbe
+
+    client = make_client(max_audio_duration_seconds=10)
+    monkeypatch.setattr(
+        previews,
+        "probe_upload",
+        lambda path: AudioProbe(5.0, 48000, 1, "flac", 16, "flac"),  # claims 5 s; it is 30 s
+    )
+
+    def full_decode(*args, **kwargs):
+        raise AssertionError("native_level_stats ran on an over-long file")
+
+    monkeypatch.setattr(previews, "native_level_stats", full_decode)
+    r = post_preview(client, SOUNDSCAPE)
+    assert r.status_code == 422 and r.json()["error_code"] == "audio_too_long"
+    assert not any(client.app.state.container.storage.previews.iterdir())
