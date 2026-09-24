@@ -681,6 +681,29 @@ def write_card(res: dict) -> None:
     a("* A missing flag does not prove a recording is free of people, speech or noise.")
     a("* Warnings should explain, not blame: a flagged recording can still hold valid detections.")
     a("")
+    v2_path = REPO / "ml" / "reports" / "qc_esc50_v2_results.json"
+    if v2_path.exists():
+        v2 = json.loads(v2_path.read_text())
+        if "decision" in v2:
+            E = v2["mixtures_eval"]["backend"]
+            a("## Follow-up: v2 with mixture training")
+            a("")
+            a(
+                "A v2 head was trained with synthetic mixtures of ESC-50 clips (a bird, frog or insect clip plus a contaminant, added digitally). "
+                "**These mixtures are synthetic, not field recordings.** On held-out mixtures, the contaminant was flagged (backend rule) by v1 / v2 in "
+                + "; ".join(
+                    f"{lab}: {100 * E['v1'][f'all@{k}']['detected'][0]:.0f}% / {100 * E['v2'][f'all@{k}']['detected'][0]:.0f}%"
+                    for k, lab in (("+10", "+10 dB"), ("+0", "0 dB"), ("-10", "-10 dB"))
+                )
+                + ". "
+                + (
+                    'v2 met the pre-registered ship criteria and is now the default; this v1 card stays valid for `load_version("qc_head_v1")`. See `docs/model-cards/qc-soundscape-v2.md`.'
+                    if v2["decision"]["ship"]
+                    else "v2 did not meet the pre-registered ship criteria, so v1 remains the default."
+                )
+                + " Details: `ml/reports/qc_esc50_v2.md`."
+            )
+            a("")
     a("## License and provenance")
     a("")
     a(

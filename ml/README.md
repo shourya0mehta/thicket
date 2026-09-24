@@ -12,6 +12,8 @@ ml/
   train/
     esc50_qc.py               soundscape QC head on ESC-50 (Task 1)
     esc50_qc_report.py        writes the QC report and model card from results
+    esc50_qc_mix.py           QC head v2 experiment: synthetic mixture training
+    esc50_qc_mix_report.py    writes the v2 report (and v2 card if it ships)
     birdnet_nonbird_benchmark.py  BirdNET amphibian / insect labels on ESC-50
     frog_insect.py            frog and insect species head (iNaturalist format)
     evalkit.py, linear.py, plotstyle.py   shared metrics, models, figure style
@@ -62,6 +64,35 @@ The `--data` folder is a cache outside the repository. Do not commit audio.
 All randomness is seeded; linear models are full-batch L-BFGS, so reruns give
 the same numbers on the same BLAS (tiny floating point differences are
 possible on other machines).
+
+### v2 experiment: training with synthetic mixtures
+
+v1 often misses a contaminant mixed under a bird, frog or insect call.
+`ml/train/esc50_qc_mix.py` tests whether training on synthetic mixtures
+fixes that without hurting clean-clip accuracy. Mixtures add two ESC-50 clips
+from the same official fold (so no source recording crosses between train and
+test) and are embedded exactly like v1. **They are synthetic, not field
+recordings.**
+
+```
+python ml/train/esc50_qc_mix.py all --data /home/claude/data/esc50
+```
+
+| Stage | What it does | Time on 2 vCPU (measured) |
+|---|---|---|
+| `mixfeatures` | 2,000 training-pool mixtures (random SNR -10 to +15 dB) and 1,800 fixed-SNR evaluation mixtures (+10, 0, -10 dB), BirdNET embeddings cached as `mix_features.npz` | 12 min |
+| `evaluate --variant v2a` | first attempt: union labels, one C for all categories | 9 min |
+| `diagnose` | recipe comparison on training folds only (outer fold 1 untouched) | 2 min |
+| `evaluate --variant v2b` | audibility-gated labels, per-category choice of mixture weight and C under a clean-AP constraint | 21 min |
+| `export` | writes `qc_head_v2.npz` + `.json` only if the pre-registered ship criteria pass (`--force` overrides) | about 6 min |
+| `report` | `ml/reports/qc_esc50_v2.md` (+ the v2 model card when shipped) | seconds |
+
+Status on 2026-09-24: neither attempt met the pre-registered ship criteria
+(v2b passed five of six; its clean-clip F1 at its own thresholds was too
+low), so **v1 remains the default** and no v2 file is packaged. `qc_head.py`
+already loads versions by name and would prefer a packaged v2. See
+`ml/reports/qc_esc50_v2.md` for the numbers and the honesty note (v2b was
+designed after seeing v2a's results).
 
 ## 2. BirdNET non-bird benchmark (ESC-50)
 

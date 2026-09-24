@@ -99,6 +99,10 @@ Default thresholds maximize F1 on cross-validated training predictions. Strict t
 * A missing flag does not prove a recording is free of people, speech or noise.
 * Warnings should explain, not blame: a flagged recording can still hold valid detections.
 
+## Follow-up: v2 with mixture training
+
+A v2 head was trained with synthetic mixtures of ESC-50 clips (a bird, frog or insect clip plus a contaminant, added digitally). **These mixtures are synthetic, not field recordings.** On held-out mixtures, the contaminant was flagged (backend rule) by v1 / v2 in +10 dB: 10% / 20%; 0 dB: 22% / 39%; -10 dB: 35% / 55%. v2 did not meet the pre-registered ship criteria, so v1 remains the default. Details: `ml/reports/qc_esc50_v2.md`.
+
 ## License and provenance
 
 * License: CC BY-NC-SA 4.0. The head is derived from BirdNET v2.4 embeddings (CC BY-NC-SA 4.0) and trained on ESC-50 (CC BY-NC 3.0). Non-commercial use only; share alike.

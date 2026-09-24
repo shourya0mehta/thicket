@@ -1,8 +1,14 @@
 """Soundscape QC head: flags likely contamination and non-target sound sources.
 
 A small linear head on BirdNET v2.4 window embeddings (1024-d), trained on
-ESC-50 (see ``docs/model-cards/qc-soundscape-v1.md``). Pure NumPy at inference;
-the artifact is a pickle-free ``.npz`` loaded with ``allow_pickle=False``.
+ESC-50 (``docs/model-cards/qc-soundscape-v1.md``). Versions share one file
+format and are loaded by name with ``load_version``; ``load_default`` picks
+the newest packaged one (see ``VERSIONS``). Only ``qc_head_v1`` is packaged:
+a mixture-trained v2 was evaluated but did not meet its pre-registered ship
+criteria (ml/reports/qc_esc50_v2.md), so it is not shipped.
+
+Pure NumPy at inference; artifacts are pickle-free ``.npz`` files loaded with
+``allow_pickle=False``.
 
 Usage::
 
@@ -25,7 +31,8 @@ present in at least about a quarter of the recording. This keeps the false
 warning rate from growing with recording length (a plain max over segments
 flagged most clean 60 s test recordings) at the cost of not flagging short
 bursts; use ``predict_segments`` to localize those. Recordings of one or two
-segments are scored like a single clip. See ml/reports/qc_esc50_v1.md.
+segments are scored like a single clip. See ml/reports/qc_esc50_v1.md and
+ml/reports/qc_esc50_v2.md.
 
 Probabilities are Platt-calibrated on ESC-50 cross-validation predictions.
 They are calibrated for ESC-50-like 5 s clips, not for field recordings. Treat
@@ -43,7 +50,8 @@ from pathlib import Path
 
 import numpy as np
 
-ARTIFACT_NAME = "qc_head_v1.npz"
+VERSIONS = ("qc_head_v2", "qc_head_v1")  # preference order for load_default()
+ARTIFACT_NAME = "qc_head_v1.npz"  # kept for backward compatibility
 FORMAT = "thicket-qc-head/1"
 CONTAMINATION_KINDS = ("geophony", "anthropophony", "biophony_non_target")
 POOLING_MODES = ("whole", "segment_max", "segment_quantile")
@@ -253,11 +261,31 @@ def _read_card(path: Path) -> dict:
         return {}
 
 
+def artifact_path(version: str) -> Path:
+    """Packaged artifact path for a version name such as ``"qc_head_v1"``."""
+    if version not in VERSIONS:
+        raise QCHeadUnavailable(f"unknown QC head version {version!r}")
+    return Path(str(resources.files("thicket.models.data").joinpath(f"{version}.npz")))
+
+
+def available_versions() -> list[str]:
+    """Packaged versions, most preferred first."""
+    return [v for v in VERSIONS if artifact_path(v).exists()]
+
+
 def default_path() -> Path:
-    return Path(str(resources.files("thicket.models.data").joinpath(ARTIFACT_NAME)))
+    """The preferred packaged artifact (v2 when present, else v1)."""
+    avail = available_versions()
+    return artifact_path(avail[0] if avail else VERSIONS[-1])
+
+
+@lru_cache(maxsize=len(VERSIONS))
+def load_version(version: str) -> QCHead:
+    """Load a packaged QC head by version name, once per process."""
+    return QCHead.load(artifact_path(version))
 
 
 @lru_cache(maxsize=1)
 def load_default() -> QCHead:
-    """Load the packaged QC head once per process."""
+    """Load the preferred packaged QC head once per process."""
     return QCHead.load(default_path())

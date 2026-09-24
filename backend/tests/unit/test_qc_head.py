@@ -1,4 +1,8 @@
-"""Tests for the soundscape QC head (thicket.models.qc_head)."""
+"""Tests for the soundscape QC head (thicket.models.qc_head).
+
+Every packaged version (qc_head_v2 when present, and qc_head_v1) runs the same
+checks through the parametrized ``head`` fixture.
+"""
 
 from __future__ import annotations
 
@@ -9,7 +13,16 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from thicket.models.qc_head import FORMAT, QCHead, default_path, load_default
+from thicket.models.qc_head import (
+    FORMAT,
+    QCHead,
+    QCHeadUnavailable,
+    artifact_path,
+    available_versions,
+    default_path,
+    load_default,
+    load_version,
+)
 
 EXPECTED = (
     "rain",
@@ -26,9 +39,12 @@ EXPECTED = (
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "soundscape_30s.flac"
 
 
-@pytest.fixture(scope="module")
-def head() -> QCHead:
-    return load_default()
+VERSIONS = available_versions()
+
+
+@pytest.fixture(scope="module", params=VERSIONS)
+def head(request) -> QCHead:
+    return load_version(request.param)
 
 
 def _synthetic(head: QCHead, n: int = 3, seed: int = 0) -> np.ndarray:
@@ -39,9 +55,25 @@ def _synthetic(head: QCHead, n: int = 3, seed: int = 0) -> np.ndarray:
     return np.maximum(mu + 0.5 * sd * rng.standard_normal((n, d)), 0.0).astype(np.float32)
 
 
-def test_artifact_is_pickle_free_and_complete():
-    with np.load(default_path(), allow_pickle=False) as z:
+def test_v1_is_packaged_and_loadable_by_name():
+    assert "qc_head_v1" in VERSIONS
+    assert load_version("qc_head_v1").version == "qc_head_v1"
+    with pytest.raises(QCHeadUnavailable):
+        artifact_path("qc_head_v0")
+
+
+def test_default_is_the_newest_packaged_version():
+    assert default_path() == artifact_path(VERSIONS[0])
+    assert load_default().version == VERSIONS[0]
+    if "qc_head_v2" in VERSIONS:
+        assert load_default().version == "qc_head_v2"
+
+
+@pytest.mark.parametrize("version", VERSIONS)
+def test_artifact_is_pickle_free_and_complete(version):
+    with np.load(artifact_path(version), allow_pickle=False) as z:
         assert str(z["format"]) == FORMAT
+        assert str(z["version"]) == version
         for key in ("feature_mean", "feature_std", "W", "b", "platt_a", "platt_b", "thresholds"):
             assert z[key].dtype == np.float32
             assert np.all(np.isfinite(z[key]))
@@ -62,6 +94,7 @@ def test_shapes_and_categories(head: QCHead):
     assert head.category_kind["rain"] == "geophony"
     assert head.category_kind["bird"] == "biophony"
     assert head.card.get("version") == head.version
+    assert head.card.get("artifact") == f"{head.version}.npz"
 
 
 def test_predict_on_synthetic_embedding(head: QCHead):
@@ -149,8 +182,9 @@ def test_real_soundscape_fixture(head: QCHead):
     """30 s dawn-chorus soundscape (BirdNET-Analyzer example): no contamination warning.
 
     The head's own ``bird`` score is NOT high on this real recording (ESC-50's
-    close 'chirping birds' clips differ from a distant chorus; see
-    ml/reports/qc_esc50_v1.md, real soundscape check), so we do not assert it.
+    close 'chirping birds' clips differ from a distant chorus; see the real
+    soundscape checks in ml/reports/qc_esc50_v1.md and qc_esc50_v2.md), so we
+    do not assert it.
     """
     from thicket.models.birdnet_runtime import BirdNETRuntime, BirdNETUnavailable, frame_windows
     from thicket.services.audio_io import decode
