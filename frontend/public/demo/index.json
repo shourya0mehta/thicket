@@ -1,0 +1,18 @@
+{
+ "analyses": [
+  {
+   "id": "birdnet-example-soundscape",
+   "title": "Two-minute soundscape",
+   "description": "The example recording shipped with BirdNET-Analyzer: a two-minute morning soundscape with several songbirds. No location or date is attached, so the range and season check and the map are skipped.",
+   "attribution": "Example soundscape from BirdNET-Analyzer (github.com/birdnet-team/BirdNET-Analyzer).",
+   "license": "Distributed with the MIT-licensed BirdNET-Analyzer repository"
+  },
+  {
+   "id": "esc50-rain-and-wind",
+   "title": "Rain and wind (test clip)",
+   "description": "Thirty seconds stitched from six ESC-50 clips, three of rain and three of wind, in file order. It is not a field recording. It shows the audio quality checks and what a result with no species looks like.",
+   "attribution": "ESC-50 (Piczak 2015), clips from freesound.org/s/17367, freesound.org/s/21189, freesound.org/s/26222, freesound.org/s/137296, freesound.org/s/29532, freesound.org/s/47709.",
+   "license": "CC BY-NC 3.0"
+  }
+ ]
+}

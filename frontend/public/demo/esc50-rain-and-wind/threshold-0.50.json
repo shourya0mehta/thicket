@@ -1,0 +1,252 @@
+{
+ "schema_version": "1.1.0",
+ "id": "ana_03af88d37595b233e8496d73",
+ "status": "completed",
+ "stage": "completed",
+ "recording": {
+  "id": "rec_b45001826398d22cc1e033fe",
+  "filename": "rain_wind.wav",
+  "content_type": "audio/wav",
+  "byte_size": 2880078,
+  "checksum_sha256": "0391c5197b2b6072a5408e391df533b94bffe6d39311fb81e4ddeed7c0ddb1f0",
+  "format": "wav (pcm_s16le)",
+  "duration_seconds": 30.0,
+  "sample_rate_hz": 48000,
+  "channels": 1,
+  "bit_depth": 16,
+  "captured_at": null,
+  "timezone": null,
+  "latitude": null,
+  "longitude": null,
+  "site_name": "Stitched test clip",
+  "recorder_type": null,
+  "notes": null
+ },
+ "quality": {
+  "status": "usable_with_warnings",
+  "score": 0.55,
+  "peak_dbfs": 0.0,
+  "rms_dbfs": -12.07,
+  "clipping_fraction": 0.017252,
+  "silence_fraction": 0.0,
+  "low_frequency_energy_fraction": 0.7019,
+  "speech_detected": false,
+  "checks": [
+   {
+    "name": "duration",
+    "value": 30.0,
+    "unit": "s",
+    "status": "pass",
+    "message": "Duration of 30.0 s is within the supported range."
+   },
+   {
+    "name": "sample_rate",
+    "value": 48000.0,
+    "unit": "Hz",
+    "status": "pass",
+    "message": "The sample rate of 48000 Hz covers the band BirdNET analyzes."
+   },
+   {
+    "name": "clipping",
+    "value": 0.017252,
+    "unit": "fraction",
+    "status": "warn",
+    "message": "1.73% of samples are clipped, so loud sounds may be distorted. Lower the recorder gain if you can."
+   },
+   {
+    "name": "level",
+    "value": -12.07,
+    "unit": "dBFS",
+    "status": "pass",
+    "message": "The level is adequate (RMS -12 dBFS)."
+   },
+   {
+    "name": "silence",
+    "value": 0.0,
+    "unit": "fraction",
+    "status": "pass",
+    "message": "0% of the recording is near silence."
+   },
+   {
+    "name": "low_frequency_noise",
+    "value": 0.7019,
+    "unit": "fraction",
+    "status": "pass",
+    "message": "70% of the sound energy is below 200 Hz. Distant traffic or wind often does this; Thicket warns at 95%."
+   },
+   {
+    "name": "dc_offset",
+    "value": -9e-05,
+    "unit": "fraction",
+    "status": "pass",
+    "message": "No significant DC offset."
+   },
+   {
+    "name": "speech",
+    "value": 0.0013,
+    "unit": "probability",
+    "status": "pass",
+    "message": "No human speech was detected."
+   },
+   {
+    "name": "soundscape_rain",
+    "value": 0.9024,
+    "unit": "probability",
+    "status": "warn",
+    "message": "Rain is likely present (score 0.90); it can mask calls and lower detection rates."
+   },
+   {
+    "name": "soundscape_wind",
+    "value": 0.8031,
+    "unit": "probability",
+    "status": "warn",
+    "message": "Wind is likely present (score 0.80); it can mask calls and lower detection rates."
+   }
+  ],
+  "warnings": [
+   "1.73% of samples are clipped, so loud sounds may be distorted. Lower the recorder gain if you can.",
+   "Rain is likely present (score 0.90); it can mask calls and lower detection rates.",
+   "Wind is likely present (score 0.80); it can mask calls and lower detection rates."
+  ]
+ },
+ "settings": {
+  "decision_threshold": 0.5,
+  "raw_threshold": 0.1,
+  "merge_gap_seconds": 1.0,
+  "hop_seconds": 3.0,
+  "requested_models": [
+   "birdnet"
+  ],
+  "location_filter": true,
+  "location_filter_threshold": 0.03
+ },
+ "model_runs": [
+  {
+   "id": "run_fd477fa5255d5ada",
+   "adapter": "birdnet",
+   "model": "BirdNET GLOBAL 6K V2.4",
+   "version": "2.4",
+   "model_sha256": "55f3e4055b1a13bfa9a2452731d0d34f6a02d6b775a334362665892794165e4c",
+   "taxa": [
+    "bird",
+    "amphibian",
+    "insect",
+    "mammal"
+   ],
+   "experimental": false,
+   "required_sample_rate_hz": 48000,
+   "window_seconds": 3.0,
+   "hop_seconds": 3.0,
+   "raw_threshold": 0.1,
+   "configuration": {
+    "model_file": "BirdNET_GLOBAL_6K_V2.4_Model_FP32.tflite",
+    "model_name": "BirdNET GLOBAL 6K V2.4",
+    "license": "CC BY-NC-SA 4.0",
+    "sensitivity": 1.0,
+    "min_tail_seconds": 1.0,
+    "confidence_decimals": 4,
+    "location_filter_applied": false,
+    "reason": "no_coordinates"
+   },
+   "runtime_ms": 381,
+   "n_windows": 10
+  }
+ ],
+ "metrics": {
+  "species_richness": 0,
+  "shannon_index": 0.0,
+  "pielou_evenness": 0.0,
+  "simpson_diversity": 0.0,
+  "total_detection_events": 0,
+  "raw_detection_count": 0,
+  "events_per_minute": 0.0,
+  "dominant_species": null,
+  "events_by_taxon": {},
+  "basis": "detection_events"
+ },
+ "acoustic_indices": {
+  "acoustic_complexity_index": 188.851997,
+  "acoustic_diversity_index": 2.222554,
+  "acoustic_evenness_index": 0.219021,
+  "bioacoustic_index": 21.855927,
+  "ndsi": 0.399057,
+  "spectral_entropy": 0.761416,
+  "temporal_entropy": 0.969555
+ },
+ "species": [],
+ "events": [
+  {
+   "id": "evt_85ab7420e786bab0",
+   "scientific_name": "Engine",
+   "common_name": "Engine",
+   "taxon": "anthropogenic",
+   "model_run_id": "run_fd477fa5255d5ada",
+   "start_seconds": 21.0,
+   "end_seconds": 24.0,
+   "max_confidence": 0.5791,
+   "mean_confidence": 0.5791,
+   "n_windows": 1,
+   "contributing_detection_ids": [
+    "det_0"
+   ],
+   "plausibility": "unknown",
+   "review_status": "unreviewed",
+   "reviewed_label": null,
+   "review_note": null
+  }
+ ],
+ "raw_detections": [
+  {
+   "id": "det_0",
+   "model_run_id": "run_fd477fa5255d5ada",
+   "label_raw": "Engine_Engine",
+   "scientific_name": "Engine",
+   "common_name": "Engine",
+   "taxon": "anthropogenic",
+   "start_seconds": 21.0,
+   "end_seconds": 24.0,
+   "confidence": 0.5791,
+   "plausibility": "unknown"
+  },
+  {
+   "id": "det_1",
+   "model_run_id": "run_fd477fa5255d5ada",
+   "label_raw": "Power tools_Power tools",
+   "scientific_name": "Power tools",
+   "common_name": "Power tools",
+   "taxon": "bird",
+   "start_seconds": 21.0,
+   "end_seconds": 24.0,
+   "confidence": 0.2691,
+   "plausibility": "unknown"
+  }
+ ],
+ "assets": {
+  "audio_url": null,
+  "spectrogram_url": "/api/v1/analyses/ana_03af88d37595b233e8496d73/spectrogram.png",
+  "spectrogram_min_hz": 0,
+  "spectrogram_max_hz": 16000,
+  "csv_url": "/api/v1/analyses/ana_03af88d37595b233e8496d73/export.csv?threshold=0.5",
+  "json_url": "/api/v1/analyses/ana_03af88d37595b233e8496d73/export.json?threshold=0.5"
+ },
+ "warnings": [
+  "Metrics are based on acoustic detection events and do not estimate individual abundance.",
+  "No coordinates were provided, so detections were not checked against species ranges and seasons.",
+  "Non-wildlife sounds were detected and are not counted as species: Engine (1 event)."
+ ],
+ "error_code": null,
+ "error_message": null,
+ "software_version": "0.1.0",
+ "created_at": "2026-09-24T06:50:04.241308Z",
+ "completed_at": "2026-09-24T06:50:05.178458Z",
+ "stage_timings_ms": {
+  "queued": 0,
+  "normalizing": 274,
+  "quality": 83,
+  "spectrogram": 150,
+  "model:birdnet": 381,
+  "consolidating": 1,
+  "metrics": 36,
+  "total": 925
+ }
+}
