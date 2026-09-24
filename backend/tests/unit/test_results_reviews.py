@@ -116,6 +116,36 @@ def test_validate_threshold():
         assert "ingestion floor" in e.value.message
 
 
+def test_unlikely_warning_pluralizes_species_correctly():
+    raw = [
+        d(0, "C c", 0.0, 0.9, plaus="unlikely"),
+        d(1, "E e", 10.0, 0.9, plaus="unlikely"),
+        d(2, "F f", 20.0, 0.9, plaus="unlikely"),
+    ]
+    two = derive(
+        raw[:2],
+        threshold=0.6,
+        merge_gap_seconds=1.0,
+        analysis_id="ana_t",
+        duration_seconds=60.0,
+        reviews={},
+    )
+    warning = next(w for w in derived_warnings(two) if "unlikely" in w)
+    assert warning.startswith("2 detection events of 2 species unlikely")
+    assert "speciess" not in warning
+    one = derive(
+        raw[:1],
+        threshold=0.6,
+        merge_gap_seconds=1.0,
+        analysis_id="ana_t",
+        duration_seconds=60.0,
+        reviews={},
+    )
+    assert next(w for w in derived_warnings(one) if "unlikely" in w).startswith(
+        "1 detection event of 1 species unlikely"
+    )
+
+
 def test_disclaimer_wording():
     assert ABUNDANCE_DISCLAIMER == (
         "Metrics are based on acoustic detection events and do not estimate individual abundance."

@@ -29,6 +29,7 @@ export const CSV_COLUMNS = [
   'decision_threshold',
   'plausibility',
   'review_status',
+  'reviewed_label',
 ] as const;
 
 type Cell = string | number | null | undefined;
@@ -88,6 +89,7 @@ export function analysisToCsv(analysis: Analysis): string {
       analysis.settings.decision_threshold,
       event.plausibility ?? 'unknown',
       event.review_status ?? 'unreviewed',
+      event.reviewed_label,
     ];
     return cells.map((cell, i) => csvCell(cell, FLOAT_COLUMNS.has(CSV_COLUMNS[i] ?? ''))).join(',');
   });

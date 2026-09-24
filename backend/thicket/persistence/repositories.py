@@ -119,8 +119,14 @@ class Repository:
         model_runs: Sequence[ModelRunRow],
         detections: Sequence[WindowDetection],
         storage_uri: str | None,
+        duration_seconds: float | None = None,
     ) -> bool:
-        """Persist results and mark completed. False if the analysis is gone or already final."""
+        """Persist results and mark completed. False if the analysis is gone or already final.
+
+        ``duration_seconds`` is the decoded duration; it replaces the container's
+        declared duration on the recording so rates and time axes match the audio
+        that was actually analyzed.
+        """
         with self.db.session() as s:
             row = s.get(AnalysisRow, analysis_id, with_for_update=True)
             if row is None or row.status in TERMINAL:
@@ -155,10 +161,13 @@ class Repository:
             row.status = "completed"
             row.stage = "completed"
             row.completed_at = utcnow()
-            if storage_uri:
+            if storage_uri or duration_seconds is not None:
                 rec = s.get(RecordingRow, row.recording_id)
                 if rec is not None:
-                    rec.storage_uri = storage_uri
+                    if storage_uri:
+                        rec.storage_uri = storage_uri
+                    if duration_seconds is not None:
+                        rec.duration_seconds = duration_seconds
             return True
 
     def fail(

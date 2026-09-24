@@ -1,7 +1,7 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { MAX_FILE_BYTES } from '../config';
-import { installFakeBackend } from './fakeBackend';
+import { holdRequests, installFakeBackend } from './fakeBackend';
 import { ANALYSIS_ID, buildAnalysis } from './fixtures/analysis';
 import { audioFile, chooseFile, fileInput, metricValue, renderApp, runAnalysis } from './utils';
 
@@ -261,6 +261,93 @@ describe('results', () => {
       'href',
       `/api/v1/analyses/${ANALYSIS_ID}/export.json?threshold=0.45`,
     );
+  });
+
+  it('drops a recompute that returns after the slider went back to the applied threshold', async () => {
+    installFakeBackend();
+    const { user } = renderApp();
+    chooseFile(audioFile());
+    await runAnalysis(user);
+    const at60 = buildAnalysis({ threshold: 0.6 });
+    const held = holdRequests((url) => url.includes('threshold=0.45'));
+
+    const slider = screen.getByRole('slider', { name: 'Decision threshold' });
+    fireEvent.change(slider, { target: { value: '0.45' } });
+    await waitFor(() => expect(held.count()).toBe(1));
+    // Back to the applied value before the 45% response arrives: no new request.
+    fireEvent.change(slider, { target: { value: '0.6' } });
+    await act(async () => {
+      held.release();
+      await Promise.resolve();
+    });
+
+    await waitFor(() =>
+      expect(screen.getByTestId('applied-threshold')).toHaveTextContent('Showing results at 60%'),
+    );
+    expect(metricValue('metric-richness')).toBe(String(at60.metrics!.species_richness));
+    expect(screen.queryByText(/Updating results/)).toBeNull();
+    expect(screen.getByTestId('export-csv')).toHaveAttribute(
+      'href',
+      `/api/v1/analyses/${ANALYSIS_ID}/export.csv?threshold=0.60`,
+    );
+  });
+
+  it('does not stay stuck updating when a review lands during a recompute', async () => {
+    const backend = installFakeBackend();
+    const { user } = renderApp();
+    chooseFile(audioFile());
+    await runAnalysis(user);
+    let first = true;
+    const held = holdRequests((url) => {
+      const hold = first && url.includes('threshold=0.45');
+      if (hold) first = false;
+      return hold;
+    });
+
+    const slider = screen.getByRole('slider', { name: 'Decision threshold' });
+    fireEvent.change(slider, { target: { value: '0.45' } });
+    await waitFor(() => expect(held.count()).toBe(1));
+    const row = screen
+      .getAllByTestId('event-row')
+      .find((r) => r.textContent?.includes('Red-winged Blackbird'))!;
+    await user.click(within(row).getByRole('button', { name: 'Reject' }));
+
+    await waitFor(() =>
+      expect(backend.reviews).toEqual({ 'evt_agelaius-phoeniceus_18': 'rejected' }),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId('applied-threshold')).toHaveTextContent('Showing results at 45%'),
+    );
+    expect(screen.queryByText(/Recomputing at/)).toBeNull();
+  });
+
+  it('brings a review refetch back to the slider when the slider moved meanwhile', async () => {
+    const backend = installFakeBackend();
+    const { user } = renderApp();
+    chooseFile(audioFile());
+    await runAnalysis(user);
+    const before = Number(metricValue('metric-events'));
+    const held = holdRequests((url) => url.includes('threshold=0.45'));
+
+    const slider = screen.getByRole('slider', { name: 'Decision threshold' });
+    // Review while a 45% recompute is still debounced, then return to 60% at once.
+    fireEvent.change(slider, { target: { value: '0.45' } });
+    const row = screen
+      .getAllByTestId('event-row')
+      .find((r) => r.textContent?.includes('Red-winged Blackbird'))!;
+    fireEvent.click(within(row).getByRole('button', { name: 'Reject' }));
+    fireEvent.change(slider, { target: { value: '0.6' } });
+    await waitFor(() => expect(held.count()).toBe(1)); // the review refetch, at 45%
+    await act(async () => {
+      held.release();
+      await Promise.resolve();
+    });
+
+    await waitFor(() =>
+      expect(screen.getByTestId('applied-threshold')).toHaveTextContent('Showing results at 60%'),
+    );
+    expect(backend.reviews).toEqual({ 'evt_agelaius-phoeniceus_18': 'rejected' });
+    expect(metricValue('metric-events')).toBe(String(before - 1));
   });
 
   it('seeks the audio element to the event start when an event is clicked', async () => {

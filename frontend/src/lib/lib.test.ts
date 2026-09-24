@@ -140,7 +140,7 @@ describe('CSV export', () => {
     const robin = csv.split('\n').find((line) => line.includes('Turdus migratorius'))!;
     expect(robin).toContain(',0.0,9.0,0.91,');
     expect(robin).toContain(',-76.4735,');
-    expect(robin).toContain(',0.6,plausible,unreviewed');
+    expect(robin.endsWith(',0.6,plausible,unreviewed,')).toBe(true);
     expect(csvCell('=SUM(A1)')).toBe("'=SUM(A1)");
     expect(csvCell(-3)).toBe('-3');
     expect(header).toBe(CSV_COLUMNS.join(','));
@@ -148,6 +148,24 @@ describe('CSV export', () => {
     expect(first).toContain(',0.6,');
     expect(csvCell('say "hi"')).toBe('"say ""hi"""');
     expect(csvCell(null)).toBe('');
+  });
+
+  it('carries the reviewer label of corrected events, like the backend', () => {
+    const analysis = buildAnalysis({ threshold: 0.6 });
+    const target = analysis.events[0]!;
+    const corrected = {
+      ...analysis,
+      events: analysis.events.map((e) =>
+        e.id === target.id
+          ? { ...e, review_status: 'corrected' as const, reviewed_label: 'Purple Finch' }
+          : e,
+      ),
+    };
+    const line = analysisToCsv(corrected)
+      .split('\n')
+      .find((l) => l.includes(target.id))!;
+    expect(line.endsWith(',corrected,Purple Finch')).toBe(true);
+    expect(line).toContain(`,${target.scientific_name},`);
   });
 });
 

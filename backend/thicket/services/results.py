@@ -185,7 +185,8 @@ def derive_bundle(bundle: AnalysisBundle, threshold: float) -> Derived:
 
 
 def _plural(n: int, word: str) -> str:
-    return f"{n} {word}" if n == 1 else f"{n} {word}s"
+    # "species" is its own plural.
+    return f"{n} {word}" if n == 1 or word.endswith("species") else f"{n} {word}s"
 
 
 def derived_warnings(d: Derived) -> list[str]:

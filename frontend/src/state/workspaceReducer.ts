@@ -106,6 +106,8 @@ export type WorkspaceAction =
   | { type: 'refresh_start' }
   | { type: 'refresh_done'; analysis: Analysis }
   | { type: 'refresh_failed'; error: FriendlyError }
+  /** A recompute was dropped (stale threshold or aborted); keep the shown analysis. */
+  | { type: 'refresh_cancelled' }
   | { type: 'load_start'; source: ResultSource; demoId?: string | null }
   | { type: 'load_done'; analysis: Analysis; source: ResultSource }
   | { type: 'load_failed'; error: FriendlyError | null; notice?: string | null }
@@ -267,6 +269,8 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
       return { ...state, refreshing: false, analysis: action.analysis };
     case 'refresh_failed':
       return { ...state, refreshing: false, refreshError: action.error };
+    case 'refresh_cancelled':
+      return { ...state, refreshing: false };
     case 'load_start':
       return {
         ...resetResults(state),
@@ -301,6 +305,8 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
         ...state,
         reviewingEventId: null,
         analysis: action.analysis ?? state.analysis,
+        // The review refetch replaced (and aborted) any threshold recompute in flight.
+        refreshing: action.analysis ? false : state.refreshing,
       };
     case 'review_failed':
       return { ...state, reviewingEventId: null, reviewError: action.error };

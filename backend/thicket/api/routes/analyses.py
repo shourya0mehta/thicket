@@ -100,6 +100,9 @@ async def create_analysis(
     finally:
         if not handed_off:
             shutil.rmtree(tmp, ignore_errors=True)
+    if preview_id and not c.settings.retain_audio:
+        # The analysis has its own copy; do not keep the upload for the preview TTL.
+        await run_in_threadpool(c.previews.release_audio, preview_id)
 
     location = {"Location": f"/api/v1/analyses/{analysis_id}"}
     if wait:

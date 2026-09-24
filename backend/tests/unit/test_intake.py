@@ -176,6 +176,23 @@ def test_parse_requires_multipart(tmp_path):
         )
 
 
+def test_parse_rejects_unknown_charset(tmp_path):
+    # Used to escape as a LookupError (HTTP 500) from the field decoder.
+    body = _multipart([("threshold", None, b"0.5"), ("file", "x.wav", WAV_HEAD + b"\x00" * 10)])
+    with pytest.raises(ThicketError) as e:
+        asyncio.run(
+            intake.parse_multipart_upload(
+                "multipart/form-data; boundary=BOUNDARY; charset=bogus-9",
+                _stream(body),
+                tmp_path,
+                max_bytes=10_000,
+                allowed_fields=("file", "threshold"),
+            )
+        )
+    assert e.value.code == ErrorCode.invalid_parameter
+    assert list(tmp_path.iterdir()) == []
+
+
 def test_clean_text():
     assert intake.clean_text("  hi\x07 there  ", 20, "x") == "hi there"
     assert intake.clean_text("   ", 20, "x") is None

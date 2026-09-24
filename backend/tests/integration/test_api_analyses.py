@@ -157,7 +157,7 @@ def test_csv_export(client, completed):
         "analysis_id", "recording_filename", "site_name", "latitude", "longitude", "captured_at",
         "timezone", "taxon", "common_name", "scientific_name", "event_id", "start_seconds",
         "end_seconds", "max_confidence", "mean_confidence", "n_windows", "model", "model_version",
-        "model_run_id", "decision_threshold", "plausibility", "review_status",
+        "model_run_id", "decision_threshold", "plausibility", "review_status", "reviewed_label",
     ]  # fmt: skip
     body = rows[1:]
     assert len(body) == len(completed["events"])
@@ -206,6 +206,14 @@ def test_review_changes_metrics(client, completed):
     )
     names = {s["common_name"] for s in r.json()["species"]}
     assert "Purple Finch" in names and "House Finch" not in names
+    # The CSV keeps the model's names and carries the reviewer's label, so the
+    # species table can be reproduced from the export.
+    rows = list(csv.DictReader(io.StringIO(
+        client.get(f"/api/v1/analyses/{aid}/export.csv?threshold=0.3").text
+    )))  # fmt: skip
+    row = next(x for x in rows if x["event_id"] == finch["id"])
+    assert row["common_name"] == "House Finch" and row["review_status"] == "corrected"
+    assert row["reviewed_label"] == "Purple Finch"
     # Clear the review.
     r = client.patch(
         f"/api/v1/events/{finch['id']}?threshold=0.3", json={"review_status": "unreviewed"}

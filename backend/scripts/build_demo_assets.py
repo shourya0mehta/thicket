@@ -94,42 +94,74 @@ def main() -> None:
 
                 time.sleep(0.2)
 
-            _analyze(client, args.soundscape, "birdnet-example-soundscape",
-                     {"site_name": "BirdNET example soundscape"})
-            entries.append({
-                "id": "birdnet-example-soundscape",
-                "title": "Two-minute soundscape",
-                "description": (
-                    "The example recording shipped with BirdNET-Analyzer: a two-minute "
-                    "morning soundscape with several songbirds. No location or date is "
-                    "attached, so the range and season check and the map are skipped."
-                ),
-                "attribution": "Example soundscape from BirdNET-Analyzer (github.com/birdnet-team/BirdNET-Analyzer).",
-                "license": "Distributed with the MIT-licensed BirdNET-Analyzer repository",
-            })
+            _analyze(
+                client,
+                args.soundscape,
+                "birdnet-example-soundscape",
+                {"site_name": "BirdNET example soundscape"},
+            )
+            entries.append(
+                {
+                    "id": "birdnet-example-soundscape",
+                    "title": "Two-minute soundscape",
+                    "description": (
+                        "The example recording shipped with BirdNET-Analyzer: a two-minute "
+                        "morning soundscape with several songbirds. No location or date is "
+                        "attached, so the range and season check and the map are skipped."
+                    ),
+                    "attribution": "Example soundscape from BirdNET-Analyzer (github.com/birdnet-team/BirdNET-Analyzer).",
+                    "license": "Distributed with the MIT-licensed BirdNET-Analyzer repository",
+                }
+            )
 
             if args.esc50:
-                meta = list(csv.DictReader(open(args.esc50 / "meta" / "esc50.csv")))
+                with open(args.esc50 / "meta" / "esc50.csv", newline="") as fh:
+                    meta = list(csv.DictReader(fh))
                 picks = [r for r in meta if r["category"] == "rain"][:3] + [
-                    r for r in meta if r["category"] == "wind"][:3]
+                    r for r in meta if r["category"] == "wind"
+                ][:3]
                 stitched = Path(tmp) / "rain_wind.wav"
                 listing = Path(tmp) / "list.txt"
-                listing.write_text("".join(f"file '{args.esc50 / 'audio' / r['filename']}'\n" for r in picks))
-                subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i",
-                                str(listing), "-ac", "1", "-ar", "48000", str(stitched)], check=True)
-                _analyze(client, stitched, "esc50-rain-and-wind", {"site_name": "Stitched test clip"})
+                listing.write_text(
+                    "".join(f"file '{args.esc50 / 'audio' / r['filename']}'\n" for r in picks)
+                )
+                subprocess.run(
+                    [
+                        "ffmpeg",
+                        "-v",
+                        "error",
+                        "-y",
+                        "-f",
+                        "concat",
+                        "-safe",
+                        "0",
+                        "-i",
+                        str(listing),
+                        "-ac",
+                        "1",
+                        "-ar",
+                        "48000",
+                        str(stitched),
+                    ],
+                    check=True,
+                )
+                _analyze(
+                    client, stitched, "esc50-rain-and-wind", {"site_name": "Stitched test clip"}
+                )
                 sources = ", ".join(f"freesound.org/s/{r['src_file']}" for r in picks)
-                entries.append({
-                    "id": "esc50-rain-and-wind",
-                    "title": "Rain and wind (test clip)",
-                    "description": (
-                        "Thirty seconds stitched from six ESC-50 clips, three of rain and three "
-                        "of wind, in file order. It is not a field recording. It shows the "
-                        "audio quality checks and what a result with no species looks like."
-                    ),
-                    "attribution": f"ESC-50 (Piczak 2015), clips from {sources}.",
-                    "license": "CC BY-NC 3.0",
-                })
+                entries.append(
+                    {
+                        "id": "esc50-rain-and-wind",
+                        "title": "Rain and wind (test clip)",
+                        "description": (
+                            "Thirty seconds stitched from six ESC-50 clips, three of rain and three "
+                            "of wind, in file order. It is not a field recording. It shows the "
+                            "audio quality checks and what a result with no species looks like."
+                        ),
+                        "attribution": f"ESC-50 (Piczak 2015), clips from {sources}.",
+                        "license": "CC BY-NC 3.0",
+                    }
+                )
 
     (OUT / "index.json").write_text(json.dumps({"analyses": entries}, indent=1))
     print(f"[demo] wrote {OUT / 'index.json'}")

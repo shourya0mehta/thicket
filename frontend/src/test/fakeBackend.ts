@@ -90,6 +90,41 @@ function handle(backend: FakeBackend, method: string, rawUrl: string, body: unkn
   return { status: 404, body: { error_code: 'analysis_not_found', message: 'Not found' } };
 }
 
+/**
+ * Holds fetch requests whose URL matches until `release()`, so tests can order
+ * responses (for example a slow threshold recompute). Held requests honour
+ * their AbortSignal. Call after `installFakeBackend()`.
+ */
+export function holdRequests(match: (url: string) => boolean): {
+  count: () => number;
+  release: () => void;
+} {
+  const base = globalThis.fetch;
+  const pending: Array<() => void> = [];
+  let count = 0;
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (!match(url)) return base(input, init);
+      count += 1;
+      return new Promise<Response>((resolve, reject) => {
+        const onAbort = () => {
+          const error = new Error('Aborted');
+          error.name = 'AbortError';
+          reject(error);
+        };
+        init?.signal?.addEventListener('abort', onAbort, { once: true });
+        pending.push(() => {
+          init?.signal?.removeEventListener('abort', onAbort);
+          base(input, init).then(resolve, reject);
+        });
+      });
+    }),
+  );
+  return { count: () => count, release: () => pending.splice(0).forEach((go) => go()) };
+}
+
 function serialize(body: unknown): string {
   if (body === null || body === undefined) return '';
   return typeof body === 'string' ? body : JSON.stringify(body);

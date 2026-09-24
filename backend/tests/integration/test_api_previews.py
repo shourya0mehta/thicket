@@ -36,8 +36,28 @@ def test_reuse_preview_for_analysis(client):
     assert a["recording"]["checksum_sha256"] == p["recording"]["checksum_sha256"]
     assert a["recording"]["filename"] == "soundscape_30s.flac"
     assert "Black-capped Chickadee" in {s["common_name"] for s in a["species"]}
-    # The preview survives for another run until its TTL.
+    # Facts and spectrogram stay until the TTL...
     assert client.get(f"/api/v1/previews/{p['id']}").status_code == 200
+    assert client.get(p["spectrogram_url"]).status_code == 200
+    # ...but with RETAIN_AUDIO=false (the default) the uploaded audio is gone as soon
+    # as the analysis has its own copy, so it cannot outlive the analysis or its deletion.
+    c = client.app.state.container
+    left = {f.name for f in c.storage.preview_dir(p["id"]).iterdir()}
+    assert left == {"meta.json", "spectrogram.png"}
+    assert client.delete(f"/api/v1/analyses/{a['id']}").status_code == 204
+    assert list(c.storage.tmp.iterdir()) == []
+    # Reusing the preview now asks for the file again (the web app re-uploads).
+    again = post_analysis(client, None, data={"preview_id": p["id"]})
+    assert again.status_code == 404 and again.json()["error_code"] == "not_found"
+
+
+@pytest.mark.birdnet
+def test_reuse_preview_twice_when_audio_is_retained(make_client):
+    client = make_client(retain_audio=True)
+    p = post_preview(client, SOUNDSCAPE).json()
+    for _ in range(2):
+        r = post_analysis(client, None, data={"preview_id": p["id"]})
+        assert r.status_code == 201, r.text
 
 
 def test_preview_id_errors(client):

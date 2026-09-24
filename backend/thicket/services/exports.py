@@ -41,6 +41,8 @@ CSV_COLUMNS = [
     "decision_threshold",
     "plausibility",
     "review_status",
+    # The reviewer's label for a "corrected" event; the row keeps the model's names.
+    "reviewed_label",
 ]
 
 EXPORT_NOTE = (
@@ -101,6 +103,7 @@ def csv_text(a: Analysis) -> str:
                     a.settings.decision_threshold,
                     e.plausibility,
                     e.review_status,
+                    e.reviewed_label,
                 )
             ]
         )

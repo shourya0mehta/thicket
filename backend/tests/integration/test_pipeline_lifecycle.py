@@ -60,6 +60,27 @@ def test_analysis_timeout(make_client):
     assert list(storage(client).tmp.iterdir()) == []
 
 
+def test_truncated_file_uses_decoded_duration(client, tmp_path):
+    # The FLAC header still declares 30 s, but only about 14 s of frames remain.
+    truncated = tmp_path / "truncated.flac"
+    truncated.write_bytes(SOUNDSCAPE.read_bytes()[:400_000])
+    r = post_analysis(client, truncated, data={"threshold": "0.1"})
+    assert r.status_code == 201, r.text
+    a = r.json()
+    duration = a["recording"]["duration_seconds"]
+    assert 10.0 < duration < 20.0
+    duration_check = next(c for c in a["quality"]["checks"] if c["name"] == "duration")
+    assert abs(duration_check["value"] - duration) < 0.05
+    events = a["metrics"]["total_detection_events"]
+    assert events > 0
+    assert a["metrics"]["events_per_minute"] == round(events / (duration / 60.0), 3)
+    assert any("declares 30.0 s" in w and "truncated" in w for w in a["warnings"])
+    # An intact file gets no such warning.
+    intact = post_analysis(client, SOUNDSCAPE).json()
+    assert intact["recording"]["duration_seconds"] == 30.0
+    assert not any("declares" in w for w in intact["warnings"])
+
+
 def test_delete_while_queued(client):
     r = post_analysis(client, SOUNDSCAPE, wait=False)
     aid = r.json()["id"]

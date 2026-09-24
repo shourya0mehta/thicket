@@ -132,6 +132,23 @@ def audio_too_short(duration: float, settings: Settings) -> ThicketError:
     )
 
 
+DURATION_MISMATCH_SECONDS = 1.0
+
+
+def duration_mismatch_warning(declared: float, decoded: float) -> str | None:
+    """Warn when the container's declared duration disagrees with the decoded audio.
+
+    Truncated files (and some VBR MP3s) declare more audio than they hold.
+    Results, rates and time axes use the decoded duration.
+    """
+    if declared <= 0 or abs(declared - decoded) <= DURATION_MISMATCH_SECONDS:
+        return None
+    return (
+        f"The file declares {declared:.1f} s of audio but {decoded:.1f} s could be decoded; "
+        f"it may be truncated or damaged. Results cover the decoded {decoded:.1f} s."
+    )
+
+
 def probe_upload(path: Path) -> AudioProbe:
     try:
         return probe(path)
@@ -438,6 +455,9 @@ class AnalysisService:
             with self._stage(job, "metrics"):
                 indices = compute_indices(mono, sr).as_dict()
                 warnings = self._pipeline_warnings(params, report)
+                mismatch = duration_mismatch_warning(job.probe.duration_seconds, duration)
+                if mismatch:
+                    warnings.append(mismatch)
 
             if self.settings.retain_audio:
                 retained = self.storage.audio_path(aid)
@@ -458,6 +478,7 @@ class AnalysisService:
                 model_runs=runs,
                 detections=detections,
                 storage_uri=self.storage.storage_uri(retained) if retained else None,
+                duration_seconds=round(duration, 3),
             )
             if not ok:
                 raise AnalysisCancelled()

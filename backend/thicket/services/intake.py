@@ -16,6 +16,7 @@ The client filename is kept only as display metadata, after sanitizing.
 
 from __future__ import annotations
 
+import codecs
 import hashlib
 import os
 import re
@@ -332,6 +333,10 @@ async def parse_multipart_upload(
     if ctype != b"multipart/form-data" or b"boundary" not in params:
         raise invalid_parameter("Send the request as multipart/form-data.")
     charset = params.get(b"charset", b"utf-8").decode("latin-1")
+    try:
+        codecs.lookup(charset)
+    except LookupError as exc:
+        raise invalid_parameter("Unsupported charset in the Content-Type header.") from exc
     form = _StreamingForm(dest_dir, max_bytes, allowed_fields, charset)
     callbacks = {
         "on_part_begin": form.on_part_begin,

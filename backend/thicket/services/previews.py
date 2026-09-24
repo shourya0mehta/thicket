@@ -22,7 +22,7 @@ from pathlib import Path
 from thicket.api.schemas import Preview, QualityReport, RecordingInfo
 from thicket.config import Settings
 from thicket.domain.quality import assess_quality
-from thicket.errors import not_found
+from thicket.errors import ThicketError, not_found
 from thicket.ids import is_valid_id, new_id
 from thicket.services.analysis import (
     TARGET_SR,
@@ -178,6 +178,23 @@ class PreviewService:
             byte_size=int(rec["byte_size"]),
             sha256=rec["checksum_sha256"],
         )
+
+    def release_audio(self, preview_id: str) -> None:
+        """Delete the preview's uploaded audio once an analysis has taken its own copy.
+
+        Used when ``RETAIN_AUDIO`` is false so the upload does not outlive the
+        analysis (or its deletion) for the rest of the preview TTL. The facts and
+        spectrogram stay until expiry; reusing the preview for another analysis
+        then returns ``not_found`` and clients upload the file again.
+        """
+        try:
+            meta = self._meta(preview_id)
+        except ThicketError:
+            return
+        d = self.storage.preview_dir(preview_id)
+        src = d / str(meta.get("stored_name", ""))
+        if src.parent == d and src.name and src.name not in (META, SPECTROGRAM):
+            src.unlink(missing_ok=True)
 
     def purge_expired(self, now: datetime | None = None) -> int:
         """Delete expired or broken previews. Returns how many were removed."""

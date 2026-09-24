@@ -258,7 +258,15 @@ export function useWorkspace(): Workspace {
         source === 'demo' && demoId
           ? await loadDemoAnalysis(demoId, threshold, ctrl.signal)
           : await api.getAnalysis(analysis.id, { threshold, signal: ctrl.signal });
-      if (seq === refreshSeq.current) dispatch({ type: 'refresh_done', analysis: next });
+      if (seq !== refreshSeq.current) return;
+      if (!sameThreshold(next.settings.decision_threshold, stateRef.current.threshold)) {
+        // The slider moved while this request was in flight (for example back to
+        // the applied value, which schedules no new request). Showing this result
+        // would pair the slider with results computed at another threshold.
+        dispatch({ type: 'refresh_cancelled' });
+        return;
+      }
+      dispatch({ type: 'refresh_done', analysis: next });
     } catch (error) {
       const friendly = describeError(error);
       if (friendly && seq === refreshSeq.current)
@@ -282,28 +290,50 @@ export function useWorkspace(): Workspace {
     dispatch({ type: 'threshold_set', value });
   }, []);
 
-  const review = useCallback(async (eventId: string, status: ReviewStatus) => {
-    const { analysis, source, threshold } = stateRef.current;
-    if (!analysis || source === 'demo' || isDemoMode()) return;
-    dispatch({ type: 'review_start', eventId });
-    try {
-      await api.reviewEvent(eventId, { review_status: status });
+  const review = useCallback(
+    async (eventId: string, status: ReviewStatus) => {
+      const { analysis, source, threshold } = stateRef.current;
+      if (!analysis || source === 'demo' || isDemoMode()) return;
+      dispatch({ type: 'review_start', eventId });
+      try {
+        await api.reviewEvent(eventId, { review_status: status });
+      } catch (error) {
+        dispatch({ type: 'review_failed', error: describeError(error) });
+        return;
+      }
+      // The refetch replaces any threshold recompute in flight.
       refreshCtrl.current?.abort();
       const ctrl = new AbortController();
       refreshCtrl.current = ctrl;
       const seq = ++refreshSeq.current;
-      const next = await api.getAnalysis(analysis.id, { threshold, signal: ctrl.signal });
-      dispatch({ type: 'review_done', analysis: seq === refreshSeq.current ? next : null });
-    } catch (error) {
-      dispatch({ type: 'review_failed', error: describeError(error) });
-    }
-  }, []);
+      try {
+        const next = await api.getAnalysis(analysis.id, { threshold, signal: ctrl.signal });
+        const latest = seq === refreshSeq.current;
+        dispatch({ type: 'review_done', analysis: latest ? next : null });
+        const wanted = stateRef.current.threshold;
+        if (latest && !sameThreshold(next.settings.decision_threshold, wanted)) {
+          // The slider moved during the review; bring the results to its position.
+          void refreshAt(wanted);
+        }
+      } catch (error) {
+        dispatch({ type: 'review_failed', error: describeError(error) });
+        if (seq === refreshSeq.current) dispatch({ type: 'refresh_cancelled' });
+      }
+    },
+    [refreshAt],
+  );
 
   const deleteCurrent = useCallback(async () => {
     const { analysis } = stateRef.current;
     if (!analysis || isDemoMode()) return;
     abortAll();
-    await api.deleteAnalysis(analysis.id);
+    try {
+      await api.deleteAnalysis(analysis.id);
+    } catch (error) {
+      // abortAll() dropped any recompute in flight; the analysis stays on screen.
+      dispatch({ type: 'refresh_cancelled' });
+      throw error;
+    }
     dispatch({ type: 'history', history: removeFromHistory(analysis.id) });
     dispatch({
       type: 'deleted',
