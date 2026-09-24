@@ -1,0 +1,1713 @@
+{
+  "$defs": {
+    "AcousticIndices": {
+      "additionalProperties": false,
+      "description": "Signal-level soundscape indices, independent of any species model.",
+      "properties": {
+        "acoustic_complexity_index": {
+          "title": "Acoustic Complexity Index",
+          "type": "number"
+        },
+        "acoustic_diversity_index": {
+          "title": "Acoustic Diversity Index",
+          "type": "number"
+        },
+        "acoustic_evenness_index": {
+          "title": "Acoustic Evenness Index",
+          "type": "number"
+        },
+        "bioacoustic_index": {
+          "title": "Bioacoustic Index",
+          "type": "number"
+        },
+        "ndsi": {
+          "description": "Normalized Difference Soundscape Index, -1..1.",
+          "title": "Ndsi",
+          "type": "number"
+        },
+        "spectral_entropy": {
+          "title": "Spectral Entropy",
+          "type": "number"
+        },
+        "temporal_entropy": {
+          "title": "Temporal Entropy",
+          "type": "number"
+        }
+      },
+      "required": [
+        "acoustic_complexity_index",
+        "acoustic_diversity_index",
+        "acoustic_evenness_index",
+        "bioacoustic_index",
+        "ndsi",
+        "spectral_entropy",
+        "temporal_entropy"
+      ],
+      "title": "AcousticIndices",
+      "type": "object"
+    },
+    "Analysis": {
+      "additionalProperties": false,
+      "properties": {
+        "acoustic_indices": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AcousticIndices"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "assets": {
+          "$ref": "#/$defs/Assets"
+        },
+        "completed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Completed At"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "error_code": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ErrorCode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "error_message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error Message"
+        },
+        "events": {
+          "items": {
+            "$ref": "#/$defs/DetectionEvent"
+          },
+          "title": "Events",
+          "type": "array"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "metrics": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Metrics"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "model_runs": {
+          "items": {
+            "$ref": "#/$defs/ModelRun"
+          },
+          "title": "Model Runs",
+          "type": "array"
+        },
+        "quality": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QualityReport"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "raw_detections": {
+          "items": {
+            "$ref": "#/$defs/RawDetection"
+          },
+          "title": "Raw Detections",
+          "type": "array"
+        },
+        "recording": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecordingInfo"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema_version": {
+          "default": "1.1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "settings": {
+          "$ref": "#/$defs/AnalysisSettings"
+        },
+        "software_version": {
+          "title": "Software Version",
+          "type": "string"
+        },
+        "species": {
+          "items": {
+            "$ref": "#/$defs/SpeciesSummary"
+          },
+          "title": "Species",
+          "type": "array"
+        },
+        "stage": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Stage"
+        },
+        "stage_timings_ms": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Stage Timings Ms",
+          "type": "object"
+        },
+        "status": {
+          "$ref": "#/$defs/AnalysisStatus"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "status",
+        "recording",
+        "quality",
+        "settings",
+        "model_runs",
+        "metrics",
+        "species",
+        "events",
+        "raw_detections",
+        "assets",
+        "warnings",
+        "software_version",
+        "created_at"
+      ],
+      "title": "Analysis",
+      "type": "object"
+    },
+    "AnalysisExport": {
+      "additionalProperties": false,
+      "description": "JSON export: the Analysis at one decision threshold plus export provenance.",
+      "properties": {
+        "acoustic_indices": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AcousticIndices"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "assets": {
+          "$ref": "#/$defs/Assets"
+        },
+        "completed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Completed At"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "error_code": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ErrorCode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "error_message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error Message"
+        },
+        "events": {
+          "items": {
+            "$ref": "#/$defs/DetectionEvent"
+          },
+          "title": "Events",
+          "type": "array"
+        },
+        "export_metadata": {
+          "$ref": "#/$defs/ExportMetadata"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "metrics": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Metrics"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "model_runs": {
+          "items": {
+            "$ref": "#/$defs/ModelRun"
+          },
+          "title": "Model Runs",
+          "type": "array"
+        },
+        "quality": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QualityReport"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "raw_detections": {
+          "items": {
+            "$ref": "#/$defs/RawDetection"
+          },
+          "title": "Raw Detections",
+          "type": "array"
+        },
+        "recording": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecordingInfo"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema_version": {
+          "default": "1.1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "settings": {
+          "$ref": "#/$defs/AnalysisSettings"
+        },
+        "software_version": {
+          "title": "Software Version",
+          "type": "string"
+        },
+        "species": {
+          "items": {
+            "$ref": "#/$defs/SpeciesSummary"
+          },
+          "title": "Species",
+          "type": "array"
+        },
+        "stage": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Stage"
+        },
+        "stage_timings_ms": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Stage Timings Ms",
+          "type": "object"
+        },
+        "status": {
+          "$ref": "#/$defs/AnalysisStatus"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "status",
+        "recording",
+        "quality",
+        "settings",
+        "model_runs",
+        "metrics",
+        "species",
+        "events",
+        "raw_detections",
+        "assets",
+        "warnings",
+        "software_version",
+        "created_at",
+        "export_metadata"
+      ],
+      "title": "AnalysisExport",
+      "type": "object"
+    },
+    "AnalysisList": {
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/AnalysisSummary"
+          },
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "title": "AnalysisList",
+      "type": "object"
+    },
+    "AnalysisSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "decision_threshold": {
+          "title": "Decision Threshold",
+          "type": "number"
+        },
+        "hop_seconds": {
+          "title": "Hop Seconds",
+          "type": "number"
+        },
+        "location_filter": {
+          "title": "Location Filter",
+          "type": "boolean"
+        },
+        "location_filter_threshold": {
+          "title": "Location Filter Threshold",
+          "type": "number"
+        },
+        "merge_gap_seconds": {
+          "title": "Merge Gap Seconds",
+          "type": "number"
+        },
+        "raw_threshold": {
+          "title": "Raw Threshold",
+          "type": "number"
+        },
+        "requested_models": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Requested Models",
+          "type": "array"
+        }
+      },
+      "required": [
+        "decision_threshold",
+        "raw_threshold",
+        "merge_gap_seconds",
+        "hop_seconds",
+        "requested_models",
+        "location_filter",
+        "location_filter_threshold"
+      ],
+      "title": "AnalysisSettings",
+      "type": "object"
+    },
+    "AnalysisStatus": {
+      "enum": [
+        "queued",
+        "processing",
+        "completed",
+        "failed"
+      ],
+      "title": "AnalysisStatus",
+      "type": "string"
+    },
+    "AnalysisSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "decision_threshold": {
+          "title": "Decision Threshold",
+          "type": "number"
+        },
+        "duration_seconds": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Duration Seconds"
+        },
+        "filename": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Filename"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "site_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Site Name"
+        },
+        "species_richness": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Species Richness"
+        },
+        "status": {
+          "$ref": "#/$defs/AnalysisStatus"
+        },
+        "top_species": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Top Species",
+          "type": "array"
+        },
+        "total_detection_events": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Total Detection Events"
+        }
+      },
+      "required": [
+        "id",
+        "status",
+        "filename",
+        "site_name",
+        "created_at",
+        "duration_seconds",
+        "species_richness",
+        "total_detection_events",
+        "decision_threshold",
+        "top_species"
+      ],
+      "title": "AnalysisSummary",
+      "type": "object"
+    },
+    "Assets": {
+      "additionalProperties": false,
+      "properties": {
+        "audio_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Null unless audio retention is enabled.",
+          "title": "Audio Url"
+        },
+        "csv_url": {
+          "title": "Csv Url",
+          "type": "string"
+        },
+        "json_url": {
+          "title": "Json Url",
+          "type": "string"
+        },
+        "spectrogram_max_hz": {
+          "default": 16000,
+          "title": "Spectrogram Max Hz",
+          "type": "integer"
+        },
+        "spectrogram_min_hz": {
+          "default": 0,
+          "title": "Spectrogram Min Hz",
+          "type": "integer"
+        },
+        "spectrogram_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Spectrogram Url"
+        }
+      },
+      "required": [
+        "audio_url",
+        "spectrogram_url",
+        "csv_url",
+        "json_url"
+      ],
+      "title": "Assets",
+      "type": "object"
+    },
+    "DetectionEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "common_name": {
+          "title": "Common Name",
+          "type": "string"
+        },
+        "contributing_detection_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Contributing Detection Ids",
+          "type": "array"
+        },
+        "end_seconds": {
+          "title": "End Seconds",
+          "type": "number"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "max_confidence": {
+          "title": "Max Confidence",
+          "type": "number"
+        },
+        "mean_confidence": {
+          "title": "Mean Confidence",
+          "type": "number"
+        },
+        "model_run_id": {
+          "title": "Model Run Id",
+          "type": "string"
+        },
+        "n_windows": {
+          "title": "N Windows",
+          "type": "integer"
+        },
+        "plausibility": {
+          "default": "unknown",
+          "enum": [
+            "plausible",
+            "unlikely",
+            "unknown"
+          ],
+          "title": "Plausibility",
+          "type": "string"
+        },
+        "review_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Review Note"
+        },
+        "review_status": {
+          "$ref": "#/$defs/ReviewStatus",
+          "default": "unreviewed"
+        },
+        "reviewed_label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reviewed Label"
+        },
+        "scientific_name": {
+          "title": "Scientific Name",
+          "type": "string"
+        },
+        "start_seconds": {
+          "title": "Start Seconds",
+          "type": "number"
+        },
+        "taxon": {
+          "$ref": "#/$defs/Taxon"
+        }
+      },
+      "required": [
+        "id",
+        "scientific_name",
+        "common_name",
+        "taxon",
+        "model_run_id",
+        "start_seconds",
+        "end_seconds",
+        "max_confidence",
+        "mean_confidence",
+        "n_windows",
+        "contributing_detection_ids"
+      ],
+      "title": "DetectionEvent",
+      "type": "object"
+    },
+    "ErrorCode": {
+      "enum": [
+        "unsupported_file_type",
+        "file_too_large",
+        "audio_too_long",
+        "audio_decode_failed",
+        "audio_too_short",
+        "model_unavailable",
+        "unknown_model",
+        "invalid_parameter",
+        "analysis_not_found",
+        "event_not_found",
+        "analysis_timeout",
+        "internal_error",
+        "unsupported_audio",
+        "not_found",
+        "rate_limited",
+        "request_timeout"
+      ],
+      "title": "ErrorCode",
+      "type": "string"
+    },
+    "ErrorResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Detail"
+        },
+        "error_code": {
+          "$ref": "#/$defs/ErrorCode"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "error_code",
+        "message"
+      ],
+      "title": "ErrorResponse",
+      "type": "object"
+    },
+    "EventReviewUpdate": {
+      "additionalProperties": false,
+      "properties": {
+        "review_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Review Note"
+        },
+        "review_status": {
+          "$ref": "#/$defs/ReviewStatus"
+        },
+        "reviewed_label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reviewed Label"
+        }
+      },
+      "required": [
+        "review_status"
+      ],
+      "title": "EventReviewUpdate",
+      "type": "object"
+    },
+    "ExportMetadata": {
+      "additionalProperties": false,
+      "properties": {
+        "decision_threshold": {
+          "title": "Decision Threshold",
+          "type": "number"
+        },
+        "exported_at": {
+          "format": "date-time",
+          "title": "Exported At",
+          "type": "string"
+        },
+        "note": {
+          "title": "Note",
+          "type": "string"
+        },
+        "schema_version": {
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "software_version": {
+          "title": "Software Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "exported_at",
+        "software_version",
+        "schema_version",
+        "decision_threshold",
+        "note"
+      ],
+      "title": "ExportMetadata",
+      "type": "object"
+    },
+    "HealthResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "environment": {
+          "title": "Environment",
+          "type": "string"
+        },
+        "ffmpeg": {
+          "title": "Ffmpeg",
+          "type": "boolean"
+        },
+        "models": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Models",
+          "type": "object"
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "degraded"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "version",
+        "environment",
+        "models",
+        "ffmpeg"
+      ],
+      "title": "HealthResponse",
+      "type": "object"
+    },
+    "Metrics": {
+      "additionalProperties": false,
+      "properties": {
+        "basis": {
+          "default": "detection_events",
+          "description": "Metrics use consolidated detection events above the decision threshold.",
+          "title": "Basis",
+          "type": "string"
+        },
+        "dominant_species": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SpeciesRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "events_by_taxon": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Events By Taxon",
+          "type": "object"
+        },
+        "events_per_minute": {
+          "title": "Events Per Minute",
+          "type": "number"
+        },
+        "pielou_evenness": {
+          "title": "Pielou Evenness",
+          "type": "number"
+        },
+        "raw_detection_count": {
+          "title": "Raw Detection Count",
+          "type": "integer"
+        },
+        "shannon_index": {
+          "title": "Shannon Index",
+          "type": "number"
+        },
+        "simpson_diversity": {
+          "description": "Gini-Simpson, 1 - sum(p_i^2).",
+          "title": "Simpson Diversity",
+          "type": "number"
+        },
+        "species_richness": {
+          "title": "Species Richness",
+          "type": "integer"
+        },
+        "total_detection_events": {
+          "title": "Total Detection Events",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "species_richness",
+        "shannon_index",
+        "pielou_evenness",
+        "simpson_diversity",
+        "total_detection_events",
+        "raw_detection_count",
+        "events_per_minute",
+        "dominant_species",
+        "events_by_taxon"
+      ],
+      "title": "Metrics",
+      "type": "object"
+    },
+    "ModelInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "experimental": {
+          "title": "Experimental",
+          "type": "boolean"
+        },
+        "key": {
+          "description": "Stable identifier used in requests, e.g. 'birdnet'.",
+          "title": "Key",
+          "type": "string"
+        },
+        "license": {
+          "title": "License",
+          "type": "string"
+        },
+        "model_card_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Card Url"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "required_sample_rate_hz": {
+          "title": "Required Sample Rate Hz",
+          "type": "integer"
+        },
+        "status": {
+          "enum": [
+            "ready",
+            "loading",
+            "unavailable",
+            "disabled"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "taxa": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Taxa",
+          "type": "array"
+        },
+        "unavailable_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unavailable Reason"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        },
+        "window_seconds": {
+          "title": "Window Seconds",
+          "type": "number"
+        }
+      },
+      "required": [
+        "key",
+        "name",
+        "version",
+        "taxa",
+        "status",
+        "experimental",
+        "required_sample_rate_hz",
+        "window_seconds",
+        "license",
+        "description"
+      ],
+      "title": "ModelInfo",
+      "type": "object"
+    },
+    "ModelRun": {
+      "additionalProperties": false,
+      "properties": {
+        "adapter": {
+          "title": "Adapter",
+          "type": "string"
+        },
+        "configuration": {
+          "additionalProperties": true,
+          "title": "Configuration",
+          "type": "object"
+        },
+        "experimental": {
+          "title": "Experimental",
+          "type": "boolean"
+        },
+        "hop_seconds": {
+          "title": "Hop Seconds",
+          "type": "number"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "model_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Sha256"
+        },
+        "n_windows": {
+          "title": "N Windows",
+          "type": "integer"
+        },
+        "raw_threshold": {
+          "description": "Ingestion floor: raw windows below it are not stored.",
+          "title": "Raw Threshold",
+          "type": "number"
+        },
+        "required_sample_rate_hz": {
+          "title": "Required Sample Rate Hz",
+          "type": "integer"
+        },
+        "runtime_ms": {
+          "title": "Runtime Ms",
+          "type": "integer"
+        },
+        "taxa": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Taxa",
+          "type": "array"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        },
+        "window_seconds": {
+          "title": "Window Seconds",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "adapter",
+        "model",
+        "version",
+        "taxa",
+        "experimental",
+        "required_sample_rate_hz",
+        "window_seconds",
+        "hop_seconds",
+        "raw_threshold",
+        "configuration",
+        "runtime_ms",
+        "n_windows"
+      ],
+      "title": "ModelRun",
+      "type": "object"
+    },
+    "ModelsResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "models": {
+          "items": {
+            "$ref": "#/$defs/ModelInfo"
+          },
+          "title": "Models",
+          "type": "array"
+        }
+      },
+      "required": [
+        "models"
+      ],
+      "title": "ModelsResponse",
+      "type": "object"
+    },
+    "Preview": {
+      "additionalProperties": false,
+      "description": "Result of POST /api/v1/previews: decode, facts, QC and spectrogram, no model.",
+      "properties": {
+        "expires_at": {
+          "format": "date-time",
+          "title": "Expires At",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "quality": {
+          "$ref": "#/$defs/QualityReport"
+        },
+        "recording": {
+          "$ref": "#/$defs/RecordingInfo"
+        },
+        "spectrogram_max_hz": {
+          "default": 16000,
+          "title": "Spectrogram Max Hz",
+          "type": "integer"
+        },
+        "spectrogram_min_hz": {
+          "default": 0,
+          "title": "Spectrogram Min Hz",
+          "type": "integer"
+        },
+        "spectrogram_url": {
+          "title": "Spectrogram Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "recording",
+        "quality",
+        "spectrogram_url",
+        "expires_at"
+      ],
+      "title": "Preview",
+      "type": "object"
+    },
+    "QualityCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "pass",
+            "warn",
+            "fail"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": [
+        "name",
+        "status",
+        "message"
+      ],
+      "title": "QualityCheck",
+      "type": "object"
+    },
+    "QualityReport": {
+      "additionalProperties": false,
+      "properties": {
+        "checks": {
+          "items": {
+            "$ref": "#/$defs/QualityCheck"
+          },
+          "title": "Checks",
+          "type": "array"
+        },
+        "clipping_fraction": {
+          "title": "Clipping Fraction",
+          "type": "number"
+        },
+        "low_frequency_energy_fraction": {
+          "description": "Share of energy below 200 Hz; high values suggest wind or handling noise.",
+          "title": "Low Frequency Energy Fraction",
+          "type": "number"
+        },
+        "peak_dbfs": {
+          "title": "Peak Dbfs",
+          "type": "number"
+        },
+        "rms_dbfs": {
+          "title": "Rms Dbfs",
+          "type": "number"
+        },
+        "score": {
+          "description": "0..1 heuristic usability score.",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Score",
+          "type": "number"
+        },
+        "silence_fraction": {
+          "title": "Silence Fraction",
+          "type": "number"
+        },
+        "speech_detected": {
+          "description": "BirdNET 'Human vocal' above threshold in any window.",
+          "title": "Speech Detected",
+          "type": "boolean"
+        },
+        "status": {
+          "$ref": "#/$defs/QualityStatus"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "status",
+        "score",
+        "peak_dbfs",
+        "rms_dbfs",
+        "clipping_fraction",
+        "silence_fraction",
+        "low_frequency_energy_fraction",
+        "speech_detected",
+        "checks",
+        "warnings"
+      ],
+      "title": "QualityReport",
+      "type": "object"
+    },
+    "QualityStatus": {
+      "enum": [
+        "usable",
+        "usable_with_warnings",
+        "not_usable"
+      ],
+      "title": "QualityStatus",
+      "type": "string"
+    },
+    "RawDetection": {
+      "additionalProperties": false,
+      "properties": {
+        "common_name": {
+          "title": "Common Name",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "end_seconds": {
+          "title": "End Seconds",
+          "type": "number"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "label_raw": {
+          "title": "Label Raw",
+          "type": "string"
+        },
+        "model_run_id": {
+          "title": "Model Run Id",
+          "type": "string"
+        },
+        "plausibility": {
+          "default": "unknown",
+          "enum": [
+            "plausible",
+            "unlikely",
+            "unknown"
+          ],
+          "title": "Plausibility",
+          "type": "string"
+        },
+        "scientific_name": {
+          "title": "Scientific Name",
+          "type": "string"
+        },
+        "start_seconds": {
+          "title": "Start Seconds",
+          "type": "number"
+        },
+        "taxon": {
+          "$ref": "#/$defs/Taxon"
+        }
+      },
+      "required": [
+        "id",
+        "model_run_id",
+        "label_raw",
+        "scientific_name",
+        "common_name",
+        "taxon",
+        "start_seconds",
+        "end_seconds",
+        "confidence"
+      ],
+      "title": "RawDetection",
+      "type": "object"
+    },
+    "RecordingInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "bit_depth": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bit Depth"
+        },
+        "byte_size": {
+          "title": "Byte Size",
+          "type": "integer"
+        },
+        "captured_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Captured At"
+        },
+        "channels": {
+          "title": "Channels",
+          "type": "integer"
+        },
+        "checksum_sha256": {
+          "title": "Checksum Sha256",
+          "type": "string"
+        },
+        "content_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Content Type"
+        },
+        "duration_seconds": {
+          "title": "Duration Seconds",
+          "type": "number"
+        },
+        "filename": {
+          "title": "Filename",
+          "type": "string"
+        },
+        "format": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Container/codec reported by the decoder.",
+          "title": "Format"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "latitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Latitude"
+        },
+        "longitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Longitude"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "recorder_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Recorder Type"
+        },
+        "sample_rate_hz": {
+          "description": "Sample rate of the uploaded file.",
+          "title": "Sample Rate Hz",
+          "type": "integer"
+        },
+        "site_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Site Name"
+        },
+        "timezone": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timezone"
+        }
+      },
+      "required": [
+        "id",
+        "filename",
+        "byte_size",
+        "checksum_sha256",
+        "duration_seconds",
+        "sample_rate_hz",
+        "channels"
+      ],
+      "title": "RecordingInfo",
+      "type": "object"
+    },
+    "ReviewStatus": {
+      "enum": [
+        "unreviewed",
+        "accepted",
+        "rejected",
+        "corrected"
+      ],
+      "title": "ReviewStatus",
+      "type": "string"
+    },
+    "SpeciesRef": {
+      "additionalProperties": false,
+      "properties": {
+        "common_name": {
+          "title": "Common Name",
+          "type": "string"
+        },
+        "scientific_name": {
+          "title": "Scientific Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scientific_name",
+        "common_name"
+      ],
+      "title": "SpeciesRef",
+      "type": "object"
+    },
+    "SpeciesSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "common_name": {
+          "title": "Common Name",
+          "type": "string"
+        },
+        "detection_event_count": {
+          "title": "Detection Event Count",
+          "type": "integer"
+        },
+        "first_detection_seconds": {
+          "title": "First Detection Seconds",
+          "type": "number"
+        },
+        "last_detection_seconds": {
+          "title": "Last Detection Seconds",
+          "type": "number"
+        },
+        "max_confidence": {
+          "title": "Max Confidence",
+          "type": "number"
+        },
+        "mean_confidence": {
+          "title": "Mean Confidence",
+          "type": "number"
+        },
+        "model_run_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Model Run Ids",
+          "type": "array"
+        },
+        "plausibility": {
+          "default": "unknown",
+          "enum": [
+            "plausible",
+            "unlikely",
+            "unknown"
+          ],
+          "title": "Plausibility",
+          "type": "string"
+        },
+        "raw_detection_count": {
+          "title": "Raw Detection Count",
+          "type": "integer"
+        },
+        "scientific_name": {
+          "title": "Scientific Name",
+          "type": "string"
+        },
+        "taxon": {
+          "$ref": "#/$defs/Taxon"
+        },
+        "total_event_duration_seconds": {
+          "title": "Total Event Duration Seconds",
+          "type": "number"
+        }
+      },
+      "required": [
+        "scientific_name",
+        "common_name",
+        "taxon",
+        "model_run_ids",
+        "detection_event_count",
+        "raw_detection_count",
+        "max_confidence",
+        "mean_confidence",
+        "total_event_duration_seconds",
+        "first_detection_seconds",
+        "last_detection_seconds"
+      ],
+      "title": "SpeciesSummary",
+      "type": "object"
+    },
+    "Taxon": {
+      "enum": [
+        "bird",
+        "amphibian",
+        "insect",
+        "mammal",
+        "human",
+        "domestic_animal",
+        "anthropogenic",
+        "environmental",
+        "noise"
+      ],
+      "title": "Taxon",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ThicketAPI",
+  "x-schema-version": "1.1.0"
+}
