@@ -84,3 +84,15 @@ def test_client_ip_header_is_normalized():
     assert make().client_ip_header is None
     assert make(client_ip_header="  ").client_ip_header is None
     assert make(client_ip_header=" Fly-Client-IP ").client_ip_header == "fly-client-ip"
+
+
+def test_google_credentials_ignore_pasted_line_breaks():
+    s = make(
+        auth_mode="google",
+        google_client_id=" 1234-abc.app\ns.googleusercontent.com\n",
+        google_client_secret="GOCSPX-abc\r\ndef ",
+    )
+    assert s.google_client_id == "1234-abc.apps.googleusercontent.com"
+    assert s.google_client_secret == "GOCSPX-abcdef"
+    with pytest.raises(ValidationError):  # whitespace only counts as missing
+        make(auth_mode="google", google_client_id=" \n", google_client_secret="x")

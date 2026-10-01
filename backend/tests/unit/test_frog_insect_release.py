@@ -120,6 +120,7 @@ def test_combined_analysis_applies_rule_and_records_head_labels(tmp_path):
 
 def test_default_models_include_the_head_only_when_enabled(tmp_path):
     from tests.helpers import make_settings
+
     from thicket.models.registry import build_registry
 
     on = build_registry(make_settings(tmp_path, frog_insect_enabled=True))
