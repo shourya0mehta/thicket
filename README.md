@@ -127,6 +127,7 @@ make e2e      # Playwright (21) with a mocked API, including axe scans in both t
 
 * **GitHub**: `./scripts/publish.sh` creates the repository with the GitHub CLI, pushes it, and turns on the Pages demo.
 * **Vercel (read-only demo)**: live at https://thicket-chi.vercel.app. Import the repository with Root Directory `frontend` and set `VITE_DEMO_MODE=true`; the build serves the sample farm from `frontend/public/demo/platform.json` (regenerate it with `npm run demo:platform`). Vercel hosts the web app only. The API needs FFmpeg, the BirdNET weights, a persistent database and background jobs, so it runs on Fly or Render; to put a Vercel build in front of it, drop `VITE_DEMO_MODE` and proxy `/api/*` to the API with a rewrite in `frontend/vercel.json`, so sign-in cookies stay on one origin (they are `SameSite=Lax`, so a separate API domain would not receive them).
+* **Render (live)**: https://thicket-psx1.onrender.com runs the full platform with Google sign-in on Render's free plan. Analyses fit its 512 MB (recordings up to 10 minutes), but a free instance sleeps after 15 idle minutes and starts with an empty database each time, so it is for trying the platform, not for keeping data. For real use, move to the Standard plan with a disk (`render.yaml`).
 * **Fly or Render**: `fly.toml` and `render.yaml` run one container with Google sign-in. Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `SESSION_SECRET`, `PUBLIC_BASE_URL` and, for email, `SMTP_*` or `RESEND_API_KEY`. Production refuses to start without sign-in.
 * Before a real pilot: keep `RETAIN_AUDIO=false` unless participants agreed otherwise, run the [validation protocol](docs/VALIDATION.md) at the site, and read [docs/DECISIONS.md](docs/DECISIONS.md).
 
@@ -136,7 +137,7 @@ make e2e      # Playwright (21) with a mocked API, including axe scans in both t
 * No live recorder links (cellular or Wi-Fi); recordings arrive as SD card uploads.
 * No object storage backend yet (local disk behind an interface); Postgres is supported by the schema but not exercised in CI.
 * No survey protocol objects or before/after study designs beyond baseline periods in reports.
-* Only the read-only demo is public (Vercel and GitHub Pages). The API with sign-in is not deployed yet; `fly.toml` and `render.yaml` are ready.
+* The public instance runs on a free plan without a persistent disk, so its data resets when it restarts.
 
 ## Licenses
 

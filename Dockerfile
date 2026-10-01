@@ -50,7 +50,14 @@ ENV PATH=/opt/venv/bin:$PATH \
     THICKET_DATA_DIR=/data \
     THICKET_CACHE_DIR=/opt/thicket-cache \
     SERVE_FRONTEND_DIR=/app/frontend/dist \
-    FORWARDED_ALLOW_IPS=127.0.0.1
+    FORWARDED_ALLOW_IPS=127.0.0.1 \
+    MALLOC_ARENA_MAX=2 \
+    MALLOC_MMAP_THRESHOLD_=131072 \
+    MALLOC_TRIM_THRESHOLD_=131072
+
+# The MALLOC_* settings hand large NumPy buffers back to the OS after each
+# analysis instead of letting glibc keep them: a 10 minute recording then peaks
+# at about 440 MB and the idle server sits near 260 MB, which fits a 512 MB plan.
 
 COPY --from=builder /opt/venv /opt/venv
 
