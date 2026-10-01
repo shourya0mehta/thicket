@@ -41,8 +41,8 @@ from thicket.api.platform_schemas import (
 )
 from thicket.api.schemas import AnalysisStatus, QualityStatus
 from thicket.config import Settings
-from thicket.errors import conflict, invalid_parameter, not_found
-from thicket.ids import is_valid_id
+from thicket.errors import conflict, forbidden, invalid_parameter, not_found
+from thicket.ids import LOCAL_ORG_ID, is_valid_id
 from thicket.persistence.db import (
     DeploymentRow,
     InviteRow,
@@ -52,7 +52,11 @@ from thicket.persistence.db import (
     UserRow,
     as_utc,
 )
-from thicket.persistence.platform_repositories import PlatformRepository, RecordingView
+from thicket.persistence.platform_repositories import (
+    LastOwner,
+    PlatformRepository,
+    RecordingView,
+)
 from thicket.persistence.repositories import Repository
 from thicket.services.analysis import AnalysisService
 from thicket.services.auth import Principal
@@ -188,6 +192,25 @@ class PlatformService:
             shutil.rmtree(storage.analysis_tmp(aid), ignore_errors=True)
         log.info("organization deleted", extra={"org_id": org_id, "analyses": len(analysis_ids)})
 
+    def adopt_local(self, target_org_id: str, rollups) -> dict[str, int]:  # type: ignore[no-untyped-def]
+        """Move the local workspace's data into ``target_org_id`` and rebuild its rollups.
+
+        Data uploaded while sign-in was off lives in the local workspace, which no
+        signed-in user can open; this hands it to a real organization.
+        """
+        if target_org_id == LOCAL_ORG_ID:
+            raise invalid_parameter("Choose an organization other than the local workspace.")
+        if self.platform.get_org(target_org_id) is None:
+            raise not_found("No organization with that id exists.")
+        moved = self.platform.move_org_contents(LOCAL_ORG_ID, target_org_id)
+        rollups.reset_cache()
+        summary = rollups.rebuild(target_org_id)
+        log.info(
+            "local workspace adopted",
+            extra={"org_id": target_org_id, **{k: v for k, v in moved.items()}},
+        )
+        return {**moved, "rollup_site_days": summary.get("site_days", 0)}
+
     # --------------------------------------------------------- members
     def members(self, org_id: str) -> list[Membership]:
         return [
@@ -196,24 +219,26 @@ class PlatformService:
         ]
 
     def set_role(self, org_id: str, user_id: str, role: Role) -> Membership:
-        current = self.platform.role_in_org(user_id, org_id)
-        if current is None:
+        try:
+            changed = self.platform.set_role_keeping_an_owner(org_id, user_id, role.value)
+        except LastOwner as exc:
+            raise conflict("An organization needs at least one owner.") from exc
+        if changed is None:
             raise not_found("That user is not a member of this organization.")
-        if current == "owner" and role != Role.owner and self.platform.owner_count(org_id) <= 1:
-            raise conflict("An organization needs at least one owner.")
-        self.platform.set_role(org_id, user_id, role.value)
         for m, u in self.platform.members(org_id):
             if u.id == user_id:
                 return Membership(user=user_model(u), role=Role(m.role), joined_at=m.joined_at)
         raise not_found("That user is not a member of this organization.")
 
     def remove_member(self, org_id: str, user_id: str) -> None:
-        current = self.platform.role_in_org(user_id, org_id)
-        if current is None:
+        try:
+            removed = self.platform.remove_member_keeping_an_owner(org_id, user_id)
+        except LastOwner as exc:
+            raise conflict(
+                "The last owner cannot leave. Make someone else an owner first."
+            ) from exc
+        if not removed:
             raise not_found("That user is not a member of this organization.")
-        if current == "owner" and self.platform.owner_count(org_id) <= 1:
-            raise conflict("The last owner cannot leave. Make someone else an owner first.")
-        self.platform.remove_member(org_id, user_id)
 
     # --------------------------------------------------------- invites
     def invite_model(self, row: InviteRow, accept_url: str | None = None) -> Invite:
@@ -239,6 +264,22 @@ class PlatformService:
         )
         log.info("invite created", extra={"invite_id": row.id, "org_id": org_id})
         return self.invite_model(row, f"{self.settings.frontend_url}/#/invite/{token}")
+
+    def revoke_invite(self, org_id: str, invite_id: str, p: Principal) -> None:
+        """Withdraw an unused invite so its link stops working. Accepted invites are
+        history (the membership exists) and cannot be revoked."""
+        row = self.platform.get_invite(invite_id) if is_valid_id(invite_id, "inv") else None
+        if row is None or row.organization_id != org_id:
+            raise not_found("No invite with that id exists in this organization.")
+        if row.accepted_at is not None:
+            raise conflict(
+                "This invite was already accepted. Remove the member instead of the invite."
+            )
+        if row.role == Role.owner.value and not p.has_role(org_id, "owner"):
+            raise forbidden("Only an owner can revoke an invite for another owner.")
+        if not self.platform.delete_invite(row.id):
+            raise conflict("This invite was accepted a moment ago and can no longer be revoked.")
+        log.info("invite revoked", extra={"invite_id": row.id, "org_id": org_id})
 
     def accept_invite(self, token: str, p: Principal) -> Organization:
         if not token or len(token) > 200:

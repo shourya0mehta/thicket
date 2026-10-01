@@ -2,14 +2,23 @@
 
 Runs after each completed analysis (for that recording's site and
 deployment), on demand (``POST /orgs/{org}/alerts/evaluate``) and nightly
-(recording gaps, expected species, digests). Rules are per organization
-(:class:`~thicket.api.platform_schemas.AlertRules`), conservative by default.
+(gaps and upload routines of active deployments, expected species). Rules are
+per organization (:class:`~thicket.api.platform_schemas.AlertRules`),
+conservative by default.
+
+Gaps
+----
+A ``recording_gap`` is a hole between consecutive recordings of a deployment,
+counted only in its recording window (:mod:`thicket.domain.schedule`), never
+the time since the last recording: SD cards arrive late. ``upload_overdue``
+watches upload times instead, and only for deployments with an upload routine.
 
 Baselines
 ---------
 Ecology alerts compare a recording with *comparable* recordings: same site,
-same hour bucket (dawn, day, dusk, night), same season window (ISO week
-plus or minus three, across years), recorded before it. When fewer than
+same hour bucket (dawn, day, dusk, night), same season window (within 21
+days of the same date, across years and across New Year), recorded before
+it. When fewer than
 ``min_baseline_recordings`` exist, the last eight weeks at that site and
 bucket are used instead; when those are too few as well, no ecology alert
 fires. Recorder checks compare within the deployment (same hour bucket when
@@ -19,10 +28,12 @@ baseline cannot turn a tiny change into an alert.
 
 Deduplication
 -------------
-``(kind, site, recorder, species)`` identifies an alert. While one is open,
-acknowledged or snoozed, a repeat updates ``last_seen_at``, ``occurrences``
-and the evidence instead of creating another row (and sends no new
-notification). A resolved alert can reopen as a new row.
+``(kind, site, recorder, species)`` identifies an alert; a unique index on
+``alerts.open_key`` allows one unresolved alert per key. While one is open,
+acknowledged or snoozed, a repeat updates ``last_seen_at``, the evidence and
+(for new recordings only) ``occurrences`` instead of creating another row,
+and sends no new notification. New evidence after a resolution opens a new
+row; the same evidence seen again does not.
 
 Every ``detail`` names the observed value, the baseline and the sample size
 in plain words; ``evidence`` carries the same numbers for machines.
@@ -38,8 +49,15 @@ from datetime import datetime, timedelta
 
 from thicket.api.platform_schemas import AlertKind, AlertRules, AlertSeverity
 from thicket.config import Settings
+from thicket.domain.schedule import (
+    Schedule,
+    find_active_gaps,
+    infer_interval,
+    schedule_for,
+    upload_events,
+)
 from thicket.domain.signal_profile import channel_imbalance_db, high_band_fraction
-from thicket.domain.timebuckets import season_weeks
+from thicket.domain.timebuckets import SEASON_HALF_WIDTH_DAYS, in_season_window
 from thicket.persistence.db import (
     AlertRow,
     DeploymentRow,
@@ -63,6 +81,9 @@ SCHEDULE_TOLERANCE = 0.5
 FUTURE_SLACK = timedelta(days=1)
 FALLBACK_WEEKS = 8
 MIN_INTERVALS_TO_INFER = 3
+MIN_UPLOADS_TO_INFER = 3  # upload spacings needed before "no new uploads" can fire
+UPLOAD_OVERDUE_FACTOR = 2.0
+UPLOAD_OVERDUE_WATCH_FACTOR = 4.0
 CATEGORY = {
     AlertKind.richness_drop: "ecology",
     AlertKind.activity_drop: "ecology",
@@ -82,6 +103,7 @@ CATEGORY = {
     AlertKind.temperature_extreme: "recorder",
     AlertKind.clock_suspect: "recorder",
     AlertKind.schedule_deviation: "recorder",
+    AlertKind.upload_overdue: "recorder",
 }
 SUGGESTED_ACTION = {
     AlertKind.richness_drop: (
@@ -155,6 +177,10 @@ SUGGESTED_ACTION = {
     AlertKind.schedule_deviation: (
         "Compare the recorder's schedule with what the deployment expects, and check for "
         "restarts or a full SD card."
+    ),
+    AlertKind.upload_overdue: (
+        "Recordings from this deployment usually arrive more often. If the SD card is due for "
+        "collection, nothing is wrong; otherwise check the recorder and the upload routine."
     ),
 }
 
@@ -271,6 +297,11 @@ class AlertEngine:
         candidates.extend(self._ecology(rec, stats, rules))
         candidates.extend(self._quality(rec, stats, rules))
         candidates.extend(self._recorder(rec, stats, rules))
+        dep = self.platform.get_deployment(rec.deployment_id) if rec.deployment_id else None
+        if dep is not None:
+            gap = self._deployment_gap(dep, rules)
+            if gap is not None:
+                candidates.append(gap)
         return [row for c in candidates if (row := self.raise_alert(org_id, c)) is not None]
 
     def evaluate_org(self, org_id: str, limit: int = 200) -> list[AlertRow]:
@@ -298,11 +329,11 @@ class AlertEngine:
         self.platform.unsnooze_due(self.clock())
         now = self.clock()
         for dep in self.platform.list_deployments(org_id, active=True, now=now):
-            c = self._gap_for_deployment(dep, rules, now)
-            if c is not None:
-                row = self.raise_alert(org_id, c)
-                if row is not None:
-                    out.append(row)
+            for c in (self._deployment_gap(dep, rules), self._upload_overdue(dep, rules, now)):
+                if c is not None:
+                    row = self.raise_alert(org_id, c)
+                    if row is not None:
+                        out.append(row)
         for site in self.platform.list_sites(org_id):
             for c in self._expected_species(site, rules):
                 row = self.raise_alert(org_id, c)
@@ -394,6 +425,14 @@ class AlertEngine:
 
     # -- persistence --------------------------------------------------------
     def raise_alert(self, org_id: str, c: Candidate) -> AlertRow | None:
+        row = self._raise(org_id, c)
+        if row is _LOST_RACE:
+            # Another worker inserted the same alert between our lookup and insert
+            # (the open_key unique index refused ours): update that one instead.
+            row = self._raise(org_id, c)
+        return None if row is _LOST_RACE else row  # type: ignore[return-value]
+
+    def _raise(self, org_id: str, c: Candidate) -> AlertRow | None | object:
         now = self.clock()
         existing = self.platform.find_open_alert(org_id, c.dedupe_key)
         if existing is not None:
@@ -444,6 +483,8 @@ class AlertEngine:
                 "updated_at": now,
             }
         )
+        if row is None:
+            return _LOST_RACE
         log.info(
             "alert opened",
             extra={
@@ -478,12 +519,11 @@ class AlertEngine:
     ) -> tuple[list[RecordingStatsRow], str]:
         """Same bucket and season window across years, else the last eight weeks."""
         same_bucket = [r for r in history if r.hour_bucket == current.hour_bucket]
-        weeks = season_weeks((current.iso_year, current.iso_week))
-        seasonal = [r for r in same_bucket if r.iso_week in weeks]
+        seasonal = [r for r in same_bucket if in_season_window(r.local_date, current.local_date)]
         if len(seasonal) >= min_n:
             return seasonal, (
-                f"same site, {current.hour_bucket} recordings within three ISO weeks of week "
-                f"{current.iso_week} across years"
+                f"same site, {current.hour_bucket} recordings within {SEASON_HALF_WIDTH_DAYS} days "
+                f"of {current.local_date.strftime('%d %B')} across years"
             )
         if current.captured_at is not None:
             since = current.captured_at - timedelta(weeks=FALLBACK_WEEKS)
@@ -711,9 +751,8 @@ class AlertEngine:
             and current.captured_at is not None
             and r.captured_at < latest[0].captured_at
         ]  # type: ignore[operator]
-        weeks = season_weeks((current.iso_year, current.iso_week))
-        seasonal = [r for r in history if r.iso_week in weeks]
-        description = "same site, within three ISO weeks of this week across years"
+        seasonal = [r for r in history if in_season_window(r.local_date, current.local_date)]
+        description = f"same site, within {SEASON_HALF_WIDTH_DAYS} days of this date across years"
         if len(seasonal) < rules.min_baseline_recordings:
             if latest[0].captured_at is None:
                 return []
@@ -1064,7 +1103,12 @@ class AlertEngine:
             stamped = [r for r in earlier if r.captured_at_utc is not None]
             if stamped:
                 prev = stamped[-1]
-                gap_min = (current_ts - prev.captured_at_utc).total_seconds() / 60.0  # type: ignore[operator]
+                # Minutes inside the recording window: a dawn-only schedule's night is
+                # not a deviation from a 10 minute interval.
+                gap_min = self._schedule(dep, recordings).minutes(
+                    prev.captured_at_utc,  # type: ignore[arg-type]
+                    current_ts,
+                )
                 expected = float(dep.expected_interval_minutes)
                 gap_hours_limit = max(rules.gap_multiplier * expected / 60.0, rules.gap_min_hours)
                 deviates = abs(gap_min - expected) > SCHEDULE_TOLERANCE * expected
@@ -1086,59 +1130,139 @@ class AlertEngine:
                     )
         return out
 
-    def _gap_for_deployment(
-        self, dep: DeploymentRow, rules: AlertRules, now: datetime
-    ) -> Candidate | None:
+    def _schedule(self, dep: DeploymentRow, recordings: Sequence[RecordingRow]) -> Schedule:
+        """The deployment's recording window: declared ranges, else learned hours."""
+        org = self.platform.get_org(dep.organization_id)
+        return schedule_for(
+            [
+                (r.captured_at_utc, float(r.duration_seconds or 0.0))
+                for r in recordings
+                if r.captured_at_utc is not None
+            ],
+            org.timezone if org else None,
+            dep.schedule_description,
+        )
+
+    def _deployment_gap(self, dep: DeploymentRow, rules: AlertRules) -> Candidate | None:
+        """The latest gap *between consecutive recordings* of a deployment.
+
+        Never measured from "now": an SD card uploaded weeks after it was recorded
+        is backfill, not an outage. Only minutes inside the recording window count,
+        so a dawn-only schedule's nights and days are not gaps.
+        """
         recordings = [
-            r
-            for r in self.platform.recordings_for_deployment(dep.id)
-            if r.captured_at_utc is not None
+            r for r in self.platform.recordings_for_deployment(dep.id) if r.captured_at_utc
         ]
         if len(recordings) < 2:
             return None
         times = [r.captured_at_utc for r in recordings]
-        intervals = [
-            (b - a).total_seconds() / 60.0
-            for a, b in zip(times, times[1:], strict=False)  # type: ignore[operator]
-        ]
-        if not dep.expected_interval_minutes and len(intervals) < MIN_INTERVALS_TO_INFER:
-            return None  # too few intervals to infer a schedule
-        median_interval = (
+        schedule = self._schedule(dep, recordings)
+        interval = (
             float(dep.expected_interval_minutes)
             if dep.expected_interval_minutes
-            else statistics.median(intervals)
+            else infer_interval(times, schedule)  # type: ignore[arg-type]
         )
-        if median_interval <= 0:
+        if not interval:
+            return None  # too few intervals to know the schedule
+        gaps = find_active_gaps(
+            times,  # type: ignore[arg-type]
+            schedule,
+            interval_minutes=interval,
+            multiplier=rules.gap_multiplier,
+            min_hours=rules.gap_min_hours,
+        )
+        if not gaps:
             return None
-        limit_hours = max(rules.gap_multiplier * median_interval / 60.0, rules.gap_min_hours)
-        last = times[-1]
-        gap_hours = (now - last).total_seconds() / 3600.0  # type: ignore[operator]
-        if gap_hours < limit_hours:
-            return None
+        g = gaps[-1]
+        before, after = recordings[g.index - 1], recordings[g.index]
+        limit_hours = max(rules.gap_multiplier * interval / 60.0, rules.gap_min_hours)
         recorder = self.platform.get_recorder(dep.recorder_id)
         label = recorder.label if recorder else "the recorder"
+        window = schedule.describe()
         return Candidate(
             kind=AlertKind.recording_gap,
             severity=AlertSeverity.warning,
-            title=f"No recordings from {label} for {_fmt(gap_hours, 0)} hours",
+            title=f"Recording gap of {_fmt(g.active_hours, 0)} hours on {label}",
             detail=(
-                f"Observed {_fmt(gap_hours, 1)} hours since the last recording "
-                f"({last.isoformat(timespec='minutes')}); baseline median interval "  # type: ignore[union-attr]
-                f"{_fmt(median_interval, 1)} minutes from n = {len(intervals)} intervals; the limit is "
-                f"{_fmt(limit_hours, 1)} hours ({rules.gap_multiplier:g} times the interval, at least "
-                f"{rules.gap_min_hours:g} hours)."
+                f"Observed {_fmt(g.active_hours, 1)} hours of the recording window ({window}) "
+                f"without a recording, between {before.captured_at_utc.isoformat(timespec='minutes')} "  # type: ignore[union-attr]
+                f"and {after.captured_at_utc.isoformat(timespec='minutes')}; baseline median "  # type: ignore[union-attr]
+                f"interval {_fmt(interval, 1)} minutes from n = {len(times) - 1} intervals; the "
+                f"limit is {_fmt(limit_hours, 1)} hours ({rules.gap_multiplier:g} times the "
+                f"interval, at least {rules.gap_min_hours:g} hours)"
+                + (
+                    f". The deployment has {len(gaps)} such gaps; this is the latest."
+                    if len(gaps) > 1
+                    else "."
+                )
             ),
             evidence={
-                "observed_gap_hours": round(gap_hours, 2),
-                "baseline_median_interval_minutes": round(median_interval, 2),
-                "n": len(intervals),
+                "observed_gap_hours": g.active_hours,
+                "gap_start": before.captured_at_utc.isoformat(),  # type: ignore[union-attr]
+                "gap_end": after.captured_at_utc.isoformat(),  # type: ignore[union-attr]
+                "gaps_in_deployment": len(gaps),
+                "baseline_median_interval_minutes": round(interval, 2),
+                "n": len(times) - 1,
                 "limit_hours": round(limit_hours, 2),
-                "last_recording_at": last.isoformat(),  # type: ignore[union-attr]
+                "active_hours": sorted(schedule.hours),
+                "schedule_source": schedule.source,
             },
             site_id=dep.site_id,
             recorder_id=dep.recorder_id,
             deployment_id=dep.id,
-            recording_ids=[recordings[-1].id],
+            recording_ids=[before.id, after.id],
+        )
+
+    def _upload_overdue(
+        self, dep: DeploymentRow, rules: AlertRules, now: datetime
+    ) -> Candidate | None:
+        """Upload time, not recording time: a deployment that has been sending data
+        regularly has gone quiet for well over its usual spacing. Only ``info`` or
+        ``watch``, because a card that has not been collected yet is not a fault."""
+        recordings = self.platform.recordings_for_deployment(dep.id)
+        events = upload_events(r.created_at for r in recordings)
+        if len(events) < MIN_UPLOADS_TO_INFER + 1:
+            return None  # spacing unknown: one SD card is not a routine
+        spacings = [
+            (b - a).total_seconds() / 3600.0 for a, b in zip(events, events[1:], strict=False)
+        ]
+        median = statistics.median(spacings)
+        waited = (now - events[-1]).total_seconds() / 3600.0
+        limit = max(UPLOAD_OVERDUE_FACTOR * median, rules.gap_min_hours)
+        if median <= 0 or waited < limit:
+            return None
+        severity = (
+            AlertSeverity.watch
+            if waited >= UPLOAD_OVERDUE_WATCH_FACTOR * median
+            else AlertSeverity.info
+        )
+        last = max(recordings, key=lambda r: r.created_at)
+        recorder = self.platform.get_recorder(dep.recorder_id)
+        label = recorder.label if recorder else "the recorder"
+        return Candidate(
+            kind=AlertKind.upload_overdue,
+            severity=severity,
+            title=f"No new uploads from {label} for {_fmt(waited / 24.0, 0)} days",
+            detail=(
+                f"Observed {_fmt(waited, 1)} hours since the last upload "
+                f"({events[-1].isoformat(timespec='minutes')}); baseline median "
+                f"{_fmt(median, 1)} hours between uploads from n = {len(spacings)} intervals; the "
+                f"limit is {_fmt(limit, 1)} hours ({UPLOAD_OVERDUE_FACTOR:g} times the usual "
+                f"spacing, at least {rules.gap_min_hours:g} hours). This measures uploads, not "
+                "recordings: a card that has not been collected yet looks the same."
+            ),
+            evidence={
+                "observed_hours_since_upload": round(waited, 2),
+                "observed": round(waited, 2),
+                "baseline_median_upload_spacing_hours": round(median, 2),
+                "n": len(spacings),
+                "limit_hours": round(limit, 2),
+                "last_upload_at": events[-1].isoformat(),
+            },
+            site_id=dep.site_id,
+            recorder_id=dep.recorder_id,
+            deployment_id=dep.id,
+            recording_ids=[last.id],
         )
 
     # -- health summaries used by sites and recorders ---------------------------
@@ -1151,6 +1275,9 @@ class AlertEngine:
         if counts.get("watch"):
             return "watch"
         return "good"
+
+
+_LOST_RACE = object()
 
 
 def _severity_rank(value: str) -> int:

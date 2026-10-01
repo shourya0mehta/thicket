@@ -304,6 +304,18 @@ export function handlePlatformRequest(
       state.invites = [invite, ...state.invites];
       return json(201, invite);
     }
+    const inviteMatch = /^\/invites\/([^/]+)$/.exec(rest);
+    if (inviteMatch && m === 'DELETE') {
+      if (!needs(orgId, 'manager')) return forbidden();
+      const id = decodeURIComponent(inviteMatch[1]!);
+      const found = state.invites.find((i) => i.id === id);
+      if (!found) return notFound('No invite with that id exists in this organization.');
+      if (found.accepted_at) {
+        return json(409, { error_code: 'conflict', message: 'This invite was already accepted.' });
+      }
+      state.invites = state.invites.filter((i) => i.id !== id);
+      return json(204, null);
+    }
 
     /* Sites */
     if (rest === '/sites' && m === 'GET') return json(200, state.sites);

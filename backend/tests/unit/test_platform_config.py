@@ -29,6 +29,42 @@ def test_production_refuses_dev_auth():
     assert make(environment="development", auth_mode="dev").auth_enabled
 
 
+def test_production_refuses_to_run_without_sign_in_unless_allowed(tmp_path, caplog):
+    with pytest.raises(ValidationError, match="ALLOW_UNAUTHENTICATED"):
+        make(environment="production")
+    with pytest.raises(ValidationError, match="ALLOW_UNAUTHENTICATED"):
+        make(environment="production", auth_mode="disabled", allow_unauthenticated=False)
+    s = make(environment="production", allow_unauthenticated=True)
+    assert s.unauthenticated_production
+    assert not make(environment="development").unauthenticated_production
+    google = make(
+        environment="production",
+        auth_mode="google",
+        google_client_id="id",
+        google_client_secret="secret",
+        session_secret="s" * 40,
+    )
+    assert not google.unauthenticated_production
+    # The explicit opt-in starts, with a loud warning.
+    from tests.platform_helpers import tone_registry
+
+    from thicket.container import Container
+
+    c = Container(
+        make(
+            environment="production",
+            allow_unauthenticated=True,
+            thicket_data_dir=tmp_path,
+            log_level="WARNING",
+        ),
+        registry=tone_registry(),
+    )
+    with caplog.at_level("WARNING"):
+        c.startup(background=False)
+    c.shutdown()
+    assert any("ALLOW_UNAUTHENTICATED=true" in r.getMessage() for r in caplog.records)
+
+
 def test_google_mode_needs_client_credentials():
     with pytest.raises(ValidationError, match="GOOGLE_CLIENT_ID"):
         make(auth_mode="google")

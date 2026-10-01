@@ -110,6 +110,14 @@ class Settings(BaseSettings):
     public_base_url: str = f"http://localhost:{API_PORT}"
     frontend_url: str = f"http://localhost:{FRONTEND_DEV_PORT}"
     allowed_signin_domains: Annotated[list[str], NoDecode] = Field(default_factory=list)
+    allow_unauthenticated: bool = Field(
+        False,
+        description=(
+            "Lets ENVIRONMENT=production start with AUTH_MODE=disabled, where every visitor is "
+            "the owner of the local workspace. Only for a private instance behind an "
+            "authenticating proxy or on a laptop; a loud warning is logged at startup."
+        ),
+    )
 
     # Email
     smtp_host: str | None = None
@@ -256,6 +264,17 @@ class Settings(BaseSettings):
                 "AUTH_MODE=dev is an email-only sign-in form for development and is refused "
                 "when ENVIRONMENT=production. Use AUTH_MODE=google (or disabled behind a proxy)."
             )
+        if (
+            self.environment == "production"
+            and self.auth_mode == "disabled"
+            and not self.allow_unauthenticated
+        ):
+            raise ValueError(
+                "ENVIRONMENT=production with AUTH_MODE=disabled would make every visitor the owner "
+                "of the local workspace (uploads, reports, deletes). Set AUTH_MODE=google with "
+                "GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and SESSION_SECRET, or, for a private "
+                "instance behind an authenticating proxy, set ALLOW_UNAUTHENTICATED=true."
+            )
         if self.auth_mode == "google" and not (self.google_client_id and self.google_client_secret):
             raise ValueError(
                 "AUTH_MODE=google needs GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET "
@@ -276,6 +295,11 @@ class Settings(BaseSettings):
     @property
     def auth_enabled(self) -> bool:
         return self.auth_mode != "disabled"
+
+    @property
+    def unauthenticated_production(self) -> bool:
+        """Production without sign-in, allowed only through ALLOW_UNAUTHENTICATED."""
+        return self.is_production and not self.auth_enabled
 
     @property
     def cookie_secure(self) -> bool:

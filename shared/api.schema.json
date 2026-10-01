@@ -315,7 +315,8 @@
         "battery_low",
         "temperature_extreme",
         "clock_suspect",
-        "schedule_deviation"
+        "schedule_deviation",
+        "upload_overdue"
       ],
       "title": "AlertKind",
       "type": "string"

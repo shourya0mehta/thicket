@@ -223,3 +223,67 @@ def test_default_dashboard_period_ends_on_the_orgs_local_today(make_platform_cli
     assert cmp["period_end"] == "2026-06-02" and cmp["rows"][0]["recordings"] == 1
     ph = client.get(f"{API}/orgs/{oid}/phenology", params={"scientific_name": A}).json()
     assert sum(cell["recordings"] for cell in ph["cells"]) == 1
+
+
+def test_phenology_starts_on_the_first_iso_week(make_platform_client, monkeypatch):
+    """2 January 2027 is ISO week 53 of 2026: a one-year window must not show it."""
+    from datetime import date
+
+    from thicket.services import dashboard
+
+    client = make_platform_client(auth_mode="dev")
+    dev_login(client, "iso@example.org")
+    oid = create_org(client, "ISO Farm", timezone="UTC")["id"]
+    c = client.app.state.container
+    site = c.platform.create_site(oid, {"name": "Week"})
+    monkeypatch.setattr(dashboard, "_now", lambda: datetime(2027, 6, 1, 12, tzinfo=UTC))
+    for d in (date(2027, 1, 2), date(2027, 1, 5)):
+        insert_analysis(
+            c,
+            org_id=oid,
+            site_id=site.id,
+            captured_at=datetime(d.year, d.month, d.day, 6, tzinfo=UTC),
+            species={A: 1},
+        )
+    body = client.get(
+        f"{API}/orgs/{oid}/phenology", params={"scientific_name": A, "years": 1}
+    ).json()
+    assert {(cell["year"], cell["iso_week"]) for cell in body["cells"]} == {(2027, 1)}
+    assert body["first_detection_by_year"] == {"2027": "2027-01-05"}
+    two = client.get(f"{API}/orgs/{oid}/phenology", params={"scientific_name": A, "years": 2})
+    assert {(cell["year"], cell["iso_week"]) for cell in two.json()["cells"]} == {
+        (2026, 53),
+        (2027, 1),
+    }
+    assert two.json()["first_detection_by_year"] == {"2026": "2027-01-02", "2027": "2027-01-05"}
+
+
+def test_notifications_can_be_read_one_organization_at_a_time(make_platform_client):
+    """Opening one farm's alerts must not mark another farm's notifications read."""
+    client = make_platform_client(auth_mode="dev")
+    dev_login(client, "two@example.org")
+    a = create_org(client, "Farm A")["id"]
+    b = create_org(client, "Farm B")["id"]
+    c = client.app.state.container
+    for org in (a, b):
+        insert_analysis(
+            c,
+            org_id=org,
+            captured_at=datetime.now(UTC),
+            telemetry={"battery_v": 2.0, "source": "audiomoth_comment"},
+        )
+        c.alerts.evaluate_org(org)
+    assert client.get(f"{API}/me/notifications").json()["unread"] == 2
+    only_a = client.get(f"{API}/me/notifications", params={"organization_id": a}).json()
+    assert only_a["unread"] == 1 and {n["alert"]["organization_id"] for n in only_a["items"]} == {a}
+    r = client.post(
+        f"{API}/me/notifications/read", json={"all": True, "organization_id": a}, headers=CSRF
+    )
+    assert r.status_code == 204
+    assert (
+        client.get(f"{API}/me/notifications", params={"organization_id": a}).json()["unread"] == 0
+    )
+    assert (
+        client.get(f"{API}/me/notifications", params={"organization_id": b}).json()["unread"] == 1
+    )
+    assert client.get(f"{API}/auth/me").json()["unread_notifications"] == 1

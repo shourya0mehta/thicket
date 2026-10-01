@@ -39,7 +39,7 @@ def test_schema_1_database_is_migrated(tmp_path):
         ]
         old = s.get(EventReviewRow, "evt_0000000000000001")
         assert old.review_status == "rejected" and old.detection_ids is None
-    assert versions == [1, DB_SCHEMA_VERSION] and DB_SCHEMA_VERSION == 3
+    assert versions == [1, DB_SCHEMA_VERSION] and DB_SCHEMA_VERSION == 4
     db.create_all()  # idempotent on the next start
     db.dispose()
 

@@ -139,6 +139,17 @@ def list_invites(
     return [c.services.invite_model(i) for i in c.platform.list_invites(ctx.org_id)]
 
 
+@router.delete("/orgs/{org}/invites/{invite_id}", status_code=204, responses=ERRORS)
+def revoke_invite(
+    invite_id: str,
+    request: Request,
+    ctx: OrgContext = Depends(require_org_role(Role.manager)),
+) -> Response:
+    """Withdraw an invite that has not been accepted; its link stops working (409 once used)."""
+    container(request).services.revoke_invite(ctx.org_id, invite_id, ctx.principal)
+    return Response(status_code=204)
+
+
 @router.post("/invites/{token}/accept", response_model=Organization, responses=ERRORS)
 def accept_invite(
     token: str, request: Request, p: Principal = Depends(current_user)

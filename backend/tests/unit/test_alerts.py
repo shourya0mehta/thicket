@@ -255,25 +255,33 @@ def test_temperature_extreme(env):
 
 
 def test_recording_gap(env):
+    """A gap is a hole between consecutive recordings, here 6 h 10 min in a 10 minute run
+    of a recorder declared to record around the clock."""
     c, org, site, rec, dep = env
-    now = datetime.now(UTC).replace(microsecond=0)
-    start = now - timedelta(hours=8)
+    c.platform.update_deployment(dep.id, {"schedule_description": "continuous, 00:00-24:00"})
     for i in range(12):
-        add(env, start + timedelta(minutes=10 * i))  # last one 6 h 10 min ago
+        add(env, T0 + timedelta(minutes=10 * i))
+    for i in range(4):
+        add(env, T0 + timedelta(minutes=110 + 370 + 10 * i))
     rows = [r for r in c.alerts.nightly(org) if r.kind == "recording_gap"]
     assert len(rows) == 1
     r = rows[0]
     assert r.severity == "warning" and r.deployment_id == dep.id
-    assert r.evidence["baseline_median_interval_minutes"] == 10.0 and r.evidence["n"] == 11
+    assert r.evidence["baseline_median_interval_minutes"] == 10.0 and r.evidence["n"] == 15
     assert 6.0 < r.evidence["observed_gap_hours"] < 6.5 and r.evidence["limit_hours"] == 2.0
+    assert r.evidence["gap_start"].startswith("2026-05-01T07:50")
     assert_plain_detail(r)
+    # Evaluating the same data again changes nothing.
+    again = [r2 for r2 in c.alerts.nightly(org) if r2.kind == "recording_gap"]
+    assert again[0].id == r.id and again[0].occurrences == 1
 
 
-def test_no_gap_when_recent(env):
+def test_no_gap_is_ever_measured_from_now(env):
+    """Recordings that ended two days ago are not an outage: the card may not be in yet."""
     c, org, *_ = env
     now = datetime.now(UTC)
     for i in range(6):
-        add(env, now - timedelta(minutes=10 * (6 - i)))
+        add(env, now - timedelta(days=2, minutes=10 * (6 - i)))
     assert [r for r in c.alerts.nightly(org) if r.kind == "recording_gap"] == []
 
 
@@ -407,3 +415,58 @@ def test_evaluate_org_runs_over_recent_recordings(env):
     rows = c.alerts.evaluate_org(org)
     assert "battery_low" in kinds(rows)
     assert c.alerts.evaluate_org(org) and c.platform.list_alerts(org)[1] == 1
+
+
+def test_the_database_allows_one_unresolved_alert_per_key(env):
+    """Two workers raising the same alert at once must not both insert one."""
+    c, org, *_ = env
+    aid, _ = add(env, T0, speech=True)
+    first = evaluate(env, aid)[0]
+    values = {
+        "organization_id": org,
+        "kind": "speech_detected",
+        "category": "quality",
+        "severity": "info",
+        "status": "open",
+        "title": "t",
+        "detail": "d",
+        "dedupe_key": first.dedupe_key,
+    }
+    assert c.platform.insert_alert(values) is None  # the unique open key refuses it
+    # A worker whose lookup missed the open alert (the race) updates it instead.
+    real = c.platform.find_open_alert
+    calls = []
+
+    def stale_once(org_id, key):
+        calls.append(1)
+        return None if len(calls) == 1 else real(org_id, key)
+
+    c.platform.find_open_alert = stale_once  # type: ignore[method-assign]
+    try:
+        aid2, _ = add(env, T0 + timedelta(hours=1), speech=True)
+        second = evaluate(env, aid2)[0]
+    finally:
+        c.platform.find_open_alert = real  # type: ignore[method-assign]
+    assert second.id == first.id and second.occurrences == 2
+    assert c.platform.list_alerts(org)[1] == 1
+    # Resolved alerts free the key.
+    c.platform.update_alert(first.id, {"status": "resolved"})
+    assert c.platform.get_alert(first.id).open_key is None
+    assert c.platform.insert_alert(values) is not None
+
+
+def test_reopening_an_alert_that_a_newer_one_replaced_is_a_conflict(make_platform_client):
+    from tests.platform_helpers import insert_analysis
+
+    client = make_platform_client()
+    c = client.app.state.container
+    org = c.platform.local_org_id()
+    _, r1 = insert_analysis(c, captured_at=T0, speech=True)
+    c.alerts.evaluate_org(org)
+    old = c.platform.list_alerts(org)[0][0]
+    assert client.patch(f"/api/v1/alerts/{old.id}", json={"status": "resolved"}).status_code == 200
+    insert_analysis(c, captured_at=T0 + timedelta(hours=1), speech=True)
+    c.alerts.evaluate_org(org)
+    r = client.patch(f"/api/v1/alerts/{old.id}", json={"status": "open"})
+    assert r.status_code == 409 and r.json()["error_code"] == "conflict"
+    assert client.patch(f"/api/v1/alerts/{old.id}", json={"status": "resolved"}).status_code == 200

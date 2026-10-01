@@ -197,12 +197,34 @@ class RollupService:
             self.platform.replace_site_day(site_id, day, org_id, day_values, species)
 
     def rebuild(self, org_id: str | None = None) -> dict[str, int]:
-        """Recompute every recording's stats and every site-day from scratch."""
+        """Recompute every recording's stats and every site-day from scratch.
+
+        One site at a time: its new rows are computed first and then swapped in
+        (delete and insert) in a single transaction, so dashboards and the alert
+        engine read either the old or the new rollups of a site, never an empty or
+        half-built one. The rollup lock is held per site, so an analysis finishing
+        for that site meanwhile waits and then applies on top of the new rows.
+        """
         self.reset_cache()
-        self.platform.clear_rollups(org_id)
-        days: set[tuple[str, date, str]] = set()
+        org_ids = [org_id] if org_id else self.platform.all_org_ids()
         n = 0
-        for aid in self.platform.completed_analysis_ids(org_id):
+        site_days = 0
+        for oid in org_ids:
+            groups = self.platform.completed_analyses_by_site(oid)
+            for site_id, analysis_ids in groups.items():
+                with self._lock:
+                    values = self._fresh_stats(analysis_ids)
+                    days = self._site_days(values) if site_id else []
+                    self.platform.replace_site_rollups(oid, site_id, values, days)
+                n += len(values)
+                site_days += len(days)
+            self.platform.delete_rollups_outside(oid, set(groups))
+        log.info("rollups rebuilt", extra={"recordings": n, "site_days": site_days})
+        return {"recordings": n, "site_days": site_days}
+
+    def _fresh_stats(self, analysis_ids: Iterable[str]) -> list[dict]:
+        out: list[dict] = []
+        for aid in analysis_ids:
             bundle = self.repo.load_bundle(aid)
             if bundle is None:
                 continue
@@ -215,14 +237,20 @@ class RollupService:
                     self.platform.attach_recording(
                         bundle.recording.id, {"captured_at_utc": captured}
                     )
-            self.platform.upsert_recording_stats(values)
-            n += 1
-            if values["site_id"]:
-                days.add((values["site_id"], values["local_date"], values["organization_id"]))
-        for site_id, day, oid in sorted(days):
-            self.recompute_site_day(site_id, day, oid)
-        log.info("rollups rebuilt", extra={"recordings": n, "site_days": len(days)})
-        return {"recordings": n, "site_days": len(days)}
+            out.append(values)
+        return out
+
+    @staticmethod
+    def _site_days(values: list[dict]) -> list[tuple[date, dict, list[dict]]]:
+        by_day: dict[date, list[RecordingStatsRow]] = defaultdict(list)
+        for v in values:
+            # Transient rows (never added to a session) feed the same aggregation.
+            by_day[v["local_date"]].append(RecordingStatsRow(**v))
+        out = []
+        for day in sorted(by_day):
+            day_values, species = aggregate_site_day(by_day[day])
+            out.append((day, day_values, species))
+        return out
 
 
 def aggregate_site_day(rows: Iterable[RecordingStatsRow]) -> tuple[dict, list[dict]]:

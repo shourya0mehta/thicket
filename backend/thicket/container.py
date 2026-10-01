@@ -98,6 +98,12 @@ class Container:
         self.ffmpeg = ffmpeg_available()
         if not self.ffmpeg:
             log.warning("ffmpeg not found; MP3/M4A support depends on libsndfile")
+        if self.settings.unauthenticated_production:
+            log.warning(
+                "ALLOW_UNAUTHENTICATED=true: this production server has no sign-in. Every "
+                "visitor is the owner of the local workspace and can upload, change and delete "
+                "everything. Only run it like this behind an authenticating proxy."
+            )
         self.registry.start_loading(background=background)
         self.analysis.start()
         if background:

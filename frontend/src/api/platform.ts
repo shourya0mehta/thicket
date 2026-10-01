@@ -86,17 +86,24 @@ export async function logout(): Promise<void> {
   await requestJson<unknown>('/auth/logout', { method: 'POST' });
 }
 
+/** `organizationId` limits the list (and the unread count) to one organization. */
 export function getNotifications(
   unreadOnly = false,
   signal?: AbortSignal,
+  organizationId?: string | null,
 ): Promise<NotificationPage> {
   return requestJson<NotificationPage>(
-    withQuery('/me/notifications', { unread_only: unreadOnly ? 'true' : undefined }),
+    withQuery('/me/notifications', {
+      unread_only: unreadOnly ? 'true' : undefined,
+      organization_id: organizationId,
+    }),
     { signal },
   );
 }
 
-export async function markNotificationsRead(body: { ids: string[] } | { all: true }) {
+export type MarkReadBody = ({ ids: string[] } | { all: true }) & { organization_id?: string };
+
+export async function markNotificationsRead(body: MarkReadBody) {
   await requestWithBody<unknown>('POST', '/me/notifications/read', body);
 }
 
@@ -148,6 +155,11 @@ export function listInvites(org: string, signal?: AbortSignal): Promise<Invite[]
 
 export function createInvite(org: string, body: InviteCreate): Promise<Invite> {
   return requestWithBody<Invite>('POST', `/orgs/${enc(org)}/invites`, body);
+}
+
+/** Withdraw an invite nobody accepted yet; its link stops working. */
+export async function revokeInvite(org: string, inviteId: string): Promise<void> {
+  await requestJson<unknown>(`/orgs/${enc(org)}/invites/${enc(inviteId)}`, { method: 'DELETE' });
 }
 
 export function acceptInvite(token: string): Promise<Organization> {

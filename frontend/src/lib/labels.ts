@@ -91,6 +91,7 @@ export const KIND_LABEL: Record<AlertKind, string> = {
   temperature_extreme: 'Temperature extreme',
   clock_suspect: 'Clock suspect',
   schedule_deviation: 'Schedule deviation',
+  upload_overdue: 'No new uploads',
 };
 
 export function kindLabel(kind: string): string {

@@ -346,3 +346,36 @@ def test_naive_captured_at_gets_its_utc_instant_on_completion(farm):
         end=expected + timedelta(hours=1),
     )
     assert [a.id for a, _ in picked] == [aid]
+
+
+def test_rebuild_never_shows_readers_an_empty_or_partial_dashboard(farm, monkeypatch):
+    """The nightly rebuild used to clear every rollup first; dashboards read empty."""
+    c, org, *_ = farm
+
+    def recordings_now():
+        days = c.platform.site_days(org.id, start=date(2026, 1, 1), end=date(2026, 12, 31))
+        return sum(d.recordings for d in days), len(c.platform.stats_query(org.id))
+
+    full = recordings_now()
+    assert full == (5, 5)
+    seen = []
+    real = c.repo.load_bundle
+
+    def spy(analysis_id, *a, **kw):
+        seen.append(recordings_now())  # what a dashboard or the alert engine reads now
+        return real(analysis_id, *a, **kw)
+
+    monkeypatch.setattr(c.repo, "load_bundle", spy)
+    assert c.rollups.rebuild() == {"recordings": 5, "site_days": 3}
+    assert seen and set(seen) == {full}
+    assert recordings_now() == full
+
+
+def test_rebuild_drops_rollups_of_sites_without_analyses(farm):
+    c, org, s1, s2, ids = farm
+    for aid, _ in (ids["r5"],):
+        c.analysis.delete(aid)  # S2's only recording, without updating rollups
+    assert c.platform.site_days(org.id, start=D1, end=D1, site_ids=[s2.id])
+    c.rollups.rebuild(org.id)
+    assert c.platform.site_days(org.id, start=D1, end=D1, site_ids=[s2.id]) == []
+    assert c.platform.stats_query(org.id, site_id=s2.id) == []

@@ -116,7 +116,7 @@ def test_v2_database_upgrades_in_place(tmp_path):
         versions = [
             v for (v,) in s.execute(text("SELECT version FROM schema_meta ORDER BY version"))
         ]
-        assert versions == [1, 2, DB_SCHEMA_VERSION] and DB_SCHEMA_VERSION == 3
+        assert versions == [1, 2, DB_SCHEMA_VERSION] and DB_SCHEMA_VERSION == 4
         org = s.get(OrganizationRow, LOCAL_ORG_ID)
         assert org is not None and org.slug == "local"
         assert s.get(MembershipRow, (LOCAL_ORG_ID, LOCAL_USER_ID)).role == "owner"
@@ -181,4 +181,58 @@ def test_fresh_database_has_the_local_workspace(tmp_path):
     db.create_all()
     platform = PlatformRepository(db)
     assert platform.roles_for_user(LOCAL_USER_ID) == {LOCAL_ORG_ID: "owner"}
+    db.dispose()
+
+
+def test_schema_3_alerts_get_open_keys_and_duplicates_are_folded(tmp_path):
+    """Schema 4 enforces one unresolved alert per key; older duplicates are resolved."""
+    from datetime import UTC, datetime
+
+    from thicket.persistence.db import AlertRow
+
+    url = f"sqlite:///{tmp_path / 'v3.sqlite3'}"
+    db = Database(url)
+    db.create_all()
+    with db.session() as s:
+        s.execute(text("DROP INDEX ux_alerts_open_key"))
+        s.execute(text("ALTER TABLE alerts DROP COLUMN open_key"))
+        s.execute(text("DELETE FROM schema_meta"))
+        s.execute(
+            text("INSERT INTO schema_meta (version, applied_at) VALUES (3, '2026-09-30 00:00:00')")
+        )
+    db.dispose()
+    engine = create_engine(url)
+    with engine.begin() as conn:
+        for i, (status, created) in enumerate(
+            [("open", 1), ("acknowledged", 2), ("resolved", 3), ("open", 4)]
+        ):
+            conn.execute(
+                text(
+                    "INSERT INTO alerts (id, organization_id, kind, category, severity, status,"
+                    " title, detail, evidence, recording_ids, dedupe_key, first_seen_at,"
+                    " last_seen_at, occurrences, created_at, updated_at) VALUES"
+                    " (:id, :org, 'battery_low', 'recorder', 'warning', :status, 't', 'd', '{}',"
+                    " '[]', :key, :t, :t, 1, :t, :t)"
+                ),
+                {
+                    "id": f"alr_{i:024d}",
+                    "org": LOCAL_ORG_ID,
+                    "status": status,
+                    "key": "battery_low||rcd_1|" if i < 3 else "speech_detected|||",
+                    "t": datetime(2026, 5, created, tzinfo=UTC).isoformat(),
+                },
+            )
+    engine.dispose()
+    db = Database(url)
+    assert db.create_all() == 3
+    with db.session() as s:
+        rows = {r.id: r for r in s.query(AlertRow)}
+    older, newest, resolved, other = (rows[f"alr_{i:024d}"] for i in range(4))
+    assert (
+        newest.status == "acknowledged" and newest.open_key == f"{LOCAL_ORG_ID}|battery_low||rcd_1|"
+    )
+    assert older.status == "resolved" and older.open_key is None and older.note
+    assert resolved.open_key is None
+    assert other.open_key == f"{LOCAL_ORG_ID}|speech_detected|||"
+    assert "ux_alerts_open_key" in {i["name"] for i in inspect(db.engine).get_indexes("alerts")}
     db.dispose()

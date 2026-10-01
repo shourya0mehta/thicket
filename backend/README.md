@@ -53,21 +53,39 @@ The CLI runs the same service and pipeline as the API, with a throwaway
 in-memory database unless `--data-dir` is given. Exit code 2 means a typed
 error (printed as `error [code]: message`).
 
-Two more commands work on the configured data dir and the local workspace:
+Three more commands work on the configured data dir (`THICKET_DATA_DIR` or
+`--data-dir`):
 
 ```bash
 # Batch-ingest an SD card or folder (recursive; zips and sidecars included)
 python -m thicket.cli ingest /media/SD_CARD --site "North pasture" \
-  --recorder "AudioMoth 1" --make audiomoth --timezone America/New_York
+  --recorder "AudioMoth 1" --make audiomoth --timezone America/New_York \
+  [--org org_...]
 
 # Run the nightly jobs once (rollups, gap checks, digests, cleanup)
 python -m thicket.cli nightly
+
+# After switching sign-in on: hand the local workspace to an organization
+python -m thicket.cli adopt-local --org org_...
+python -m thicket.cli adopt-local --email owner@farm.example
 ```
 
-`ingest` creates the site (and recorder) when they do not exist, runs every
-file through the same ingest service as `POST /orgs/{org}/uploads`, and
-prints one row per file (status, timestamp, timestamp source, species,
-events). File modification times stand in for the browser's `last_modified`.
+`ingest` writes to the local workspace unless `--org` names an organization.
+It creates the site (and recorder) when they do not exist, runs every file
+through the same ingest service as `POST /orgs/{org}/uploads`, and prints one
+row per file (status, timestamp, timestamp source, species, events). File
+modification times stand in for the browser's `last_modified`.
+
+`adopt-local` is for a server that ran without sign-in and now has it: data
+uploaded before lives in the implicit "Local workspace", which no signed-in
+user can open. It moves every local resource (sites, recorders, deployments,
+recordings with their analyses, detections and reviews, batch jobs, alerts,
+reports and uploaded images) into the target organization in one transaction
+and rebuilds that organization's rollups on its time zone. `--email` picks the
+oldest organization the user owns, so sign in once and create the
+organization first. An open alert that the target already has open under the
+same key is resolved into it; the local workspace's notifications are dropped.
+Running it again moves nothing.
 
 ## Configuration
 
@@ -107,6 +125,7 @@ directory). [`.env.example`](.env.example) documents every one with its default.
 | `JANITOR_INTERVAL_SECONDS` | 600 | Cleanup cadence |
 | `THICKET_CACHE_DIR` | `~/.cache/thicket` | Cached dual-output BirdNET model |
 | `AUTH_MODE` | `disabled` | `disabled` (local owner, no login), `dev` (email form, refused in production) or `google` |
+| `ALLOW_UNAUTHENTICATED` | false | Lets `ENVIRONMENT=production` run with `AUTH_MODE=disabled` (private instance behind an authenticating proxy); logs a warning |
 | `SESSION_SECRET` | generated | Signs session cookies; generated once into `<data>/session_secret` when unset |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | none | Required for `AUTH_MODE=google` |
 | `PUBLIC_BASE_URL` | `http://localhost:8000` | Public API origin; callback URL and Secure cookies derive from it |
@@ -363,7 +382,7 @@ Three modes, set with `AUTH_MODE`:
 
 | Mode | Who you are | Use it for |
 |---|---|---|
-| `disabled` (default) | The implicit owner of the implicit organization "Local workspace". No cookies, no CSRF header. | A laptop, the CLI, tests, or a private instance behind an authenticating proxy |
+| `disabled` (default) | The implicit owner of the implicit organization "Local workspace". No cookies, no CSRF header. | A laptop, the CLI, tests, or a private instance behind an authenticating proxy. Refused when `ENVIRONMENT=production` unless `ALLOW_UNAUTHENTICATED=true` |
 | `dev` | Whoever types an email into `POST /api/v1/auth/dev` | Local development of the multi-user app. Refused when `ENVIRONMENT=production` |
 | `google` | A verified Google account | Any shared instance |
 
@@ -381,6 +400,10 @@ recorders, uploads, alert rules, reports), reviewer (review events,
 acknowledge alerts, create reports), viewer (read). Invites
 (`POST /orgs/{org}/invites`) return a one-time link
 `FRONTEND_URL/#/invite/<token>`, valid 7 days, for the invited email only.
+`DELETE /orgs/{org}/invites/{invite_id}` revokes one that nobody accepted
+(owner invites need an owner). The last owner can neither leave nor be
+demoted; the check runs inside the same statement as the change, so two
+owners demoting each other at once cannot both succeed.
 
 ### Google sign-in, step by step
 
@@ -480,10 +503,14 @@ After each completed analysis (and after each review) the recording's row in
 `recording_stats` and its site-day in `site_day_stats` and
 `species_day_stats` are recomputed from all of that day's analyses, each at
 its own recorded threshold, through the same `results.derive` path as every
-other view. Local dates use the organization's time zone; a recording
-without a timestamp falls on its upload date. The nightly job rebuilds all
-of it. `GET /orgs/{org}/dashboard` (default the last 90 days), `/phenology`
-(ISO week by year: presence fraction and events per minute),
+other view. Local dates use the organization's time zone (changing it
+rebuilds the organization's rollups at once); a recording without a
+timestamp falls on its upload date. The nightly job rebuilds all of it, one
+site at a time: each site's new rows are computed and then swapped in within
+one transaction, so dashboards never read an empty or half-built site.
+`GET /orgs/{org}/dashboard` (default the last 90 days, ending on the
+organization's local today), `/phenology` (ISO weeks by ISO year from the
+Monday of week 1: presence fraction and events per minute),
 `/sites/{id}/accumulation` and `/orgs/{org}/sites/compare` read these
 tables. Across sites, a day's richness is the union of species and Shannon
 uses the summed per-species events.
@@ -495,8 +522,8 @@ The engine runs after each completed analysis, on
 (`GET/PUT /orgs/{org}/alert-rules`).
 
 * **Comparable recordings** (ecology): same site, same hour bucket, earlier
-  recordings within plus or minus three ISO weeks of the current one across
-  years; if there are fewer than `min_baseline_recordings` (8), the last
+  recordings within 21 days of the same date across years (a day-of-year
+  distance, so the window is as wide at New Year as in June); if there are fewer than `min_baseline_recordings` (8), the last
   eight weeks at that site and bucket; if still too few, no ecology alert.
 * **Hour buckets**: with site coordinates, from sunrise and sunset (astral):
   dawn is one hour before to two hours after sunrise, dusk one hour either
@@ -515,15 +542,31 @@ The engine runs after each completed analysis, on
   per deployment: `muffled_audio` (high-band share and centroid both more than
   3 MAD below, for the consecutive run), `level_drift` (more than 6 dB from
   the deployment median for the bucket; warning above 12 dB),
-  `recording_gap` (nightly; longer than `gap_multiplier` times the declared or
-  inferred interval and at least `gap_min_hours`), `clipping_increase`,
+  `recording_gap` (a hole *between consecutive recordings* of a deployment,
+  counted only inside its recording window, longer than `gap_multiplier`
+  times the declared or inferred interval and at least `gap_min_hours`; never
+  measured from "now", so an SD card uploaded weeks later is not an outage),
+  `upload_overdue` (`info` or `watch` only: a deployment that has uploaded
+  on a routine, at least three upload spacings, has sent nothing for twice
+  its median spacing; four times makes it `watch`), `clipping_increase`,
   `channel_imbalance` (more than 12 dB between channels), `dc_offset` (above
   0.02), `battery_low` (per make), `temperature_extreme`, `clock_suspect`
   (per recorder in one upload: out of order, duplicates, future times), and
-  `schedule_deviation` (when an interval is declared).
-* **Deduplication**: `(kind, site, recorder, species)`. A repeat of an open,
-  acknowledged or snoozed alert updates `last_seen_at`, `occurrences` and the
-  evidence and sends nothing new. Snoozed alerts reopen when due.
+  `schedule_deviation` (when an interval is declared; minutes inside the
+  recording window).
+* **Recording window**: a deployment records in its *active hours*, from
+  `HH:MM-HH:MM` ranges in its `schedule_description` (local time, wrapping
+  midnight allowed, for example `04:00-08:00, 18:30-20:00`), otherwise every
+  local hour any of its recordings starts in or runs through. A dawn-only
+  AudioMoth therefore has no nightly "gap", and a two-day hole in a dawn
+  schedule counts as eight hours.
+* **Deduplication**: `(kind, site, recorder, species)`, enforced by a unique
+  index on `alerts.open_key` (one unresolved alert per key, also when two
+  workers raise it at once). A repeat of an open, acknowledged or snoozed
+  alert updates `last_seen_at`, the evidence and (only for new recordings)
+  `occurrences`, and sends nothing new. Re-evaluating the same recordings
+  never reopens an alert someone resolved; reopening one while a newer alert
+  of the same key is open is a 409. Snoozed alerts reopen when due.
 * Every `detail` names the observed value, the baseline and `n`, for example
   "Observed a high-band share of 5% and a spectral centroid of 600 Hz in the
   last 3 recordings; baseline medians 30% (MAD 0) and 2500 Hz (MAD 0) from n =
@@ -537,10 +580,14 @@ digest, through SMTP (STARTTLS), Resend, or `.eml` files in
 `<data>/outbox/` when neither is configured. Email carries no audio and no
 notes.
 
-`GET /recorders/{id}/health?days=30` returns series (battery, temperature,
-level, high-band share, centroid, clipping), gaps, checks with their
-baselines, the median interval (declared on the deployment or inferred from
-at least three intervals) and `uptime_fraction_7d`.
+`GET /recorders/{id}/health?days=30` covers the `days` up to the recorder's
+latest recording (not up to today: cards arrive late) and returns series
+(battery, temperature, level, high-band share, centroid, clipping), gaps
+inside the recording window, checks with their baselines, the median
+interval (declared on the deployment or inferred from at least three
+intervals of active minutes) and `uptime_fraction_7d`: recordings in the 7
+days up to the latest one against the number the schedule expects in its
+active hours.
 
 ## Reports
 
@@ -577,11 +624,14 @@ by hand.
 
 ## Database upgrades
 
-The schema is at version 3. A database written by the single-user build
+The schema is at version 4. A database written by the single-user build
 (schema 1 or 2) is upgraded in place at startup: new nullable columns are
 added with `ALTER TABLE`, new tables are created, the local workspace user
-and organization are created, existing sites and recordings are attached to
-it, and the rollups are built once.
+and organization are created (on the time zone most of its recordings
+declare), existing sites and recordings are attached to it, missing indexes
+are created and the rollups are built once. Schema 4 adds `alerts.open_key`
+and its unique index; should two unresolved alerts share a key, the newer
+keeps it and the older is resolved.
 
 ## Privacy, retention and security
 
@@ -600,9 +650,10 @@ it, and the rollups are built once.
 * Logs are JSON lines with ids, stages, timings and error codes. They never
   contain audio, filenames, notes, coordinates or email addresses, and invite
   tokens are redacted from logged paths.
-* With `AUTH_MODE=disabled` there is no authentication: deploy it for a single
-  user or behind an authenticating proxy. Use `AUTH_MODE=google` for a shared
-  instance (see below).
+* With `AUTH_MODE=disabled` there is no authentication: run it for a single
+  user or behind an authenticating proxy. `ENVIRONMENT=production` refuses to
+  start that way unless `ALLOW_UNAUTHENTICATED=true` is set (and then logs a
+  warning). Use `AUTH_MODE=google` for a shared instance (see below).
 * Every platform resource belongs to one organization. A member of another
   organization gets 404 for its resources by id and 403 on its
   `/orgs/{org}/...` routes.
@@ -638,7 +689,33 @@ docker compose up --build                    # same, with a named volume
 ```
 
 `render.yaml` and `fly.toml` deploy one instance with 2 GB RAM and a volume at
-`/data`. Run exactly one uvicorn worker per instance: the model is loaded per
+`/data`, with Google sign-in on (`AUTH_MODE=google`).
+
+**Sign-in is required in production.** With `ENVIRONMENT=production` (set by
+the Dockerfile, `fly.toml` and `render.yaml`) the server refuses to start with
+`AUTH_MODE=disabled`, because every visitor would be the owner of the local
+workspace and could upload, change and delete everything. Before the first
+deploy:
+
+1. Create the Google OAuth client (see "Google sign-in, step by step") with the
+   redirect URI `https://<your host>/api/v1/auth/google/callback`.
+2. Set the required secrets (never in a committed file):
+   `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `SESSION_SECRET` (48 random
+   characters: `python -c "import secrets; print(secrets.token_urlsafe(48))"`).
+   On Fly: `fly secrets set GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=...
+   SESSION_SECRET=...`. On Render the Blueprint lists them with `sync: false`,
+   so the dashboard asks for each value.
+3. Point `PUBLIC_BASE_URL` and `FRONTEND_URL` at your host (both default to the
+   `*.fly.dev` / `*.onrender.com` names in the configs).
+
+A private instance behind an authenticating proxy (or a laptop) may run
+without sign-in by setting `ALLOW_UNAUTHENTICATED=true` explicitly; the server
+then logs a warning at every start. `make docker-run` and `docker compose up`
+do this and publish the port on `127.0.0.1` only.
+
+Moving to sign-in later? Data uploaded without sign-in lives in the local
+workspace, which no signed-in user can open. Hand it to an organization with
+`python -m thicket.cli adopt-local` (see "Command line"). Run exactly one uvicorn worker per instance: the model is loaded per
 worker process. Behind a proxy set `CLIENT_IP_HEADER` to the header the proxy
 writes with the client IP (`Fly-Client-IP` on Fly) so rate limits see real
 clients; never set `FORWARDED_ALLOW_IPS="*"`, because the left end of

@@ -86,7 +86,7 @@ def baseline_note(platform: PlatformRepository, org_id: str, recordings: int) ->
         )
     return (
         f"History starts {first.isoformat()} ({span} days). Baselines use the same site, hour "
-        "bucket and season window (plus or minus three ISO weeks) across years."
+        "bucket and season window (within 21 days of the same date) across years."
     )
 
 
@@ -293,7 +293,9 @@ def build_phenology(
     today: date | None = None,
 ) -> Phenology:
     today = today or _now().date()
-    start = date(today.year - max(1, years) + 1, 1, 1)
+    # Cells are ISO weeks, so the window starts on the Monday of ISO week 1: starting
+    # on 1 January added a partial week from the previous ISO year (or cut week 1).
+    start = date.fromisocalendar(today.isocalendar()[0] - max(1, years) + 1, 1, 1)
     site_ids = [site_id] if site_id else None
     days = platform.site_days(org_id, start=start, end=today, site_ids=site_ids)
     species = platform.species_days(
@@ -320,7 +322,7 @@ def build_phenology(
         cell = weeks[key]
         cell[1] += s.recordings_with_detection
         cell[2] += s.events
-        y = s.local_date.year
+        y = key[0]  # the ISO year, like the cells
         first_by_year[y] = min(first_by_year.get(y, s.local_date), s.local_date)
         last_by_year[y] = max(last_by_year.get(y, s.local_date), s.local_date)
     cells = [

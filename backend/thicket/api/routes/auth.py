@@ -36,6 +36,8 @@ class MarkRead(BaseModel):
     model_config = ConfigDict(extra="forbid")
     ids: list[str] | None = None
     all: bool = False
+    # Limits ``all`` (or ``ids``) to one organization's notifications.
+    organization_id: str | None = None
 
 
 def _set_session(response: Response, request: Request, user_id: str) -> None:
@@ -115,9 +117,12 @@ def me(request: Request, p: Principal = Depends(current_user)) -> Me:
 def my_notifications(
     request: Request,
     unread_only: bool = Query(False),
+    organization_id: str | None = Query(
+        None, description="Only this organization's notifications (and unread count)."
+    ),
     p: Principal = Depends(current_user),
 ) -> NotificationPage:
-    return container(request).notify.page(p.user_id, unread_only)
+    return container(request).notify.page(p.user_id, unread_only, organization_id)
 
 
 @router.post("/me/notifications/read", status_code=204, responses=ERRORS)
@@ -126,7 +131,7 @@ def mark_notifications_read(
 ) -> Response:
     if not body.all and not body.ids:
         raise invalid_parameter("Send ids or all=true.", field="ids")
-    container(request).platform.mark_read(p.user_id, body.ids, body.all)
+    container(request).platform.mark_read(p.user_id, body.ids, body.all, body.organization_id)
     return Response(status_code=204)
 
 

@@ -1,10 +1,16 @@
 """Recorder health: series, gaps, checks and uptime for one recorder.
 
 Reads the signal profiles and telemetry stored on recordings (no audio) for
-the chosen window, infers the recording interval when the deployment does
-not declare one, finds gaps (longer than ``gap_multiplier`` times the median
-interval and at least ``gap_min_hours``), and summarizes checks with a status
-and the baseline each one was compared against.
+the ``days`` up to the recorder's latest recording (SD cards arrive weeks
+late, so the window follows the data, not the calendar), works out the
+recording window (declared ``HH:MM-HH:MM`` ranges in the deployment's
+schedule description, else the local hours its recordings cover), infers the
+interval when the deployment does not declare one, finds gaps between
+consecutive recordings counted in active minutes only (longer than
+``gap_multiplier`` times the interval and at least ``gap_min_hours``), and
+summarizes checks with a status and the baseline each one was compared
+against. Uptime compares the recordings in the 7 days up to the latest one
+with the number the schedule expects inside its active hours.
 """
 
 from __future__ import annotations
@@ -12,6 +18,7 @@ from __future__ import annotations
 import statistics
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from thicket.api.platform_schemas import (
     AlertRules,
@@ -22,6 +29,14 @@ from thicket.api.platform_schemas import (
     SeriesPoint,
 )
 from thicket.config import Settings
+from thicket.domain.schedule import (
+    ALL_HOURS,
+    Schedule,
+    expected_recordings,
+    find_active_gaps,
+    infer_interval,
+    schedule_for,
+)
 from thicket.domain.signal_profile import channel_imbalance_db, high_band_fraction
 from thicket.persistence.db import DeploymentRow, RecorderRow, RecordingRow
 from thicket.persistence.platform_repositories import PlatformRepository
@@ -65,33 +80,42 @@ def _worst(statuses: Sequence[Status]) -> Status:
     return max(known, key=lambda s: order[s])
 
 
+_ROUND_THE_CLOCK = Schedule(tz=ZoneInfo("UTC"), hours=ALL_HOURS, source="declared")
+
+
 def find_gaps(
     times: Sequence[datetime],
     *,
     interval_minutes: float | None,
     multiplier: float,
     min_hours: float,
+    schedule: Schedule | None = None,
 ) -> list[Gap]:
-    if len(times) < 2 or not interval_minutes or interval_minutes <= 0:
-        return []
-    limit_hours = max(multiplier * interval_minutes / 60.0, min_hours)
-    gaps: list[Gap] = []
-    for a, b in zip(times, times[1:], strict=False):
-        hours = (b - a).total_seconds() / 3600.0
-        if hours >= limit_hours:
-            expected = max(0, int(round(hours * 60.0 / interval_minutes)) - 1)
-            gaps.append(Gap(start=a, end=b, hours=round(hours, 2), expected_recordings=expected))
-    return gaps
+    """Gaps between consecutive recordings; ``hours`` counts active hours only."""
+    found = find_active_gaps(
+        times,
+        schedule or _ROUND_THE_CLOCK,
+        interval_minutes=interval_minutes,
+        multiplier=multiplier,
+        min_hours=min_hours,
+    )
+    return [
+        Gap(
+            start=g.start,
+            end=g.end,
+            hours=g.active_hours,
+            expected_recordings=g.expected_recordings,
+        )
+        for g in found
+    ]
 
 
-def infer_interval_minutes(times: Sequence[datetime]) -> float | None:
+def infer_interval_minutes(
+    times: Sequence[datetime], schedule: Schedule | None = None
+) -> float | None:
     if len(times) < MIN_INTERVALS_TO_INFER + 1:
         return None
-    intervals = [(b - a).total_seconds() / 60.0 for a, b in zip(times, times[1:], strict=False)]
-    intervals = [i for i in intervals if i > 0]
-    if len(intervals) < MIN_INTERVALS_TO_INFER:
-        return None
-    return round(statistics.median(intervals), 3)
+    return infer_interval(times, schedule or _ROUND_THE_CLOCK)
 
 
 class RecorderHealthService:
@@ -113,7 +137,11 @@ class RecorderHealthService:
         now: datetime | None = None,
     ) -> RecorderHealth:
         now = now or datetime.now(UTC)
-        since = now - timedelta(days=days)
+        # The window follows the data: backfilled SD cards would otherwise show
+        # an empty (or 0% uptime) recorder until the calendar catches up.
+        latest = self.platform.recorder_last_recording([recorder_row.id]).get(recorder_row.id)
+        anchor = min(latest, now) if latest else now
+        since = anchor - timedelta(days=days)
         rules: AlertRules = self.alerts.rules(recorder_row.organization_id)
         recordings = [
             r
@@ -121,23 +149,36 @@ class RecorderHealthService:
             if r.captured_at_utc is not None
         ]
         times = [r.captured_at_utc for r in recordings]
+        org = self.platform.get_org(recorder_row.organization_id)
+        schedule = schedule_for(
+            [(r.captured_at_utc, float(r.duration_seconds or 0.0)) for r in recordings],  # type: ignore[misc]
+            org.timezone if org else None,
+            deployment.schedule_description if deployment else None,
+        )
         declared = (
             float(deployment.expected_interval_minutes)
             if deployment and deployment.expected_interval_minutes
             else None
         )
-        inferred = infer_interval_minutes(times)  # type: ignore[arg-type]
+        inferred = infer_interval_minutes(times, schedule)  # type: ignore[arg-type]
         interval = declared or inferred
         gaps = find_gaps(
             times,  # type: ignore[arg-type]
             interval_minutes=interval,
             multiplier=rules.gap_multiplier,
             min_hours=rules.gap_min_hours,
+            schedule=schedule,
         )
-        week_ago = now - timedelta(days=7)
-        last_7d = [t for t in times if t >= week_ago]  # type: ignore[operator]
-        expected_7d = int(7 * 24 * 60 / interval) if interval else None
-        uptime = min(1.0, len(last_7d) / expected_7d) if expected_7d else None
+        last_7d: list = []
+        expected_7d = None
+        uptime = None
+        if times:
+            window_end = times[-1]
+            window_start = max(window_end - timedelta(days=7), times[0])  # type: ignore[operator, type-var]
+            last_7d = [t for t in times if t >= window_start]  # type: ignore[operator]
+            if interval:
+                expected_7d = expected_recordings(window_start, window_end, schedule, interval)  # type: ignore[arg-type]
+                uptime = min(1.0, len(last_7d) / expected_7d) if expected_7d else None
 
         def series(getter) -> list[SeriesPoint]:  # type: ignore[no-untyped-def]
             out = []
@@ -189,17 +230,32 @@ class RecorderHealthService:
             interval_text = f" Inferred interval {inferred:g} min."
         else:
             interval_text = " Interval unknown."
+        if recordings:
+            source = (
+                "from the deployment's schedule"
+                if schedule.source == "declared"
+                else "learned from its recordings"
+            )
+            interval_text += (
+                f" Recording window: {schedule.describe()} ({source}); gaps and uptime count "
+                "only those hours."
+            )
+        window = (
+            f"the {days} days up to the latest recording ({anchor.date().isoformat()})"
+            if latest
+            else f"the last {days} days"
+        )
         if not recordings:
-            note = f"No timestamped recordings from this recorder in the last {days} days."
+            note = f"No timestamped recordings from this recorder in {window}."
         elif len(recordings) < rules.min_baseline_recordings:
             note = (
-                f"{len(recordings)} recordings in the last {days} days; baselines need "
+                f"{len(recordings)} recordings in {window}; baselines need "
                 f"{rules.min_baseline_recordings}, so checks compare against the window median only."
                 + interval_text
             )
         else:
             note = (
-                f"Baselines are medians over {len(recordings)} recordings in the last {days} days."
+                f"Baselines are medians over {len(recordings)} recordings in {window}."
                 + interval_text
             )
         return RecorderHealth(
@@ -366,6 +422,7 @@ class RecorderHealthService:
                     message=(
                         f"{len(gaps)} gap{'s' if len(gaps) != 1 else ''} longer than "
                         f"{max(rules.gap_multiplier * interval / 60.0, rules.gap_min_hours):.1f} h "
+                        "inside the recording window "
                         f"({'declared' if declared else 'inferred'} interval {interval:g} min)."
                     ),
                     value=float(len(gaps)),
@@ -379,7 +436,10 @@ class RecorderHealthService:
                         status="good"
                         if uptime >= 0.9
                         else ("watch" if uptime >= 0.6 else "attention"),
-                        message=f"{uptime * 100:.0f}% of expected recordings arrived in the last 7 days.",
+                        message=(
+                            f"{uptime * 100:.0f}% of the recordings the schedule expects arrived "
+                            "in the 7 days up to the latest one."
+                        ),
                         value=round(uptime, 4),
                         baseline=1.0,
                     )

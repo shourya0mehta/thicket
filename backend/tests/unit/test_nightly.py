@@ -52,12 +52,13 @@ def test_run_once_does_every_step(container):
     monday = datetime(2026, 9, 28, 6, 0, tzinfo=UTC)
     summary = c.nightly.run_once(monday)
     assert summary["rollups"] == {"recordings": 5, "site_days": 1}
-    assert summary["gaps_and_species"] == 1  # the deployment went quiet two days ago
+    # The deployment went quiet two days ago: not a gap (gaps lie between recordings) and,
+    # with a single upload so far, no upload routine to be overdue against.
+    assert summary["gaps_and_species"] == 0
     assert summary["digest_daily"] == 0 and summary["digest_weekly"] == 0  # local user has no inbox
     assert isinstance(summary["janitor"], dict) and summary["sessions_pruned"] == 0
     assert c.nightly.last_run is summary
-    kinds = [a.kind for a in c.platform.list_alerts(org)[0]]
-    assert kinds == ["recording_gap"]
+    assert c.platform.list_alerts(org)[1] == 0
 
 
 def test_failing_step_does_not_stop_the_rest(container, monkeypatch):

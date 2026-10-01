@@ -24,9 +24,10 @@ from thicket.api.platform_schemas import (
     SiteComparison,
 )
 from thicket.api.routes.openapi import ERRORS
-from thicket.errors import invalid_parameter, not_found
+from thicket.errors import conflict, invalid_parameter, not_found
 from thicket.ids import is_valid_id
 from thicket.persistence.db import as_utc, utcnow
+from thicket.persistence.platform_repositories import OpenAlertConflict
 from thicket.services.auth import Principal
 from thicket.services.dashboard import (
     build_dashboard,
@@ -178,7 +179,13 @@ def update_alert(
         values["acknowledged_by"] = p.user_id
     elif body.status == AlertStatus.open:
         values["acknowledged_by"] = None
-    updated = c.platform.update_alert(row.id, values)
+    try:
+        updated = c.platform.update_alert(row.id, values)
+    except OpenAlertConflict as exc:
+        raise conflict(
+            "A newer alert of this kind is already open for the same site, recorder and "
+            "species. Open that one instead."
+        ) from exc
     assert updated is not None
     return alert_model(updated)
 

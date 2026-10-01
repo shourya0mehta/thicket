@@ -86,7 +86,32 @@ def hour_bucket(
     return "night"
 
 
+SEASON_HALF_WIDTH_DAYS = 21
+
+
+def season_distance_days(a: date, b: date) -> int:
+    """Days between two dates' places in the year, on a 365-day circle.
+
+    15 December and 5 January are 21 days apart whatever the years, so a season
+    window around New Year is as wide as any other (ISO week numbers modulo 53
+    made it lopsided in 52-week years). 29 February counts as 28 February.
+    """
+
+    def place(d: date) -> int:
+        return date(2001, d.month, min(d.day, 28) if d.month == 2 else d.day).timetuple().tm_yday
+
+    gap = abs(place(a) - place(b))
+    return min(gap, 365 - gap)
+
+
+def in_season_window(a: date, b: date, half_width_days: int = SEASON_HALF_WIDTH_DAYS) -> bool:
+    return season_distance_days(a, b) <= half_width_days
+
+
 def season_weeks(center: tuple[int, int], half_width: int = 3) -> set[int]:
-    """ISO week numbers within ``half_width`` of the center week, wrapping the year."""
+    """ISO week numbers within ``half_width`` of the center week, wrapping the year.
+
+    Kept for callers that still think in weeks; baselines use
+    :func:`in_season_window`, which does not skew at the turn of the year."""
     _, week = center
     return {((week - 1 + k) % 53) + 1 for k in range(-half_width, half_width + 1)}

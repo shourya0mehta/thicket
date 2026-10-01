@@ -10,6 +10,15 @@ primary_region = "iad"
   ENVIRONMENT = "production"
   THICKET_DATA_DIR = "/data"
   ALLOWED_ORIGINS = "https://thicket.fly.dev"
+  # A public instance needs sign-in: production refuses to start without it.
+  # Required secrets (values never go in this file):
+  #   fly secrets set GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... \
+  #     SESSION_SECRET="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+  # The Google OAuth client needs the redirect URI
+  #   https://thicket.fly.dev/api/v1/auth/google/callback
+  AUTH_MODE = "google"
+  PUBLIC_BASE_URL = "https://thicket.fly.dev"
+  FRONTEND_URL = "https://thicket.fly.dev"
   # Rate limits key on the client IP that Fly's edge writes (and overwrites) in
   # Fly-Client-IP. Never set FORWARDED_ALLOW_IPS="*": uvicorn would then take the
   # left end of X-Forwarded-For, which any client can set to bypass the limit.

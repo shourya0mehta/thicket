@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import delete, func, or_, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from thicket.ids import LOCAL_ORG_ID, new_id
@@ -48,6 +49,7 @@ from thicket.persistence.db import (
     SpeciesDayStatsRow,
     UploadedFileRow,
     UserRow,
+    alert_open_key,
     utcnow,
 )
 
@@ -71,6 +73,14 @@ def slugify(name: str) -> str:
 
 def hash_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+class OpenAlertConflict(Exception):
+    """Another unresolved alert already covers this alert's key."""
+
+
+class LastOwner(Exception):
+    """The change would leave the organization without an owner."""
 
 
 @dataclass
@@ -277,6 +287,77 @@ class PlatformRepository:
             s.execute(delete(OrganizationRow).where(OrganizationRow.id == org_id))
             return analysis_ids
 
+    def move_org_contents(self, source_id: str, target_id: str) -> dict[str, int]:
+        """Move every resource of ``source_id`` into ``target_id`` in one transaction.
+
+        Sites, recorders, deployments, recordings (their analyses, detections and
+        reviews follow the recording), batch jobs, rollup rows, alerts, reports and
+        uploaded files change organization. The source's notifications and invites
+        are dropped; each organization keeps its own alert rules. An unresolved
+        alert whose key the target already has open is resolved into it. Returns
+        the number of rows moved per kind. Rollups must be rebuilt afterwards: the
+        target's time zone decides their local dates.
+        """
+        moved: dict[str, int] = {}
+        with self.db.session() as s:
+            for name, table in (
+                ("sites", SiteRow),
+                ("recorders", RecorderRow),
+                ("deployments", DeploymentRow),
+                ("recordings", RecordingRow),
+                ("batch_jobs", BatchJobRow),
+                ("reports", ReportRow),
+                ("files", UploadedFileRow),
+                ("recording_stats", RecordingStatsRow),
+                ("site_days", SiteDayStatsRow),
+                ("species_days", SpeciesDayStatsRow),
+            ):
+                res = s.execute(
+                    update(table)
+                    .where(table.organization_id == source_id)
+                    .values(organization_id=target_id)
+                )
+                moved[name] = res.rowcount or 0
+            analyses = s.execute(
+                select(func.count())
+                .select_from(AnalysisRow)
+                .join(RecordingRow, RecordingRow.id == AnalysisRow.recording_id)
+                .where(RecordingRow.organization_id == target_id)
+            ).scalar_one()
+            moved["analyses_in_target"] = int(analyses)
+            taken = set(
+                s.execute(
+                    select(AlertRow.open_key).where(
+                        AlertRow.organization_id == target_id, AlertRow.open_key.is_not(None)
+                    )
+                ).scalars()
+            )
+            alerts = list(
+                s.execute(select(AlertRow).where(AlertRow.organization_id == source_id)).scalars()
+            )
+            for a in alerts:
+                # Free the source key first: the unique index sees every flush.
+                a.open_key = None
+            s.flush()
+            for a in alerts:
+                a.organization_id = target_id
+                key = alert_open_key(target_id, a.dedupe_key, a.status)
+                if key is not None and key in taken:
+                    a.status = "resolved"
+                    a.snoozed_until = None
+                    a.note = a.note or (
+                        "Resolved when the local workspace was adopted: an open alert of the "
+                        "organization already covers it."
+                    )
+                    key = None
+                a.open_key = key
+                if key is not None:
+                    taken.add(key)
+            moved["alerts"] = len(alerts)
+            for table in (NotificationRow, InviteRow):
+                s.execute(delete(table).where(table.organization_id == source_id))
+        return moved
+
     # ============================================================== members
     def members(self, org_id: str) -> list[tuple[MembershipRow, UserRow]]:
         with self.db.session() as s:
@@ -314,6 +395,71 @@ class PlatformRepository:
                 return None
             m.role = role
             return m
+
+    def _lock_owners(self, s: Session, org_id: str) -> None:
+        """Postgres: lock the organization's owner rows so concurrent demotions and
+        removals serialize (a no-op on SQLite, whose single writer serializes them)."""
+        s.execute(
+            select(MembershipRow.user_id)
+            .where(MembershipRow.organization_id == org_id, MembershipRow.role == "owner")
+            .with_for_update()
+        ).all()
+
+    def _another_owner_remains(self, org_id: str):  # type: ignore[no-untyped-def]
+        owners = (
+            select(func.count())
+            .select_from(MembershipRow)
+            .where(MembershipRow.organization_id == org_id, MembershipRow.role == "owner")
+            .scalar_subquery()
+        )
+        return or_(MembershipRow.role != "owner", owners > 1)
+
+    def set_role_keeping_an_owner(
+        self, org_id: str, user_id: str, role: str
+    ) -> MembershipRow | None:
+        """Change a role unless that demotes the last owner; the owner count is read
+        inside the UPDATE itself, so two owners demoting each other at the same time
+        cannot both succeed. None: not a member. Raises :class:`LastOwner`."""
+        with self.db.session() as s:
+            self._lock_owners(s, org_id)
+            q = update(MembershipRow).where(
+                MembershipRow.organization_id == org_id, MembershipRow.user_id == user_id
+            )
+            if role != "owner":
+                q = q.where(self._another_owner_remains(org_id))
+            res = s.execute(q.values(role=role).execution_options(synchronize_session=False))
+            m = s.get(MembershipRow, (org_id, user_id), populate_existing=True)
+            if (res.rowcount or 0) == 0:
+                if m is None:
+                    return None
+                raise LastOwner(org_id)
+            return m
+
+    def remove_member_keeping_an_owner(self, org_id: str, user_id: str) -> bool:
+        """Remove a member unless they are the last owner (checked in the DELETE).
+        False: not a member. Raises :class:`LastOwner`."""
+        with self.db.session() as s:
+            self._lock_owners(s, org_id)
+            res = s.execute(
+                delete(MembershipRow)
+                .where(
+                    MembershipRow.organization_id == org_id,
+                    MembershipRow.user_id == user_id,
+                    self._another_owner_remains(org_id),
+                )
+                .execution_options(synchronize_session=False)
+            )
+            if (res.rowcount or 0) == 0:
+                if s.get(MembershipRow, (org_id, user_id)) is None:
+                    return False
+                raise LastOwner(org_id)
+            # Notifications carry the whole alert; a former member must not keep them.
+            s.execute(
+                delete(NotificationRow).where(
+                    NotificationRow.organization_id == org_id, NotificationRow.user_id == user_id
+                )
+            )
+            return True
 
     def owner_count(self, org_id: str) -> int:
         with self.db.session() as s:
@@ -369,6 +515,18 @@ class PlatformRepository:
                     .order_by(InviteRow.created_at.desc(), InviteRow.id)
                 ).scalars()
             )
+
+    def get_invite(self, invite_id: str) -> InviteRow | None:
+        with self.db.session() as s:
+            return s.get(InviteRow, invite_id)
+
+    def delete_invite(self, invite_id: str) -> bool:
+        """Delete an invite that nobody accepted yet (atomic with that check)."""
+        with self.db.session() as s:
+            res = s.execute(
+                delete(InviteRow).where(InviteRow.id == invite_id, InviteRow.accepted_at.is_(None))
+            )
+            return (res.rowcount or 0) > 0
 
     def invite_by_token(self, token: str) -> InviteRow | None:
         with self.db.session() as s:
@@ -1098,6 +1256,74 @@ class PlatformRepository:
                     )
                 )
 
+    def completed_analyses_by_site(self, org_id: str) -> dict[str | None, list[str]]:
+        """Completed analysis ids of an organization grouped by their recording's site."""
+        with self.db.session() as s:
+            rows = s.execute(
+                select(AnalysisRow.id, RecordingRow.site_id)
+                .join(RecordingRow, RecordingRow.id == AnalysisRow.recording_id)
+                .where(RecordingRow.organization_id == org_id, AnalysisRow.status == "completed")
+                .order_by(AnalysisRow.created_at, AnalysisRow.id)
+            ).all()
+        out: dict[str | None, list[str]] = {}
+        for aid, site_id in rows:
+            out.setdefault(site_id, []).append(aid)
+        return out
+
+    def replace_site_rollups(
+        self,
+        org_id: str,
+        site_id: str | None,
+        stats: list[dict],
+        days: list[tuple[date, dict, list[dict]]],
+    ) -> None:
+        """Swap one site's recording stats and day rollups in a single transaction
+        (``site_id=None``: the organization's recordings without a site)."""
+        with self.db.session() as s:
+            if site_id is None:
+                s.execute(
+                    delete(RecordingStatsRow).where(
+                        RecordingStatsRow.organization_id == org_id,
+                        RecordingStatsRow.site_id.is_(None),
+                    )
+                )
+            else:
+                for table in (RecordingStatsRow, SiteDayStatsRow, SpeciesDayStatsRow):
+                    s.execute(delete(table).where(table.site_id == site_id))
+            s.flush()
+            for values in stats:
+                s.add(RecordingStatsRow(**values))
+            if site_id is not None:
+                for day, day_values, species in days:
+                    s.add(
+                        SiteDayStatsRow(
+                            site_id=site_id, local_date=day, organization_id=org_id, **day_values
+                        )
+                    )
+                    for sp in species:
+                        s.add(
+                            SpeciesDayStatsRow(
+                                site_id=site_id, local_date=day, organization_id=org_id, **sp
+                            )
+                        )
+
+    def delete_rollups_outside(self, org_id: str, keep: set[str | None]) -> None:
+        """Drop an organization's rollup rows for sites that no longer have analyses."""
+        sites = [k for k in keep if k is not None]
+        with self.db.session() as s:
+            for table in (RecordingStatsRow, SiteDayStatsRow, SpeciesDayStatsRow):
+                q = delete(table).where(table.organization_id == org_id, table.site_id.is_not(None))
+                if sites:
+                    q = q.where(table.site_id.not_in(sites))
+                s.execute(q)
+            if None not in keep:
+                s.execute(
+                    delete(RecordingStatsRow).where(
+                        RecordingStatsRow.organization_id == org_id,
+                        RecordingStatsRow.site_id.is_(None),
+                    )
+                )
+
     def clear_rollups(self, org_id: str | None = None) -> None:
         with self.db.session() as s:
             for table in (SiteDayStatsRow, SpeciesDayStatsRow, RecordingStatsRow):
@@ -1218,22 +1444,37 @@ class PlatformRepository:
                     return row
         return None
 
-    def insert_alert(self, values: dict) -> AlertRow:
-        with self.db.session() as s:
-            row = AlertRow(id=new_id("alr"), **values)
-            s.add(row)
-            s.flush()
-            return row
+    def insert_alert(self, values: dict) -> AlertRow | None:
+        """Insert an alert; None when another unresolved alert already holds its key
+        (a concurrent insert won; the caller updates that one instead)."""
+        values = dict(values)
+        values["open_key"] = alert_open_key(
+            values["organization_id"], values["dedupe_key"], values.get("status", "open")
+        )
+        try:
+            with self.db.session() as s:
+                row = AlertRow(id=new_id("alr"), **values)
+                s.add(row)
+                s.flush()
+                return row
+        except IntegrityError:
+            return None
 
     def update_alert(self, alert_id: str, values: dict) -> AlertRow | None:
-        with self.db.session() as s:
-            row = s.get(AlertRow, alert_id)
-            if row is None:
-                return None
-            for k, v in values.items():
-                setattr(row, k, v)
-            row.updated_at = utcnow()
-            return row
+        """Raises :class:`OpenAlertConflict` when reopening would duplicate an open alert."""
+        try:
+            with self.db.session() as s:
+                row = s.get(AlertRow, alert_id)
+                if row is None:
+                    return None
+                for k, v in values.items():
+                    setattr(row, k, v)
+                row.open_key = alert_open_key(row.organization_id, row.dedupe_key, row.status)
+                row.updated_at = utcnow()
+                s.flush()
+                return row
+        except IntegrityError as exc:
+            raise OpenAlertConflict(alert_id) from exc
 
     def list_alerts(
         self,
@@ -1328,6 +1569,7 @@ class PlatformRepository:
                 a.recording_ids = [i for i in ids if i != recording_id]
                 if not a.recording_ids and a.status in OPEN_ALERT_STATUSES:
                     a.status = "resolved"
+                    a.open_key = None
                     a.snoozed_until = None
                     a.note = a.note or (
                         "Resolved automatically: the recordings behind this alert were deleted."
@@ -1414,7 +1656,12 @@ class PlatformRepository:
             )
 
     def list_notifications(
-        self, user_id: str, *, unread_only: bool = False, limit: int = 100
+        self,
+        user_id: str,
+        *,
+        unread_only: bool = False,
+        limit: int = 100,
+        org_id: str | None = None,
     ) -> list[tuple[NotificationRow, AlertRow]]:
         with self.db.session() as s:
             q = (
@@ -1424,32 +1671,39 @@ class PlatformRepository:
             )
             if unread_only:
                 q = q.where(NotificationRow.read_at.is_(None))
+            if org_id:
+                q = q.where(NotificationRow.organization_id == org_id)
             rows = s.execute(
                 q.order_by(NotificationRow.created_at.desc(), NotificationRow.id).limit(limit)
             ).all()
             return [(n, a) for n, a in rows]
 
-    def unread_count(self, user_id: str) -> int:
+    def unread_count(self, user_id: str, org_id: str | None = None) -> int:
         with self.db.session() as s:
-            return int(
-                s.execute(
-                    select(func.count())
-                    .select_from(NotificationRow)
-                    .where(
-                        NotificationRow.user_id == user_id,
-                        NotificationRow.channel == "in_app",
-                        NotificationRow.read_at.is_(None),
-                    )
-                ).scalar_one()
+            q = (
+                select(func.count())
+                .select_from(NotificationRow)
+                .where(
+                    NotificationRow.user_id == user_id,
+                    NotificationRow.channel == "in_app",
+                    NotificationRow.read_at.is_(None),
+                )
             )
+            if org_id:
+                q = q.where(NotificationRow.organization_id == org_id)
+            return int(s.execute(q).scalar_one())
 
-    def mark_read(self, user_id: str, ids: Sequence[str] | None, all_: bool) -> int:
+    def mark_read(
+        self, user_id: str, ids: Sequence[str] | None, all_: bool, org_id: str | None = None
+    ) -> int:
         with self.db.session() as s:
             q = (
                 update(NotificationRow)
                 .where(NotificationRow.user_id == user_id, NotificationRow.read_at.is_(None))
                 .values(read_at=utcnow())
             )
+            if org_id:
+                q = q.where(NotificationRow.organization_id == org_id)
             if not all_:
                 if not ids:
                     return 0

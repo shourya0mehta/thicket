@@ -79,11 +79,13 @@ def test_health_series_gaps_and_uptime(deployed):
     h = health(c, rec, dep)
     assert len(h.level_dbfs) == len(h.battery) == len(h.high_band_fraction) == 42
     assert h.high_band_fraction[0].v == pytest.approx(0.3)
-    assert h.median_interval_minutes == 60.0 and h.expected_last_7d == 168
-    assert h.recordings_last_7d == 42 and h.uptime_fraction_7d == pytest.approx(0.25)
+    # Uptime covers the data's own span (47 h up to the latest recording, 48 expected
+    # hourly recordings), not seven calendar days of which the recorder ran two.
+    assert h.median_interval_minutes == 60.0 and h.expected_last_7d == 48
+    assert h.recordings_last_7d == 42 and h.uptime_fraction_7d == pytest.approx(0.875)
     assert len(h.gaps) == 1 and h.gaps[0].hours == 7.0 and h.gaps[0].expected_recordings == 6
     checks = {c_.name: c_ for c_ in h.checks}
-    assert checks["gaps"].status == "attention" and checks["uptime_7d"].status == "attention"
+    assert checks["gaps"].status == "attention" and checks["uptime_7d"].status == "watch"
     assert checks["battery"].status == "good" and checks["battery"].baseline == 3.6
     assert checks["level_dbfs"].status == "good" and checks["level_dbfs"].baseline == -40.0
     assert checks["temperature"].status == "good"
@@ -141,7 +143,8 @@ def test_inferred_interval_is_used_when_none_is_declared(container):
             telemetry={"battery_v": 4.5},
         )
     h = health(c, rec, None)
-    assert h.median_interval_minutes == 30.0 and h.expected_last_7d == 336
+    assert h.median_interval_minutes == 30.0 and h.expected_last_7d == 6
+    assert h.uptime_fraction_7d == 1.0
     battery = next(x for x in h.checks if x.name == "battery")
     assert battery.status == "attention" and battery.baseline == 4.6
     assert "Inferred interval 30 min" in h.baseline_note

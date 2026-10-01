@@ -325,10 +325,10 @@ export function AlertsPage({ query }: { query: URLSearchParams }) {
   useEffect(() => {
     if (unread <= 0 || api.readOnly) return;
     api
-      .markNotificationsRead({ all: true })
+      .markNotificationsRead({ all: true, organization_id: org.id })
       .then(refreshUnread)
       .catch(() => undefined);
-  }, [unread, api, refreshUnread]);
+  }, [unread, api, refreshUnread, org.id]);
 
   const setQuery = (patch: Record<string, string | null | undefined>) =>
     navigateTo(orgHref(org.id, 'alerts', null, { status, site_id: siteId, ...patch }));

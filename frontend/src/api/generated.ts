@@ -29,7 +29,8 @@ export type AlertKind =
   | 'battery_low'
   | 'temperature_extreme'
   | 'clock_suspect'
-  | 'schedule_deviation';
+  | 'schedule_deviation'
+  | 'upload_overdue';
 /**
  * This interface was referenced by `ThicketAPI`'s JSON-Schema
  * via the `definition` "AlertSeverity".

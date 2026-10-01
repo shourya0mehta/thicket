@@ -62,6 +62,7 @@ export interface PlatformApi {
   removeMember(org: string, userId: string): Promise<void>;
   listInvites(org: string, signal?: AbortSignal): Promise<Invite[]>;
   createInvite(org: string, body: InviteCreate): Promise<Invite>;
+  revokeInvite(org: string, inviteId: string): Promise<void>;
   acceptInvite(token: string): Promise<Organization>;
 
   listSites(org: string, signal?: AbortSignal): Promise<Site[]>;
@@ -134,8 +135,12 @@ export interface PlatformApi {
     signal?: AbortSignal,
   ): Promise<UploadedFile>;
 
-  getNotifications(unreadOnly?: boolean, signal?: AbortSignal): Promise<NotificationPage>;
-  markNotificationsRead(body: { ids: string[] } | { all: true }): Promise<void>;
+  getNotifications(
+    unreadOnly?: boolean,
+    signal?: AbortSignal,
+    organizationId?: string | null,
+  ): Promise<NotificationPage>;
+  markNotificationsRead(body: http.MarkReadBody): Promise<void>;
   getNotificationPrefs(signal?: AbortSignal): Promise<NotificationPrefs>;
   putNotificationPrefs(prefs: NotificationPrefs): Promise<NotificationPrefs>;
 }
@@ -152,6 +157,7 @@ export const httpPlatformApi: PlatformApi = {
   removeMember: http.removeMember,
   listInvites: http.listInvites,
   createInvite: http.createInvite,
+  revokeInvite: http.revokeInvite,
   acceptInvite: http.acceptInvite,
   listSites: http.listSites,
   createSite: http.createSite,

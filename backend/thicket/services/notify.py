@@ -316,8 +316,10 @@ class NotificationService:
         )
 
     # -- API shapes -------------------------------------------------------------
-    def page(self, user_id: str, unread_only: bool) -> NotificationPage:
-        rows = self.platform.list_notifications(user_id, unread_only=unread_only)
+    def page(self, user_id: str, unread_only: bool, org_id: str | None = None) -> NotificationPage:
+        """The user's in-app notifications, optionally for one organization only
+        (``unread`` then counts that organization's unread ones)."""
+        rows = self.platform.list_notifications(user_id, unread_only=unread_only, org_id=org_id)
         return NotificationPage(
             items=[
                 Notification(
@@ -330,7 +332,7 @@ class NotificationService:
                 )
                 for n, a in rows
             ],
-            unread=self.platform.unread_count(user_id),
+            unread=self.platform.unread_count(user_id, org_id),
         )
 
 

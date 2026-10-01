@@ -59,5 +59,8 @@ schema:
 docker-build:
 	docker build -t $(IMAGE) .
 
+# Local, single-user run: published on localhost only and explicitly without
+# sign-in (the image is ENVIRONMENT=production, which otherwise requires it).
 docker-run:
-	docker run --rm -p 8000:8000 -v thicket-data:/data --name thicket $(IMAGE)
+	docker run --rm -p 127.0.0.1:8000:8000 -e ALLOW_UNAUTHENTICATED=true \
+		-v thicket-data:/data --name thicket $(IMAGE)

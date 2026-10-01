@@ -21,7 +21,8 @@ export function OrgProvider({ org, children }: { org: Organization; children: Re
     `recorders:${org.id}`,
   );
   const notifications = useResource(
-    (signal) => api.getNotifications(true, signal),
+    // This organization's unread notifications only: the bell sits inside its pages.
+    (signal) => api.getNotifications(true, signal, org.id),
     `unread:${org.id}`,
     !demo,
   );

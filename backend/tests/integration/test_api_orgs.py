@@ -97,6 +97,43 @@ def test_invite_flow(client):
     assert r.status_code == 409 and r.json()["error_code"] == "conflict"
 
 
+def test_revoking_invites(client):
+    dev_login(client, "owner@example.org")
+    oid = create_org(client)["id"]
+    unused = invite(client, oid, "maybe@example.org")
+    used = invite(client, oid, "joined@example.org")
+    boss = invite(client, oid, "boss@example.org", "owner")
+    used_token = used["accept_url"].rsplit("/", 1)[-1]
+    dev_login(client, "joined@example.org")
+    assert client.post(f"{API}/invites/{used_token}/accept", headers=CSRF).status_code == 200
+    join(client, oid, "owner@example.org", "mgr@example.org", "manager")
+    # A manager revokes an unused invite; its link stops working.
+    r = client.delete(f"{API}/orgs/{oid}/invites/{unused['id']}", headers=CSRF)
+    assert r.status_code == 204
+    ids = {i["id"] for i in client.get(f"{API}/orgs/{oid}/invites").json()}
+    assert unused["id"] not in ids and used["id"] in ids
+    dev_login(client, "maybe@example.org")
+    token = unused["accept_url"].rsplit("/", 1)[-1]
+    assert client.post(f"{API}/invites/{token}/accept", headers=CSRF).status_code == 404
+    dev_login(client, "mgr@example.org")
+    # Accepted invites are history; owner invites need an owner; unknown ids are 404.
+    r = client.delete(f"{API}/orgs/{oid}/invites/{used['id']}", headers=CSRF)
+    assert r.status_code == 409 and r.json()["error_code"] == "conflict"
+    assert client.delete(f"{API}/orgs/{oid}/invites/{boss['id']}", headers=CSRF).status_code == 403
+    assert client.delete(f"{API}/orgs/{oid}/invites/inv_nope", headers=CSRF).status_code == 404
+    dev_login(client, "owner@example.org")
+    assert client.delete(f"{API}/orgs/{oid}/invites/{boss['id']}", headers=CSRF).status_code == 204
+    # Another organization's invite is not found from here; viewers cannot revoke.
+    other = create_org(client, "Other")["id"]
+    theirs = invite(client, other, "x@example.org")
+    assert (
+        client.delete(f"{API}/orgs/{oid}/invites/{theirs['id']}", headers=CSRF).status_code == 404
+    )
+    dev_login(client, "joined@example.org")  # a viewer of oid
+    again = client.delete(f"{API}/orgs/{other}/invites/{theirs['id']}", headers=CSRF)
+    assert again.status_code == 403
+
+
 def test_invite_for_another_email_and_bad_tokens(client):
     dev_login(client, "owner@example.org")
     org = create_org(client)
@@ -225,3 +262,36 @@ def test_local_workspace_cannot_be_deleted(make_platform_client):
     from thicket.ids import LOCAL_ORG_ID
 
     assert client.delete(f"{API}/orgs/{LOCAL_ORG_ID}").status_code == 403
+
+
+def test_two_owners_demoting_or_removing_each_other_keep_one_owner(container, monkeypatch):
+    """The owner count is checked inside the UPDATE/DELETE, not read beforehand."""
+    import pytest
+
+    from thicket.api.platform_schemas import Role
+    from thicket.errors import ThicketError
+
+    c = container
+    a = c.platform.upsert_user(email="a@example.org", name="A")
+    b = c.platform.upsert_user(email="b@example.org", name="B")
+    org = c.platform.create_org(
+        a.id, name="Two", kind="farm", timezone="UTC", country=None, region=None
+    )
+    c.platform.add_member(org.id, b.id, "owner")
+    # Both requests read "two owners" before either wrote: the race the old check lost.
+    monkeypatch.setattr(c.platform, "owner_count", lambda org_id: 2)
+    c.services.set_role(org.id, a.id, Role.viewer)
+    with pytest.raises(ThicketError) as e:
+        c.services.set_role(org.id, b.id, Role.viewer)
+    assert e.value.code.value == "conflict"
+    with pytest.raises(ThicketError) as e:
+        c.services.remove_member(org.id, b.id)
+    assert e.value.code.value == "conflict"
+    assert c.platform.role_in_org(b.id, org.id) == "owner"
+    # Promoting is never blocked, and then either owner may leave.
+    c.services.set_role(org.id, a.id, Role.owner)
+    c.services.remove_member(org.id, b.id)
+    assert c.platform.role_in_org(b.id, org.id) is None
+    with pytest.raises(ThicketError) as e:
+        c.services.remove_member(org.id, "user_" + "5" * 24)
+    assert e.value.code.value == "not_found"

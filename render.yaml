@@ -26,6 +26,22 @@ services:
       # Set to your public origin(s) if the frontend is hosted elsewhere.
       - key: ALLOWED_ORIGINS
         value: https://thicket.onrender.com
+      # A public instance needs sign-in: production refuses to start without it.
+      # The Google OAuth client needs the redirect URI
+      # https://thicket.onrender.com/api/v1/auth/google/callback
+      - key: AUTH_MODE
+        value: google
+      - key: PUBLIC_BASE_URL
+        value: https://thicket.onrender.com
+      - key: FRONTEND_URL
+        value: https://thicket.onrender.com
+      # Required secrets: Render asks for each value when the Blueprint is applied.
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
       # Rate limits key on the last X-Forwarded-For entry, the address Render's
       # proxy appended, which a client cannot choose. Never set
       # FORWARDED_ALLOW_IPS="*": uvicorn would then trust the left end, which any

@@ -11,11 +11,15 @@ Examples::
 
     python -m thicket.cli nightly
 
+    python -m thicket.cli adopt-local --org org_...    (or --email owner@farm.example)
+
 ``analyze`` uses a throwaway in-memory database unless ``--data-dir`` is
-given. ``ingest`` and ``nightly`` work on the configured data dir
-(``THICKET_DATA_DIR`` or ``--data-dir``) and the local workspace
-organization. Exit codes: 0 success, 2 typed error (message on stderr),
-1 unexpected error.
+given. ``ingest``, ``nightly`` and ``adopt-local`` work on the configured data
+dir (``THICKET_DATA_DIR`` or ``--data-dir``); ``ingest`` writes to the local
+workspace unless ``--org`` names an organization. ``adopt-local`` moves
+everything in the local workspace into an organization (for a server that
+switches sign-in on). Exit codes: 0 success, 2 typed error (message on
+stderr), 1 unexpected error.
 """
 
 from __future__ import annotations
@@ -62,9 +66,12 @@ def _parser() -> argparse.ArgumentParser:
     a.add_argument("--verbose", action="store_true", help="Show logs")
 
     i = sub.add_parser(
-        "ingest", help="Batch-ingest a folder of recordings into the local workspace"
+        "ingest", help="Batch-ingest a folder of recordings (into the local workspace by default)"
     )
     i.add_argument("dir", type=Path, help="Folder with audio, zips and sidecar files (recursive)")
+    i.add_argument(
+        "--org", default=None, help="Organization id to ingest into (default: the local workspace)"
+    )
     i.add_argument("--site", required=True, help="Site name (created if it does not exist)")
     i.add_argument("--recorder", default=None, help="Recorder label (created if it does not exist)")
     i.add_argument(
@@ -88,6 +95,20 @@ def _parser() -> argparse.ArgumentParser:
         "--data-dir", type=Path, default=None, help="Data dir (default THICKET_DATA_DIR)"
     )
     n.add_argument("--verbose", action="store_true", help="Show logs")
+
+    ad = sub.add_parser(
+        "adopt-local",
+        help="Move everything in the local workspace into an organization (after enabling sign-in)",
+    )
+    target = ad.add_mutually_exclusive_group(required=True)
+    target.add_argument("--org", default=None, help="Organization id that receives the data")
+    target.add_argument(
+        "--email", default=None, help="Use the first organization this user owns (oldest first)"
+    )
+    ad.add_argument(
+        "--data-dir", type=Path, default=None, help="Data dir (default THICKET_DATA_DIR)"
+    )
+    ad.add_argument("--verbose", action="store_true", help="Show logs")
     return p
 
 
@@ -215,7 +236,7 @@ def _table(rows: list[list[str]]) -> str:
 
 def ingest(args: argparse.Namespace, container: Container | None = None) -> int:
     """Batch ingestion from a folder through the same ingest service as the API."""
-    from thicket.ids import LOCAL_ORG_ID, LOCAL_USER_ID
+    from thicket.ids import LOCAL_USER_ID
     from thicket.services.ingest import stage_local_files
 
     own = container is None
@@ -231,7 +252,7 @@ def ingest(args: argparse.Namespace, container: Container | None = None) -> int:
             raise ThicketError(ErrorCode.invalid_parameter, f"Folder not found: {args.dir}")
         if own:
             c.startup(background=False)
-        org = LOCAL_ORG_ID
+        org = _org_or_local(c, getattr(args, "org", None))
         site = c.platform.find_site_by_name(org, args.site)
         if site is None:
             site = c.platform.create_site(
@@ -310,6 +331,67 @@ def ingest(args: argparse.Namespace, container: Container | None = None) -> int:
             c.shutdown()
 
 
+def _org_or_local(c: Container, org_id: str | None) -> str:
+    from thicket.ids import LOCAL_ORG_ID, is_valid_id
+
+    if not org_id:
+        return LOCAL_ORG_ID
+    if not is_valid_id(org_id, "org") or c.platform.get_org(org_id) is None:
+        raise ThicketError(ErrorCode.not_found, f"No organization with id {org_id!r}.")
+    return org_id
+
+
+def adopt_local(args: argparse.Namespace, container: Container | None = None) -> int:
+    """Move the local workspace's data into an organization and rebuild its rollups."""
+    from thicket.ids import LOCAL_ORG_ID
+
+    own = container is None
+    if container is None:
+        settings = _platform_settings(args)
+        if settings is None:
+            return 2
+        configure_logging(settings.log_level, settings.log_format)
+        container = Container(settings)
+    c = container
+    try:
+        if own:
+            c.startup(background=False)
+        if args.org:
+            target = _org_or_local(c, args.org)
+            if target == LOCAL_ORG_ID:
+                raise ThicketError(
+                    ErrorCode.invalid_parameter,
+                    "--org must name an organization, not the local one.",
+                )
+        else:
+            user = c.platform.get_user_by_email(args.email or "")
+            if user is None:
+                raise ThicketError(ErrorCode.not_found, f"No user signed in as {args.email}.")
+            owned = [
+                o.id
+                for o, role in c.platform.orgs_for_user(user.id)
+                if role == "owner" and o.id != LOCAL_ORG_ID
+            ]
+            if not owned:
+                raise ThicketError(
+                    ErrorCode.not_found,
+                    f"{args.email} owns no organization yet. Sign in and create one first.",
+                )
+            target = owned[0]
+        org = c.platform.get_org(target)
+        moved = c.services.adopt_local(target, c.rollups)
+        print(f"Moved the local workspace into {org.name if org else target} ({target}):")
+        for key, n in moved.items():
+            print(f"  {key.replace('_', ' ')}: {n}")
+        return 0
+    except ThicketError as exc:
+        print(f"error [{exc.code.value}]: {exc.message}", file=sys.stderr)
+        return 2
+    finally:
+        if own:
+            c.shutdown()
+
+
 def nightly(args: argparse.Namespace, container: Container | None = None) -> int:
     own = container is None
     if container is None:
@@ -338,6 +420,8 @@ def main(argv: list[str] | None = None) -> int:
         return ingest(args)
     if args.command == "nightly":
         return nightly(args)
+    if args.command == "adopt-local":
+        return adopt_local(args)
     return 1  # pragma: no cover
 
 

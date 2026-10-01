@@ -23,12 +23,11 @@ import {
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Callout } from '../../components/ui/Callout';
-import { CopyIcon } from '../../components/ui/icons';
+import { CopyIcon, TrashIcon } from '../../components/ui/icons';
 import { Panel } from '../../components/ui/Panel';
 import { useResource } from '../../hooks/useResource';
 import { formatDateTime } from '../../lib/format';
 import { ROLE_HELP, ROLE_LABEL, ROLES } from '../../lib/roles';
-import { inviteHref } from '../../lib/routes';
 import { parseSpeciesList } from '../../lib/species';
 import { isValidTimeZone, timeZoneOptions } from '../../lib/validation';
 import { useOrg } from '../../platform/orgContext';
@@ -238,10 +237,20 @@ function Members() {
     }
   };
 
-  const acceptLink = (invite: Invite): string => {
-    if (invite.accept_url) return invite.accept_url;
-    const token = invite.id;
-    return `${window.location.origin}${window.location.pathname}${inviteHref(token)}`;
+  // The token behind an invite link is shown once, when the invite is created; the
+  // invite id is not a token, so pending invites can be revoked but not re-copied.
+  const acceptLink = (invite: Invite): string => invite.accept_url ?? '';
+  const revoke = async (invite: Invite) => {
+    if (!window.confirm(`Revoke the invitation for ${invite.email}? Its link stops working.`))
+      return;
+    setRowError(null);
+    try {
+      await api.revokeInvite(org.id, invite.id);
+      invites.setData((current) => (current ?? []).filter((x) => x.id !== invite.id));
+      if (lastInvite?.id === invite.id) setLastInvite(null);
+    } catch (err) {
+      setRowError(describeError(err));
+    }
   };
   const copy = async (text: string) => {
     try {
@@ -423,12 +432,26 @@ function Members() {
                       {ROLE_LABEL[i.role]} · expires {formatDateTime(i.expires_at)}
                     </span>
                   </span>
-                  <Button size="sm" variant="ghost" onClick={() => void copy(acceptLink(i))}>
-                    <CopyIcon size={14} /> Copy link
-                  </Button>
+                  {permissions.canManage &&
+                  !api.readOnly &&
+                  (i.role !== 'owner' || permissions.isOwner) ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => void revoke(i)}
+                      aria-label={`Revoke the invitation for ${i.email}`}
+                      data-testid="revoke-invite"
+                    >
+                      <TrashIcon size={14} /> Revoke
+                    </Button>
+                  ) : null}
                 </li>
               ))}
           </ul>
+          <p className="mt-1 text-xs text-muted">
+            An invitation link is shown once. To send it again, revoke the invitation and invite
+            the same address again.
+          </p>
         </div>
       ) : null}
     </Panel>

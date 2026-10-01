@@ -556,6 +556,8 @@ class AlertKind(StrEnum):
     temperature_extreme = "temperature_extreme"
     clock_suspect = "clock_suspect"
     schedule_deviation = "schedule_deviation"
+    # Upload time, not recording time: a regularly uploading deployment went quiet.
+    upload_overdue = "upload_overdue"
 
 
 class AlertSeverity(StrEnum):

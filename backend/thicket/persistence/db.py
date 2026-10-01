@@ -10,7 +10,8 @@ reviews. Events, species tables and metrics are *derived on read* from raw
 detections at the requested threshold (see :mod:`thicket.services.results`),
 so there is one code path for every threshold.
 
-Platform tables (schema 3): users, organizations, memberships, invites,
+Platform tables (schema 3; schema 4 adds ``alerts.open_key``): users,
+organizations, memberships, invites,
 revoked sessions, recorders, deployments, batch jobs and items, per-recording
 stats, site and species day rollups, alerts and alert rules, notifications
 and preferences, reports and uploaded files. Every tenant resource carries
@@ -60,7 +61,7 @@ from sqlalchemy.pool import StaticPool
 
 from thicket.ids import LOCAL_ORG_ID, LOCAL_USER_ID
 
-DB_SCHEMA_VERSION = 3
+DB_SCHEMA_VERSION = 4
 
 LOCAL_ORG_NAME = "Local workspace"
 LOCAL_ORG_SLUG = "local"
@@ -491,9 +492,23 @@ class SpeciesDayStatsRow(Base):
 # ---------------------------------------------------------------- alerts
 
 
+OPEN_ALERT_STATUSES = ("open", "acknowledged", "snoozed")
+
+
+def alert_open_key(organization_id: str, dedupe_key: str, status: str) -> str | None:
+    """``alerts.open_key``: unique while an alert is open, acknowledged or snoozed."""
+    return f"{organization_id}|{dedupe_key}" if status in OPEN_ALERT_STATUSES else None
+
+
 class AlertRow(Base):
     __tablename__ = "alerts"
-    __table_args__ = (Index("ix_alerts_org_status", "organization_id", "status"),)
+    __table_args__ = (
+        Index("ix_alerts_org_status", "organization_id", "status"),
+        # At most one unresolved alert per (organization, dedupe key), enforced by the
+        # database so two workers raising the same alert cannot both insert one.
+        # NULL once resolved; unique indexes allow many NULLs (SQLite and Postgres).
+        Index("ux_alerts_open_key", "open_key", unique=True),
+    )
     id: Mapped[str] = mapped_column(String(40), primary_key=True)
     organization_id: Mapped[str] = mapped_column(
         ForeignKey("organizations.id", ondelete="CASCADE"), index=True
@@ -514,6 +529,7 @@ class AlertRow(Base):
     recording_ids: Mapped[list] = mapped_column(JSON, default=list)
     # kind|site|recorder|species, the deduplication key for open alerts.
     dedupe_key: Mapped[str] = mapped_column(String(400), index=True)
+    open_key: Mapped[str | None] = mapped_column(String(460), nullable=True)
     first_seen_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
     last_seen_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
     occurrences: Mapped[int] = mapped_column(Integer, default=1)
@@ -687,6 +703,7 @@ _ADDED_COLUMNS = [
     (3, "recordings", "telemetry", "JSON"),
     (3, "recordings", "signal_profile", "JSON"),
     (3, "recordings", "batch_job_id", "VARCHAR(40)"),
+    (4, "alerts", "open_key", "VARCHAR(460)"),
 ]
 
 
@@ -733,12 +750,35 @@ def _migrate(s: Session, from_version: int) -> None:
             )
         )
         _local_workspace_timezone_from_recordings(conn)
+    if from_version < 4:
+        _fill_open_alert_keys(s)
     # create_all() only builds indexes together with new tables; the columns added
     # above to existing tables (recordings.organization_id, captured_at_utc...)
     # would otherwise stay unindexed on upgraded databases.
     for table in Base.metadata.sorted_tables:
         for index in table.indexes:
             index.create(conn, checkfirst=True)
+
+
+def _fill_open_alert_keys(s: Session) -> None:
+    """Schema 4: key every unresolved alert. Should duplicates exist from before the
+    constraint, the newest keeps the key and the older ones are resolved into it."""
+    rows = s.execute(
+        select(AlertRow)
+        .where(AlertRow.status.in_(OPEN_ALERT_STATUSES))
+        .order_by(AlertRow.created_at.desc(), AlertRow.id)
+    ).scalars()
+    seen: set[str] = set()
+    for row in rows:
+        key = alert_open_key(row.organization_id, row.dedupe_key, row.status)
+        if key in seen:
+            row.status = "resolved"
+            row.open_key = None
+            row.note = row.note or "Resolved during the upgrade: a newer alert covers this."
+            continue
+        seen.add(key)  # type: ignore[arg-type]
+        row.open_key = key
+    s.flush()
 
 
 def _local_workspace_timezone_from_recordings(conn) -> None:  # type: ignore[no-untyped-def]

@@ -162,6 +162,7 @@ export function demoPlatformApi(file: PlatformDemoFile): PlatformApi {
     removeMember: READ_ONLY,
     listInvites: () => Promise.resolve([]),
     createInvite: READ_ONLY,
+    revokeInvite: READ_ONLY,
     acceptInvite: READ_ONLY,
 
     listSites: () => Promise.resolve(file.sites),

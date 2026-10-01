@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   groupFields,
   buildReportCreate,
@@ -119,7 +119,10 @@ describe('alerts', () => {
     await screen.findByTestId('alerts-ecology');
     await waitFor(() => expect(screen.queryByTestId('unread-badge')).toBeNull());
     const read = backend.requests.find((r) => r.url.endsWith('/me/notifications/read'));
-    expect(read?.body).toEqual({ all: true });
+    // Only this organization's notifications: another farm's stay unread.
+    expect(read?.body).toEqual({ all: true, organization_id: ORG.id });
+    const unread = backend.requests.find((r) => r.url.includes('/me/notifications?'));
+    expect(unread?.url).toContain(`organization_id=${ORG.id}`);
     expect(read?.headers['x-requested-with']).toBe('thicket');
   });
 
@@ -226,6 +229,27 @@ describe('role gating', () => {
       await screen.findByText(/Invitation created for planner2@example.org/),
     ).toBeInTheDocument();
     expect(screen.getByText(/#\/invite\/tok_new_1/)).toBeInTheDocument();
+  });
+
+  it('revokes a pending invitation with a DELETE and drops it from the list', async () => {
+    window.location.hash = `#/orgs/${ORG.id}/settings`;
+    const backend = installFakeBackend({ platform: { role: 'manager' } });
+    const { user } = renderApp();
+    const list = await screen.findByTestId('invite-list');
+    expect(within(list).getByText('planner@example.org')).toBeInTheDocument();
+    expect(within(list).queryByRole('button', { name: /Copy link/ })).toBeNull();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    try {
+      await user.click(
+        within(list).getByRole('button', { name: 'Revoke the invitation for planner@example.org' }),
+      );
+    } finally {
+      confirm.mockRestore();
+    }
+    await waitFor(() => expect(screen.queryByText('planner@example.org')).toBeNull());
+    const del = backend.requests.find((r) => r.method === 'DELETE');
+    expect(del?.url).toMatch(/\/orgs\/[^/]+\/invites\/inv_7a2b$/);
+    expect(del?.headers['x-requested-with']).toBe('thicket');
   });
 
   it('validates priority species names before saving the alert rules', async () => {
