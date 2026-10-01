@@ -232,6 +232,17 @@ class Settings(BaseSettings):
     def _blank_to_none(cls, v: object) -> object:
         return None if isinstance(v, str) and not v.strip() else v
 
+    @field_validator("google_client_id", "google_client_secret", mode="before")
+    @classmethod
+    def _strip_credential_whitespace(cls, v: object) -> object:
+        """Drop every space and line break: Google client ids and secrets contain
+        none, and a value pasted into a hosting dashboard often picks up a wrapped
+        line (which Google then rejects as an unknown client)."""
+        if not isinstance(v, str):
+            return v
+        cleaned = "".join(v.split())
+        return cleaned or None
+
     @field_validator(
         "serve_frontend_dir",
         "birdnet_model_dir",
