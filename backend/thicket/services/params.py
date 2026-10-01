@@ -73,10 +73,14 @@ class AnalysisParams:
         return dt.date()
 
 
-def parse_models(value: str | None) -> list[str]:
-    """Accept a JSON array (``["birdnet"]``) or a comma list (``birdnet,frog_insect``)."""
+def parse_models(value: str | None, defaults: list[str] | None = None) -> list[str]:
+    """Accept a JSON array (``["birdnet"]``) or a comma list (``birdnet,frog_insect``).
+
+    When nothing is given, ``defaults`` (the registry's ready-or-loading
+    default set, normally BirdNET plus the frog and insect head) is used.
+    """
     if value is None or not value.strip():
-        return list(DEFAULT_MODELS)
+        return list(defaults) if defaults else list(DEFAULT_MODELS)
     text = value.strip()
     if text.startswith("["):
         try:
@@ -154,7 +158,7 @@ def parse_captured_at(value: str | None, tz: str | None) -> datetime | None:
 def parse_analysis_params(
     fields: dict[str, str], settings: Settings, registry: ModelRegistry
 ) -> AnalysisParams:
-    models = parse_models(fields.get("models"))
+    models = parse_models(fields.get("models"), registry.default_models())
     for key in models:
         registry.get(key)  # unknown_model / model_unavailable
     threshold = validate_threshold(

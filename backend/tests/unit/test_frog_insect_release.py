@@ -116,3 +116,13 @@ def test_combined_analysis_applies_rule_and_records_head_labels(tmp_path):
         )
         # Birds from BirdNET are untouched by the rule.
         assert any(e["taxon"] == "bird" for e in a["events"])
+
+
+def test_default_models_include_the_head_only_when_enabled(tmp_path):
+    from tests.helpers import make_settings
+    from thicket.models.registry import build_registry
+
+    on = build_registry(make_settings(tmp_path, frog_insect_enabled=True))
+    off = build_registry(make_settings(tmp_path, frog_insect_enabled=False))
+    assert on.default_models() == ["birdnet", "frog_insect"]
+    assert off.default_models() == ["birdnet"]

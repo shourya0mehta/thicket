@@ -57,7 +57,11 @@ def _parser() -> argparse.ArgumentParser:
     a.add_argument("--date", default=None, help="Recording date or date-time, ISO 8601")
     a.add_argument("--timezone", default=None, help="IANA time zone, e.g. America/New_York")
     a.add_argument("--site", default=None, help="Site name")
-    a.add_argument("--models", default="birdnet", help="Comma list of model keys (default birdnet)")
+    a.add_argument(
+        "--models",
+        default=None,
+        help="Comma list of model keys (default: birdnet plus frog_insect when enabled)",
+    )
     a.add_argument("--hop", type=float, default=None, help="Window hop in seconds (3.0 or 1.5)")
     a.add_argument("--json", type=Path, default=None, help="Write the JSON export here")
     a.add_argument("--csv", type=Path, default=None, help="Write the CSV export here")
@@ -81,7 +85,11 @@ def _parser() -> argparse.ArgumentParser:
         help="Recorder make when --recorder creates a new recorder",
     )
     i.add_argument("--timezone", default="UTC", help="IANA time zone of the recorder clock")
-    i.add_argument("--models", default="birdnet", help="Comma list of model keys")
+    i.add_argument(
+        "--models",
+        default=None,
+        help="Comma list of model keys (default: birdnet plus frog_insect when enabled)",
+    )
     i.add_argument("--threshold", type=float, default=None, help="Decision threshold")
     i.add_argument(
         "--data-dir", type=Path, default=None, help="Data dir (default THICKET_DATA_DIR)"
@@ -169,7 +177,7 @@ def analyze(args: argparse.Namespace) -> int:
             raise ThicketError(ErrorCode.invalid_parameter, f"File not found: {args.file}")
         container.startup(background=False)
         fields = {
-            "models": args.models,
+            "models": args.models or "",
             "threshold": "" if args.threshold is None else str(args.threshold),
             "latitude": "" if args.lat is None else str(args.lat),
             "longitude": "" if args.lon is None else str(args.lon),
@@ -275,7 +283,7 @@ def ingest(args: argparse.Namespace, container: Container | None = None) -> int:
         fields = {
             "site_id": [site.id],
             "timezone": [args.timezone],
-            "models": [args.models],
+            "models": [args.models or ""],
         }
         if recorder_id:
             fields["recorder_id"] = [recorder_id]

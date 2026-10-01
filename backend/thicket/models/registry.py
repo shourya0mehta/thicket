@@ -108,6 +108,16 @@ class ModelRegistry:
             )
         return adapter
 
+    def default_models(self, preferred: tuple[str, ...] = ("birdnet", "frog_insect")) -> list[str]:
+        """Models used when a request names none: every preferred model that is
+        not disabled or unavailable (a loading model counts; the run waits for it)."""
+        out = [
+            k
+            for k in preferred
+            if k in self._adapters and self._adapters[k].status() not in ("disabled", "unavailable")
+        ]
+        return out or [k for k in preferred if k in self._adapters][:1]
+
     def require_ready(self, key: str, timeout: float | None) -> AcousticModelAdapter:
         adapter = self.get(key)
         if adapter.status() == "loading":

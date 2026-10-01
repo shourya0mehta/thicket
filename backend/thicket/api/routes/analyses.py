@@ -48,7 +48,7 @@ _FORM = {
     "preview_id": {"type": "string", "description": "Reuse a preview's upload instead of a file."},
     "models": {
         "type": "string",
-        "description": 'JSON array or comma list of model keys. Default ["birdnet"].',
+        "description": "JSON array or comma list of model keys. Default: BirdNET plus the frog and insect head when it is enabled.",
     },
     "threshold": {"type": "number", "description": "Decision threshold, default 0.60."},
     "latitude": {"type": "number", "minimum": -90, "maximum": 90},

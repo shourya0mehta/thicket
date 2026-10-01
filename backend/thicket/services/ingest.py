@@ -648,7 +648,7 @@ class IngestService:
             values = fields.get(name) or []
             return values[-1] if values else None
 
-        models = parse_models(one("models"))
+        models = parse_models(one("models"), registry.default_models())
         for key in models:
             registry.get(key)
         from thicket.services.params import _float, _ref
