@@ -171,9 +171,20 @@ def frame_windows(
     The final partial window is zero-padded when it holds at least
     ``min_tail_seconds`` of audio; otherwise it is dropped.
     """
+    starts = window_start_samples(len(samples), hop_seconds, min_tail_seconds, sample_rate)
+    out = fill_windows(samples, starts, sample_rate)
+    return out, np.asarray(starts, dtype=np.float64) / sample_rate
+
+
+def window_start_samples(
+    n: int,
+    hop_seconds: float = WINDOW_SECONDS,
+    min_tail_seconds: float = 1.0,
+    sample_rate: int = SAMPLE_RATE,
+) -> list[int]:
+    """Start sample of every window :func:`frame_windows` would make for ``n`` samples."""
     win = int(WINDOW_SECONDS * sample_rate)
     hop = max(1, int(hop_seconds * sample_rate))
-    n = len(samples)
     starts: list[int] = []
     s = 0
     while s < n:
@@ -183,11 +194,19 @@ def frame_windows(
         if s + win >= n:
             break
         s += hop
+    return starts
+
+
+def fill_windows(
+    samples: np.ndarray, starts: list[int], sample_rate: int = SAMPLE_RATE
+) -> np.ndarray:
+    """(len(starts), 3 s) float32 windows from ``samples``, zero-padded at the end."""
+    win = int(WINDOW_SECONDS * sample_rate)
     out = np.zeros((len(starts), win), dtype=np.float32)
     for i, st in enumerate(starts):
         chunk = samples[st : st + win]
         out[i, : len(chunk)] = chunk
-    return out, np.asarray(starts, dtype=np.float64) / sample_rate
+    return out
 
 
 class BirdNETRuntime:

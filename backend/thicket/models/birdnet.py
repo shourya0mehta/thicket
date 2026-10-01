@@ -50,13 +50,16 @@ from thicket.models.birdnet_runtime import (
     BirdNETRuntime,
     BirdNETUnavailable,
     Label,
-    frame_windows,
+    fill_windows,
     week_48,
+    window_start_samples,
 )
 from thicket.models.lifecycle import AdapterLifecycle
 
 HUMAN_VOCAL = "Human vocal"
 MIN_TAIL_SECONDS = 1.0
+#: Windows scored per batch (32 x 3 s at 48 kHz is 18 MB).
+INFER_BATCH = 32
 CONFIDENCE_DECIMALS = 4
 
 
@@ -101,15 +104,28 @@ def human_vocal_scores(runtime: BirdNETRuntime, probs: np.ndarray) -> np.ndarray
 def infer_windows(
     runtime: BirdNETRuntime, samples: np.ndarray, hop_seconds: float
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Frame and run BirdNET. Returns (window_starts, probabilities, embeddings)."""
-    windows, starts = frame_windows(
-        np.asarray(samples, dtype=np.float32),
-        hop_seconds=hop_seconds,
-        min_tail_seconds=MIN_TAIL_SECONDS,
-    )
-    logits, embeddings = runtime.infer(windows)
-    probs = BirdNETRuntime.sigmoid(logits.astype(np.float64))
-    return starts, probs, embeddings
+    """Frame and run BirdNET. Returns (window_starts, probabilities, embeddings).
+
+    Windows are built and scored ``INFER_BATCH`` at a time, so memory does not
+    grow with the recording length times the overlap (all windows of a
+    10 minute file at a 0.5 s hop would be 690 MB).
+    """
+    x = np.asarray(samples, dtype=np.float32)
+    starts = window_start_samples(len(x), hop_seconds, MIN_TAIL_SECONDS, SAMPLE_RATE)
+    probs: np.ndarray | None = None
+    embeddings: np.ndarray | None = None
+    for first in range(0, len(starts), INFER_BATCH):
+        batch = starts[first : first + INFER_BATCH]
+        logits, embs = runtime.infer(fill_windows(x, batch, SAMPLE_RATE))
+        if probs is None or embeddings is None:
+            probs = np.empty((len(starts), logits.shape[1]), dtype=np.float64)
+            embeddings = np.empty((len(starts), embs.shape[1]), dtype=embs.dtype)
+        probs[first : first + len(batch)] = BirdNETRuntime.sigmoid(logits.astype(np.float64))
+        embeddings[first : first + len(batch)] = embs
+    if probs is None or embeddings is None:  # no windows: let the runtime shape the empties
+        logits, embeddings = runtime.infer(fill_windows(x, [], SAMPLE_RATE))
+        probs = BirdNETRuntime.sigmoid(logits.astype(np.float64))
+    return np.asarray(starts, dtype=np.float64) / SAMPLE_RATE, probs, embeddings
 
 
 def check_input(samples: np.ndarray, sample_rate: int) -> None:
