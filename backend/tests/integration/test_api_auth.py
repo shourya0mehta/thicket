@@ -123,6 +123,27 @@ def test_rolling_session_refresh(dev):
     assert "set-cookie" not in dev.get(f"{API}/auth/me").headers
 
 
+def test_logout_after_a_refresh_revokes_the_pre_refresh_cookie(dev):
+    """A refresh keeps the session id, so logout also kills a copy taken before it."""
+    dev_login(dev, "a@example.org")
+    before = dev.cookies.get(SESSION_COOKIE)
+    auth = dev.app.state.container.auth
+    real = auth.clock
+    try:
+        auth.clock = lambda: real() + 2 * 3600
+        assert dev.get(f"{API}/auth/me").status_code == 200
+    finally:
+        auth.clock = real
+    after = dev.cookies.get(SESSION_COOKIE)
+    assert after != before
+    assert auth.read_session(after).session_id == auth.read_session(before).session_id
+    assert dev.post(f"{API}/auth/logout", headers=CSRF).status_code == 204
+    for token in (before, after):
+        dev.cookies.clear()
+        dev.cookies.set(SESSION_COOKIE, token)
+        assert dev.get(f"{API}/auth/me").status_code == 401
+
+
 def test_dev_login_domain_restriction(make_platform_client):
     client = make_platform_client(auth_mode="dev", allowed_signin_domains="farm.coop")
     r = client.post(f"{API}/auth/dev", json={"email": "x@gmail.com"}, headers=CSRF)

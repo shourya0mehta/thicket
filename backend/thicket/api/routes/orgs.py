@@ -55,7 +55,15 @@ def update_org(
     request: Request,
     ctx: OrgContext = Depends(require_org_role(Role.manager)),
 ) -> Organization:
-    return container(request).services.update_org(ctx.org_id, body)
+    """Rename or change settings. A new time zone moves every day boundary, so the
+    organization's rollups are rebuilt right away rather than at the nightly run."""
+    c = container(request)
+    before = c.platform.get_org(ctx.org_id)
+    org = c.services.update_org(ctx.org_id, body)
+    c.rollups.reset_cache()
+    if before is not None and before.timezone != org.timezone:
+        c.rollups.rebuild(ctx.org_id)
+    return org
 
 
 @router.delete("/orgs/{org}", status_code=204, responses=ERRORS)

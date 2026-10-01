@@ -279,3 +279,70 @@ def test_untimed_recordings_use_upload_time(container):
     _, rid = insert_analysis(c, site_id=s.id, captured_at=None, species={A: 1})
     st = c.platform.get_recording_stats(rid)
     assert st.captured_at is None and st.local_date == datetime.now(UTC).date()
+
+
+def test_concurrent_updates_of_one_site_day_keep_every_recording(container, monkeypatch):
+    """Read-then-replace from two threads used to let a stale aggregate win."""
+    import threading
+    import time
+
+    from thicket.ids import LOCAL_ORG_ID
+
+    c = container
+    site = c.platform.create_site(LOCAL_ORG_ID, {"name": "Race"})
+    t0 = datetime(2026, 5, 14, 10, 0, tzinfo=UTC)
+    a1, _ = insert_analysis(c, site_id=site.id, captured_at=t0, species={A: 1}, rollup=False)
+    a2, _ = insert_analysis(
+        c, site_id=site.id, captured_at=t0.replace(hour=11), species={B: 2}, rollup=False
+    )
+    real = c.platform.stats_for_site_day
+    first_read = threading.Event()
+
+    def slow_first_read(site_id, day):
+        rows = real(site_id, day)
+        if not first_read.is_set():
+            first_read.set()
+            time.sleep(0.4)  # the other thread runs between this read and the write
+        return rows
+
+    monkeypatch.setattr(c.platform, "stats_for_site_day", slow_first_read)
+    worker = threading.Thread(target=c.rollups.on_analysis_completed, args=(a1,))
+    worker.start()
+    assert first_read.wait(5)
+    c.rollups.on_analysis_completed(a2)
+    worker.join(5)
+    days = c.platform.site_days(LOCAL_ORG_ID, start=t0.date(), end=t0.date())
+    assert [(d.recordings, d.richness, d.events) for d in days] == [(2, 2, 3)]
+
+
+def test_naive_captured_at_gets_its_utc_instant_on_completion(farm):
+    """Until the nightly rebuild it was untimed for date filters and report periods."""
+    from datetime import timedelta
+
+    c, org, s1, _s2, _ids = farm
+    aid, rid = insert_analysis(
+        c,
+        org_id=org.id,
+        site_id=s1.id,
+        captured_at=datetime(2026, 5, 20, 6, 30, tzinfo=UTC),
+        species={A: 1},
+        rollup=False,
+    )
+    # What POST /analyses stores for captured_at=2026-05-20T06:30:00 without a timezone.
+    c.platform.attach_recording(
+        rid, {"captured_at": "2026-05-20T06:30:00", "captured_at_utc": None, "timezone": None}
+    )
+    c.rollups.on_analysis_completed(aid)
+    expected = datetime(2026, 5, 20, 10, 30, tzinfo=UTC)  # 06:30 in New York (EDT)
+    assert c.platform.get_recording(rid).recording.captured_at_utc == expected
+    _, total = c.platform.list_recordings(
+        org.id, since=expected - timedelta(hours=1), until=expected + timedelta(hours=1)
+    )
+    assert total == 1
+    picked = c.platform.completed_analyses_for_period(
+        org.id,
+        site_ids=None,
+        start=expected - timedelta(hours=1),
+        end=expected + timedelta(hours=1),
+    )
+    assert [a.id for a, _ in picked] == [aid]

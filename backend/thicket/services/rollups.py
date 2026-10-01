@@ -25,6 +25,7 @@ Local date falls back to the upload time when a recording has no timestamp.
 from __future__ import annotations
 
 import logging
+import threading
 from collections import Counter, defaultdict
 from collections.abc import Iterable
 from datetime import UTC, date, datetime
@@ -75,6 +76,11 @@ class RollupService:
         self.platform = platform
         self._org_cache: dict[str, OrganizationRow | None] = {}
         self._site_cache: dict[str, SiteRow | None] = {}
+        # A site-day is read (its recordings' stats) and then replaced in another
+        # session; two threads doing that for one day (a worker finishing an
+        # analysis, a review or a delete on a request thread) could write back a
+        # stale aggregate that leaves a recording out. Serialize the read-write.
+        self._lock = threading.RLock()
 
     # -------------------------------------------------------------- helpers
     def _org(self, org_id: str | None) -> OrganizationRow | None:
@@ -149,33 +155,46 @@ class RollupService:
         bundle = self.repo.load_bundle(analysis_id)
         if bundle is None or bundle.recording is None:
             return
-        previous = self.platform.get_recording_stats(bundle.recording.id)
         values = self.stats_values(bundle)
         if values is None:
             return
-        self.platform.upsert_recording_stats(values)
-        org_id = values["organization_id"]
-        days: set[tuple[str, date]] = set()
-        if values["site_id"]:
-            days.add((values["site_id"], values["local_date"]))
-        if previous is not None and previous.site_id:
-            days.add((previous.site_id, previous.local_date))
-        for site_id, day in days:
-            self.recompute_site_day(site_id, day, org_id)
+        if bundle.recording.captured_at_utc is None and values["captured_at"] is not None:
+            # A naive captured_at (no timezone sent) is read on the org's clock here;
+            # store that instant now, as the nightly rebuild does, so date filters,
+            # recorder health, gap checks and report periods agree with the dashboard
+            # today instead of treating the recording as untimed until tonight.
+            self.platform.attach_recording(
+                bundle.recording.id, {"captured_at_utc": values["captured_at"]}
+            )
+        with self._lock:
+            previous = self.platform.get_recording_stats(bundle.recording.id)
+            self.platform.upsert_recording_stats(values)
+            org_id = values["organization_id"]
+            days: set[tuple[str, date]] = set()
+            if values["site_id"]:
+                days.add((values["site_id"], values["local_date"]))
+            if previous is not None and previous.site_id:
+                days.add((previous.site_id, previous.local_date))
+            for site_id, day in days:
+                self.recompute_site_day(site_id, day, org_id)
 
     def remove_recording(self, recording_id: str) -> None:
-        previous = self.platform.delete_recording_stats(recording_id)
-        if previous is not None and previous.site_id:
-            self.recompute_site_day(previous.site_id, previous.local_date, previous.organization_id)
+        with self._lock:
+            previous = self.platform.delete_recording_stats(recording_id)
+            if previous is not None and previous.site_id:
+                self.recompute_site_day(
+                    previous.site_id, previous.local_date, previous.organization_id
+                )
 
     # ----------------------------------------------------------- site days
     def recompute_site_day(self, site_id: str, day: date, org_id: str) -> None:
-        rows = self.platform.stats_for_site_day(site_id, day)
-        if not rows:
-            self.platform.replace_site_day(site_id, day, org_id, None, [])
-            return
-        day_values, species = aggregate_site_day(rows)
-        self.platform.replace_site_day(site_id, day, org_id, day_values, species)
+        with self._lock:
+            rows = self.platform.stats_for_site_day(site_id, day)
+            if not rows:
+                self.platform.replace_site_day(site_id, day, org_id, None, [])
+                return
+            day_values, species = aggregate_site_day(rows)
+            self.platform.replace_site_day(site_id, day, org_id, day_values, species)
 
     def rebuild(self, org_id: str | None = None) -> dict[str, int]:
         """Recompute every recording's stats and every site-day from scratch."""

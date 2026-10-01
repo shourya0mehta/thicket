@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import math
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -80,6 +81,9 @@ class ReportService:
                     num = float(value)
                 except (TypeError, ValueError) as exc:
                     raise invalid_parameter(f"{name} must be a number.", field=name) from exc
+                if not math.isfinite(num):
+                    # NaN would print as "not provided"; inf breaks int() and the bundle JSON.
+                    raise invalid_parameter(f"{name} must be a finite number.", field=name)
                 out[name] = int(num) if spec.type == "integer" else num
             elif spec.type == "boolean":
                 out[name] = (

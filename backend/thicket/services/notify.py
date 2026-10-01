@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from email.message import EmailMessage
 from email.utils import formatdate, make_msgid
+from urllib.parse import quote, urlencode
 
 import httpx
 
@@ -266,10 +267,15 @@ class NotificationService:
 
     # -- composition ----------------------------------------------------------
     def alert_url(self, alert: AlertRow) -> str:
-        return f"{self.settings.frontend_url}/#/alerts/{alert.id}"
+        """The organization's alert inbox with this alert expanded (the frontend's route;
+        ``status=all`` so the link still works once the alert is acknowledged)."""
+        query = urlencode({"status": "all", "alert": alert.id})
+        return f"{self.settings.frontend_url}/#/orgs/{quote(alert.organization_id)}/alerts?{query}"
 
     def compose_single(self, user: UserRow, alert: AlertRow) -> OutgoingEmail:
-        subject = f"[Thicket] {alert.severity}: {alert.title}"
+        # Titles carry site names and recorder labels, which may hold line breaks;
+        # a header with one is refused, so the email would never go out.
+        subject = " ".join(f"[Thicket] {alert.severity}: {alert.title}".split())
         text = "\n".join(
             [
                 f"Hello {user.name},",

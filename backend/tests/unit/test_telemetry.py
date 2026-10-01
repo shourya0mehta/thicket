@@ -174,6 +174,31 @@ def test_audiomoth_config():
     assert parse_audiomoth_config("no colon lines here") is None
 
 
+def test_garbled_or_hostile_numbers_never_become_telemetry():
+    """inf/nan or impossible values are dropped instead of raising alerts or breaking JSON."""
+    huge = "9" * 400  # float() of this is inf
+    am = parse_audiomoth_comment(audiomoth_comment(battery=huge, temp=huge))
+    assert am is not None and am.battery_v is None and am.temperature_c is None
+    am = parse_audiomoth_comment(audiomoth_comment(battery="4.1", temp="-12.5"))
+    assert am.battery_v == 4.1 and am.temperature_c == -12.5
+    g = parse_guano("Temperature Int:nan\nLoc Position:nan inf\nSerial:X1\n")
+    assert g.temperature_c is None and g.latitude is None and g.longitude is None
+    g = parse_guano("Temperature Int:inf\nLoc Position:142.0 -76.5\n")
+    assert g.temperature_c is None and (g.latitude, g.longitude) == (None, None)
+    rows = parse_song_meter_summary(
+        f"DATE,TIME,LAT,,LON,,POWER(V),TEMP(C)\n2024-05-14,05:30:00,{huge},N,76.5,W,{huge},{huge}\n"
+    )
+    assert len(rows) == 1
+    assert rows[0].latitude is None and rows[0].longitude is None
+    assert rows[0].battery_v is None and rows[0].temperature_c is None
+    # An offset outside UTC-12..UTC+14 used to fail every file of the batch later on.
+    assert parse_audiomoth_config("Time zone : UTC+99\n").utc_offset_hours is None
+    assert parse_audiomoth_config(f"Time zone : UTC+{huge}\n").utc_offset_hours is None
+    assert parse_audiomoth_config(f"Sample rate (Hz) : {huge}\n").sample_rate_hz is None
+    assert parse_audiomoth_config("Time zone : UTC-0:30\n").utc_offset_hours == -0.5
+    assert parse_audiomoth_config("Time zone : UTC-3:30\n").utc_offset_hours == -3.5
+
+
 def test_sidecar_names():
     assert is_song_meter_summary_name("SMM01234_Summary.txt")
     assert is_song_meter_summary_name("smm01234_summary.TXT")

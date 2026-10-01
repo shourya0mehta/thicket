@@ -218,6 +218,9 @@ def test_failed_items_do_not_fail_the_job(client, tmp_path):
         ({"site_id": "site_" + "9" * 24}, 422, "invalid_parameter"),
         ({"models": "nope"}, 422, "unknown_model"),
         ({"threshold": "0.01"}, 422, "invalid_parameter"),
+        # Not numbers: these were 500s from a bare float().
+        ({"threshold": "abc"}, 422, "invalid_parameter"),
+        ({"threshold": "nan"}, 422, "invalid_parameter"),
         ({"surprise": "1"}, 422, "invalid_parameter"),
     ],
 )

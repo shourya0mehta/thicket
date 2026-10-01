@@ -181,6 +181,28 @@ def test_deployment_validation(client):
     assert r.status_code == 422
 
 
+def test_deployment_times_without_an_offset_are_utc_not_a_500(client):
+    s = site(client)
+    rc = recorder(client)
+    r = client.post(
+        f"{API}/orgs/{ORG}/deployments",
+        json={
+            "recorder_id": rc["id"],
+            "site_id": s["id"],
+            "started_at": "2026-05-01T00:00:00",
+            "ended_at": "2026-06-01T00:00:00Z",
+        },
+    )
+    assert r.status_code == 201, r.text
+    dep = r.json()
+    assert datetime.fromisoformat(dep["started_at"]) == datetime(2026, 5, 1, tzinfo=UTC)
+    r = client.patch(f"{API}/deployments/{dep['id']}", json={"ended_at": "2026-04-01T00:00:00"})
+    assert r.status_code == 422
+    r = client.patch(f"{API}/deployments/{dep['id']}", json={"ended_at": "2026-07-01T00:00:00"})
+    assert r.status_code == 200, r.text
+    assert datetime.fromisoformat(r.json()["ended_at"]) == datetime(2026, 7, 1, tzinfo=UTC)
+
+
 def test_site_and_recorder_health_follow_open_alerts(client):
     s = site(client)
     rc = recorder(client)
@@ -199,6 +221,38 @@ def test_site_and_recorder_health_follow_open_alerts(client):
     alert = client.get(f"{API}/orgs/{ORG}/alerts").json()["items"][0]
     client.patch(f"{API}/alerts/{alert['id']}", json={"status": "resolved"})
     assert client.get(f"{API}/sites/{s['id']}").json()["stats"]["health"] == "good"
+
+
+def test_deleting_recordings_updates_their_alerts(client):
+    """Alerts that only pointed at deleted recordings no longer keep a site in attention."""
+    s = site(client)
+    rc = recorder(client)
+    c = client.app.state.container
+    _, low = insert_analysis(
+        c,
+        site_id=s["id"],
+        recorder_id=rc["id"],
+        captured_at=datetime.now(UTC) - timedelta(hours=1),
+        telemetry={"battery_v": 3.1, "source": "audiomoth_comment"},
+    )
+    speech_aid, speech = insert_analysis(
+        c, site_id=s["id"], captured_at=datetime.now(UTC), speech=True
+    )
+    c.alerts.evaluate_org(ORG)
+    alerts = {a["kind"]: a for a in client.get(f"{API}/orgs/{ORG}/alerts").json()["items"]}
+    assert alerts["battery_low"]["recording_ids"] == [low]
+    assert alerts["speech_detected"]["recording_ids"] == [speech]
+    assert client.get(f"{API}/sites/{s['id']}").json()["stats"]["health"] == "attention"
+    assert client.delete(f"{API}/recordings/{low}").status_code == 204
+    # Through the analysis route too (it removes the recording with its last analysis).
+    assert client.delete(f"{API}/analyses/{speech_aid}").status_code == 204
+    page = client.get(f"{API}/orgs/{ORG}/alerts").json()
+    assert {a["kind"]: a["status"] for a in page["items"]} == {
+        "battery_low": "resolved",
+        "speech_detected": "resolved",
+    }
+    assert all(a["recording_ids"] == [] and a["note"] for a in page["items"])
+    assert client.get(f"{API}/sites/{s['id']}").json()["stats"]["open_alerts"] == 0
 
 
 def test_recordings_list_filters_and_delete(client):

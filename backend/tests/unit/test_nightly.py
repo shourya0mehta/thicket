@@ -87,6 +87,23 @@ def test_loop_runs_and_stops(container, monkeypatch):
     assert n._thread is None
 
 
+def test_loop_runs_once_per_night_when_the_timer_wakes_early(container, monkeypatch):
+    """A wake-up just before the target hour used to run the whole pass again a second later."""
+    import time
+
+    n = container.nightly
+    runs = []
+    base = datetime(2026, 5, 14, 5, 59, 59, 500000, tzinfo=UTC)
+    n.clock = lambda: base  # the wall clock never reaches 06:00 (an early wake every time)
+    monkeypatch.setattr(n, "run_once", lambda now=None: runs.append(1))
+    n.start()
+    try:
+        time.sleep(2.6)
+    finally:
+        n.stop()
+    assert runs == [1]
+
+
 def test_cli_nightly_prints_a_summary(container, capsys):
     rc = cli_nightly(argparse.Namespace(data_dir=None, verbose=False), container=container)
     out = capsys.readouterr().out

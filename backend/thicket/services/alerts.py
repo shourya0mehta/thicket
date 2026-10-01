@@ -397,18 +397,28 @@ class AlertEngine:
         now = self.clock()
         existing = self.platform.find_open_alert(org_id, c.dedupe_key)
         if existing is not None:
+            # Re-evaluating recordings this alert already holds (POST .../alerts/evaluate
+            # walks the recent ones again) refreshes it but is not a new occurrence.
+            known = set(existing.recording_ids or [])
+            repeat = bool(c.recording_ids) and all(i in known for i in c.recording_ids)
             merged_ids = list(dict.fromkeys([*existing.recording_ids, *c.recording_ids]))[-20:]
             return self.platform.update_alert(
                 existing.id,
                 {
                     "last_seen_at": now,
-                    "occurrences": int(existing.occurrences or 1) + 1,
+                    "occurrences": int(existing.occurrences or 1) + (0 if repeat else 1),
                     "detail": c.detail,
                     "evidence": c.evidence,
                     "severity": max(existing.severity, c.severity.value, key=_severity_rank),
                     "recording_ids": merged_ids,
                 },
             )
+        if c.recording_ids and self.platform.resolved_alert_covering(
+            org_id, c.dedupe_key, c.recording_ids
+        ):
+            # Someone resolved an alert on exactly this evidence; looking at the same
+            # recordings again must not reopen it (and notify everyone again).
+            return None
         row = self.platform.insert_alert(
             {
                 "organization_id": org_id,

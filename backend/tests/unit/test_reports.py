@@ -410,6 +410,10 @@ def test_report_api_lifecycle(make_platform_client):
         {"fields": {"data_license": "MIT"}},
         {"fields": {"deployment_photo": "photo.jpg"}},
         {"fields": {"mount_height_m": "tall"}},
+        # Non-finite numbers: NaN was accepted and "inf" in an integer field was a 500.
+        {"fields": {"mount_height_m": "nan"}},
+        {"fields": {"sample_rate_setting": "inf"}},
+        {"fields": {"sample_rate_setting": "-1e999"}},
         {"period_start": "2026-06-01"},
         {"baseline_start": "2026-04-01"},
         {"decision_threshold": 0.01},

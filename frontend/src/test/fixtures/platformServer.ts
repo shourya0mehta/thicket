@@ -58,6 +58,8 @@ export interface PlatformServerOptions {
   organizations?: Organization[];
   /** Polls before a batch job or report finishes. */
   pollsBeforeComplete?: number;
+  /** The first N batch job polls answer 503 (a restart or network blip). */
+  failingJobPolls?: number;
   /** Respond 403 to every mutating request (to test forbidden handling). */
   forbidWrites?: boolean;
   /** Return 404 for /auth/config (an older backend). */
@@ -590,6 +592,10 @@ export function handlePlatformRequest(
     const id = decodeURIComponent(match[1]!);
     const batch = state.batches[id];
     if (!batch) return notFound();
+    if ((opts.failingJobPolls ?? 0) > 0) {
+      opts.failingJobPolls = (opts.failingJobPolls ?? 0) - 1;
+      return json(503, { error_code: 'backend_unavailable', message: 'Restarting.' });
+    }
     if (batch.polls > 0) {
       batch.polls -= 1;
       return json(200, buildBatchJob(id, batch.files, 'processing', batch.siteId));

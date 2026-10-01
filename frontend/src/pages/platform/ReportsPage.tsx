@@ -144,7 +144,9 @@ export function ReportsPage() {
                       </span>
                       {r.status === 'ready' && r.checksum_sha256 ? (
                         <span className="num block text-xs text-muted">
-                          {r.page_count ? `${r.page_count} pages · ` : ''}bundle{' '}
+                          {/* checksum_sha256 hashes the PDF file; the PDF footer prints the
+                              JSON bundle's hash, so calling this "bundle" never matched. */}
+                          {r.page_count ? `${r.page_count} pages · ` : ''}PDF sha256{' '}
                           {shortHash(r.checksum_sha256)}
                         </span>
                       ) : null}

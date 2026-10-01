@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { resolveApiUrl } from '../../api/client';
 import { describeError, type FriendlyError } from '../../api/errors';
 import type { AuthConfig } from '../../api/generated';
 import { ErrorCallout } from '../../components/feedback/ErrorCallout';
@@ -47,10 +48,13 @@ export function SignInPage({
   const [emailError, setEmailError] = useState<string | null>(null);
 
   const googleUrl = (() => {
-    if (!config.sign_in_url) return null;
-    if (!nextHash) return config.sign_in_url;
-    const joiner = config.sign_in_url.includes('?') ? '&' : '?';
-    return `${config.sign_in_url}${joiner}next=${encodeURIComponent(nextHash)}`;
+    // The server returns a root-relative path; it lives on the API origin, which
+    // differs from this page's when VITE_API_BASE_URL is set.
+    const start = resolveApiUrl(config.sign_in_url);
+    if (!start) return null;
+    if (!nextHash) return start;
+    const joiner = start.includes('?') ? '&' : '?';
+    return `${start}${joiner}next=${encodeURIComponent(nextHash)}`;
   })();
 
   const submit = async (event: FormEvent) => {

@@ -1,5 +1,6 @@
-import { screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { SignInPage } from '../../pages/platform/SignInPage';
 import { installFakeBackend } from '../fakeBackend';
 import { AUTH_DISABLED, AUTH_GOOGLE, ORG, SECOND_ORG } from '../fixtures/platform';
 import { renderApp } from '../utils';
@@ -38,6 +39,26 @@ describe('sign-in flows', () => {
     expect(link).toHaveAttribute('href', expect.stringContaining('/api/v1/auth/google/start'));
     expect(screen.getByText(/hollowcreek.example can sign in/)).toBeInTheDocument();
     expect(screen.queryByLabelText(/Email/)).toBeNull();
+  });
+
+  it('points the Google button at the API origin when the API lives elsewhere', () => {
+    vi.stubEnv('VITE_API_BASE_URL', 'https://api.thicket.example.org/');
+    try {
+      render(
+        <SignInPage
+          config={AUTH_GOOGLE}
+          onDevSignIn={() => Promise.resolve()}
+          nextHash="/orgs/org_1/alerts"
+        />,
+      );
+      const href = screen.getByTestId('google-sign-in').getAttribute('href') ?? '';
+      expect(href.startsWith('https://api.thicket.example.org/api/v1/auth/google/start')).toBe(
+        true,
+      );
+      expect(href).toContain(`next=${encodeURIComponent('/orgs/org_1/alerts')}`);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it('skips sign-in entirely when auth is disabled', async () => {

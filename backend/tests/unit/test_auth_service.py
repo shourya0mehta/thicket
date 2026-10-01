@@ -234,6 +234,20 @@ def test_google_flow_rejects_wrong_state_missing_cookie_and_errors(tmp_path, rep
         auth.finish_google(code="c", state=state, error=None, oauth_cookie=cookie)
 
 
+def test_oauth_and_session_cookies_are_not_interchangeable(tmp_path, repo, fake):
+    """Both are signed with the same secret, but with different salts."""
+    auth = service(tmp_path, repo, mode="google", google=fake.oidc())
+    _url, oauth_cookie = auth.start_google(None)
+    assert auth.read_session(oauth_cookie) is None
+    user = repo.upsert_user(email="a@example.org", name=None)
+    session_cookie, _ = auth.issue_session(user.id)
+    forged = auth.serializer.dumps({"state": "s", "verifier": "v", "nonce": "n", "next": "/"})
+    for cookie in (session_cookie, forged):
+        with pytest.raises(ThicketError) as e:
+            auth.finish_google(code="c", state="s", error=None, oauth_cookie=cookie)
+        assert e.value.code.value == "unauthenticated"
+
+
 def test_google_domain_restriction(tmp_path, repo, fake):
     auth = service(
         tmp_path, repo, mode="google", google=fake.oidc(), allowed_signin_domains="farm.coop"

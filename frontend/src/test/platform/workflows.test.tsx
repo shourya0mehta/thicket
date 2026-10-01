@@ -84,6 +84,31 @@ describe('batch upload', () => {
   });
 });
 
+describe('batch upload polling', () => {
+  it('rides out failed polls instead of failing the batch, and never uploads twice', async () => {
+    window.location.hash = `#/orgs/${ORG.id}/upload`;
+    const backend = installFakeBackend({
+      platform: { pollsBeforeComplete: 1, failingJobPolls: 2 },
+    });
+    const { user } = renderApp();
+    await screen.findByRole('heading', { level: 1, name: 'Upload recordings' });
+    chooseBatch([file('20240514_053000.WAV', 111)]);
+    await screen.findAllByTestId('batch-row');
+    await screen.findByRole('radio', { name: /Birds and more/ });
+    await user.selectOptions(screen.getByLabelText(/^Site/), SITE_NORTH);
+    await user.click(screen.getByTestId('start-batch'));
+    await waitFor(
+      () => expect(screen.getByTestId('batch-progress')).toHaveTextContent('1 of 1 files finished'),
+      { timeout: 15000 },
+    );
+    const posts = backend.requests.filter(
+      (r) => r.method === 'POST' && r.url.endsWith('/uploads'),
+    );
+    expect(posts).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: /Try again|Retry/ })).toBeNull();
+  }, 20000);
+});
+
 describe('alerts', () => {
   it('clears the unread badge when the inbox is opened', async () => {
     window.location.hash = `#/orgs/${ORG.id}`;
@@ -314,6 +339,9 @@ describe('report wizard', () => {
       '/api/v1/reports/rp_new_1.json',
     );
     expect(screen.getByText('Left blank')).toBeInTheDocument();
+    // checksum_sha256 is the PDF's hash; the footer's "bundle sha256" is a different file.
+    expect(screen.getByText(/PDF sha256 [0-9a-f]{12}/)).toBeInTheDocument();
+    expect(screen.queryByText(/bundle [0-9a-f]{12}/)).toBeNull();
     const post = backend.requests.find((r) => r.method === 'POST' && r.url.endsWith('/reports'));
     expect(post?.body).toMatchObject({
       template: 'aem',

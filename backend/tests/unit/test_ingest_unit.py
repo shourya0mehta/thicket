@@ -149,6 +149,25 @@ def expand(z, dest, **kw):
     return expand_zip(z, dest, **kw)
 
 
+def test_unreadable_sidecars_are_skipped_not_fatal(tmp_path):
+    """A Summary.txt with a field over the csv limit raised csv.Error and failed the job."""
+    from thicket.services.ingest import IngestService
+
+    bad = tmp_path / "a.txt"
+    bad.write_text("DATE,TIME,POWER(V)\n2024-05-14,05:30:00," + "9" * 200_000 + "\n")
+    good = tmp_path / "b.txt"
+    good.write_text("Device ID : 24A1D5F3A1B2C3D4\nTime zone : UTC+99\n")
+    svc = IngestService.__new__(IngestService)
+    rows, config, names = svc._parse_sidecars(
+        [staged(bad, "SMA00001_Summary.txt"), staged(good, "CONFIG.TXT")]
+    )
+    assert rows == [] and names == ["CONFIG.TXT"]
+    assert config is not None and config.device_id == "24A1D5F3A1B2C3D4"
+    assert config.utc_offset_hours is None
+    f = staged(write_wav(tmp_path / "20240514_053000.WAV"))
+    assert resolve(f, config=config).captured_at == MAY14_0530_UTC
+
+
 def test_zip_extracts_only_safe_audio_and_sidecars(tmp_path):
     wav = write_wav(tmp_path / "w.wav", 1.0).read_bytes()
     z = make_zip(

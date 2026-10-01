@@ -50,10 +50,18 @@ def _taxon(value: str) -> Taxon:
         return Taxon.bird
 
 
+def _now() -> datetime:
+    return datetime.now(UTC)
+
+
 def parse_period(
-    start: date | None, end: date | None, default_days: int = DEFAULT_DASHBOARD_DAYS
+    start: date | None,
+    end: date | None,
+    default_days: int = DEFAULT_DASHBOARD_DAYS,
+    today: date | None = None,
 ) -> tuple[date, date]:
-    today = datetime.now(UTC).date()
+    """``today`` is the organization's local date (rollup days are local dates)."""
+    today = today or _now().date()
     end = end or today
     start = start or (end - timedelta(days=default_days - 1))
     if start > end:
@@ -192,8 +200,9 @@ def build_dashboard(
     end: date | None,
     site_id: str | None,
     priority_species: Sequence[str] = (),
+    today: date | None = None,
 ) -> Dashboard:
-    start, end = parse_period(start, end)
+    start, end = parse_period(start, end, today=today)
     site_ids = [site_id] if site_id else None
     days = platform.site_days(org_id, start=start, end=end, site_ids=site_ids)
     species = platform.species_days(org_id, start=start, end=end, site_ids=site_ids)
@@ -281,8 +290,9 @@ def build_phenology(
     scientific_name: str,
     site_id: str | None,
     years: int,
+    today: date | None = None,
 ) -> Phenology:
-    today = datetime.now(UTC).date()
+    today = today or _now().date()
     start = date(today.year - max(1, years) + 1, 1, 1)
     site_ids = [site_id] if site_id else None
     days = platform.site_days(org_id, start=start, end=today, site_ids=site_ids)
@@ -360,8 +370,9 @@ def build_site_comparison(
     *,
     start: date | None,
     end: date | None,
+    today: date | None = None,
 ) -> SiteComparison:
-    start, end = parse_period(start, end)
+    start, end = parse_period(start, end, today=today)
     days = platform.site_days(org_id, start=start, end=end)
     species = platform.species_days(org_id, start=start, end=end)
     by_site_days: dict[str, list[SiteDayStatsRow]] = defaultdict(list)
@@ -405,4 +416,4 @@ def build_site_comparison(
 
 
 def local_today(tz_name: str | None) -> date:
-    return local_date(datetime.now(UTC), tz_name)
+    return local_date(_now(), tz_name)

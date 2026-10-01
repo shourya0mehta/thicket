@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
-import { isAbortError } from '../../api/client';
+import { ApiError, isAbortError } from '../../api/client';
 import { describeError, type FriendlyError } from '../../api/errors';
 import type { BatchJob } from '../../api/generated';
 import { ErrorCallout } from '../../components/feedback/ErrorCallout';
@@ -69,6 +69,33 @@ function isTerminal(job: BatchJob): boolean {
   return (
     job.status === 'completed' || job.status === 'completed_with_errors' || job.status === 'failed'
   );
+}
+
+/** Consecutive failed polls tolerated before the page gives up (network blips, restarts). */
+const MAX_POLL_FAILURES = 5;
+
+/** Errors that will not go away by asking again. */
+function isFinalPollError(err: unknown): boolean {
+  return (
+    err instanceof ApiError &&
+    (err.code === 'unauthenticated' || err.code === 'forbidden' || err.code === 'not_found')
+  );
+}
+
+function pause(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const timer = window.setTimeout(resolve, ms);
+    signal.addEventListener(
+      'abort',
+      () => {
+        window.clearTimeout(timer);
+        const e = new Error('Aborted');
+        e.name = 'AbortError';
+        reject(e);
+      },
+      { once: true },
+    );
+  });
 }
 
 export function UploadPage({ query }: { query: URLSearchParams }) {
@@ -199,8 +226,9 @@ export function UploadPage({ query }: { query: URLSearchParams }) {
     const controller = new AbortController();
     ctrl.current?.abort();
     ctrl.current = controller;
+    let accepted: BatchJob;
     try {
-      const accepted = await api.createBatchUpload(
+      accepted = await api.createBatchUpload(
         org.id,
         {
           files: payload,
@@ -216,25 +244,40 @@ export function UploadPage({ query }: { query: URLSearchParams }) {
         (fraction) => setProgress(fraction),
         controller.signal,
       );
-      if (controller.signal.aborted) return;
-      setJob(accepted);
-      setPhase(isTerminal(accepted) ? 'done' : 'processing');
-      let current = accepted;
+    } catch (err) {
+      if (isAbortError(err)) return;
+      setError(describeError(err));
+      setPhase('failed');
+      return;
+    }
+    if (controller.signal.aborted) return;
+    setJob(accepted);
+    await follow(accepted, controller);
+  };
+
+  /**
+   * Polls an accepted job to the end. The files are on the server by now, so a
+   * failed poll must never lead back to `start` (that uploads every file again
+   * and duplicates the recordings): blips are retried here, and the Retry
+   * button resumes polling the same job.
+   */
+  const follow = async (accepted: BatchJob, controller: AbortController) => {
+    setError(null);
+    setPhase(isTerminal(accepted) ? 'done' : 'processing');
+    let current = accepted;
+    let failures = 0;
+    try {
       while (!isTerminal(current)) {
-        await new Promise<void>((resolve, reject) => {
-          const timer = window.setTimeout(resolve, BATCH_POLL_INTERVAL_MS);
-          controller.signal.addEventListener(
-            'abort',
-            () => {
-              window.clearTimeout(timer);
-              const e = new Error('Aborted');
-              e.name = 'AbortError';
-              reject(e);
-            },
-            { once: true },
-          );
-        });
-        current = await api.getBatchJob(accepted.id, controller.signal);
+        await pause(BATCH_POLL_INTERVAL_MS, controller.signal);
+        try {
+          current = await api.getBatchJob(accepted.id, controller.signal);
+          failures = 0;
+        } catch (err) {
+          if (isAbortError(err) || isFinalPollError(err)) throw err;
+          failures += 1;
+          if (failures >= MAX_POLL_FAILURES) throw err;
+          continue;
+        }
         if (controller.signal.aborted) return;
         setJob(current);
       }
@@ -246,6 +289,14 @@ export function UploadPage({ query }: { query: URLSearchParams }) {
       setError(describeError(err));
       setPhase('failed');
     }
+  };
+
+  const resume = () => {
+    if (!job) return;
+    const controller = new AbortController();
+    ctrl.current?.abort();
+    ctrl.current = controller;
+    void follow(job, controller);
   };
 
   const cancel = () => {
@@ -587,7 +638,12 @@ export function UploadPage({ query }: { query: URLSearchParams }) {
             </p>
           ) : null}
           {error ? (
-            <ErrorCallout className="mt-4" error={error} onRetry={() => void start()} />
+            <ErrorCallout
+              className="mt-4"
+              error={error}
+              // Once the server accepted the batch, retrying means checking on it again.
+              onRetry={job ? resume : () => void start()}
+            />
           ) : null}
 
           <div className="mt-5 flex flex-wrap items-center gap-2">

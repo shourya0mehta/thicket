@@ -32,6 +32,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, date, datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import (
     JSON,
@@ -69,6 +70,15 @@ LOCAL_USER_NAME = "Local user"
 
 def utcnow() -> datetime:
     return datetime.now(UTC)
+
+
+def as_utc(value: datetime | None) -> datetime | None:
+    """An aware UTC datetime; naive values are read as UTC, as the storage layer does."""
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 class UTCDateTime(TypeDecorator):
@@ -722,6 +732,39 @@ def _migrate(s: Session, from_version: int) -> None:
                 "WHERE captured_at_source IS NULL"
             )
         )
+        _local_workspace_timezone_from_recordings(conn)
+    # create_all() only builds indexes together with new tables; the columns added
+    # above to existing tables (recordings.organization_id, captured_at_utc...)
+    # would otherwise stay unindexed on upgraded databases.
+    for table in Base.metadata.sorted_tables:
+        for index in table.indexes:
+            index.create(conn, checkfirst=True)
+
+
+def _local_workspace_timezone_from_recordings(conn) -> None:  # type: ignore[no-untyped-def]
+    """The single-user build stored a time zone per recording, not per workspace.
+
+    Rollups put recordings on local dates in the organization's zone, so leaving
+    the upgraded workspace on UTC would move every evening recording west of
+    Greenwich to the next day. Use the zone most recordings declare.
+    """
+    row = conn.execute(
+        text(
+            "SELECT timezone, COUNT(*) AS n FROM recordings "
+            "WHERE timezone IS NOT NULL AND timezone <> '' "
+            "GROUP BY timezone ORDER BY n DESC, timezone LIMIT 1"
+        )
+    ).first()
+    if row is None:
+        return
+    try:
+        ZoneInfo(str(row[0]))
+    except (ZoneInfoNotFoundError, ValueError):
+        return
+    conn.execute(
+        text("UPDATE organizations SET timezone = :tz WHERE id = :org AND timezone = 'UTC'"),
+        {"tz": str(row[0]), "org": LOCAL_ORG_ID},
+    )
 
 
 def ensure_local_workspace(s: Session) -> None:

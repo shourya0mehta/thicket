@@ -354,6 +354,26 @@ def test_dedupe_updates_the_open_alert(env):
     assert third.id != first.id and third.occurrences == 1
 
 
+def test_re_evaluating_the_same_recordings_is_idempotent(env):
+    """evaluate_org walks recent recordings again: it must not count them twice, and
+    must not reopen (and re-notify) an alert someone resolved on that evidence."""
+    c, org, *_ = env
+    add(env, T0, speech=True, telemetry={"battery_v": 3.0, "source": "audiomoth_comment"})
+    first = {r.kind: r for r in c.alerts.evaluate_org(org)}
+    assert {"speech_detected", "battery_low"} <= set(first)
+    again = {r.kind: r for r in c.alerts.evaluate_org(org)}
+    assert again["battery_low"].id == first["battery_low"].id
+    assert again["battery_low"].occurrences == 1
+    c.platform.update_alert(first["speech_detected"].id, {"status": "resolved"})
+    c.alerts.evaluate_org(org)
+    rows, total, by_status, _ = c.platform.list_alerts(org)
+    assert by_status == {"open": 1, "resolved": 1} and total == 2
+    # New evidence still reopens it as a new alert.
+    aid, _ = add(env, T0 + timedelta(hours=1), speech=True)
+    assert "speech_detected" in kinds(evaluate(env, aid))
+    assert c.platform.list_alerts(org)[2] == {"open": 2, "resolved": 1}
+
+
 def test_disabled_rules_and_setting(env):
     c, org, *_ = env
     c.alerts.put_rules(org, AlertRules(enabled=False))

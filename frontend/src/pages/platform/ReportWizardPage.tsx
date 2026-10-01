@@ -625,7 +625,7 @@ export function ReportWizardPage() {
                     {formatInteger(report.analysis_count)} analyses
                     {report.page_count ? ` · ${report.page_count} pages` : ''}
                     {report.checksum_sha256
-                      ? ` · bundle ${report.checksum_sha256.slice(0, 12)}`
+                      ? ` · PDF sha256 ${report.checksum_sha256.slice(0, 12)}`
                       : ''}
                   </p>
                   <ReportDownloads report={report} />

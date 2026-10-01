@@ -44,6 +44,7 @@ class NightlyScheduler:
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self.last_run: dict | None = None
+        self._last_target: datetime | None = None
 
     # -- scheduling -----------------------------------------------------------
     def next_run(self, now: datetime | None = None) -> datetime:
@@ -91,9 +92,16 @@ class NightlyScheduler:
     # -- thread ---------------------------------------------------------------
     def _loop(self) -> None:
         while not self._stop.is_set():
-            wait = max(1.0, (self.next_run() - self.clock()).total_seconds())
+            target = self.next_run()
+            wait = max(1.0, (target - self.clock()).total_seconds())
             if self._stop.wait(wait):
                 return
+            # The timer runs on the monotonic clock: waking a little before the
+            # wall-clock target makes next_run() name the same target again, and
+            # without this check the jobs (and the digest emails) ran twice.
+            if target == self._last_target:
+                continue
+            self._last_target = target
             try:
                 self.run_once()
             except Exception:  # noqa: BLE001

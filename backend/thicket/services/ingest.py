@@ -31,6 +31,7 @@ make or the other overrides the pattern's guess.
 from __future__ import annotations
 
 import codecs
+import csv
 import logging
 import secrets
 import shutil
@@ -650,8 +651,10 @@ class IngestService:
         models = parse_models(one("models"))
         for key in models:
             registry.get(key)
+        from thicket.services.params import _float, _ref
+
         threshold = validate_threshold(
-            float(one("threshold")) if one("threshold") else None,
+            _float(one("threshold"), "threshold"),
             self.settings.raw_threshold,
             self.settings.default_decision_threshold,
         )
@@ -661,7 +664,6 @@ class IngestService:
                 "timezone is required for batch uploads (the recorder's local time zone).",
                 field="timezone",
             )
-        from thicket.services.params import _ref
 
         site_id = _ref(one("site_id"), "site", "site_id")
         deployment_id = _ref(one("deployment_id"), "dep", "deployment_id")
@@ -840,16 +842,21 @@ class IngestService:
                 text = f.path.read_text(encoding="utf-8", errors="replace")
             except OSError:
                 continue
-            if f.kind == "summary":
-                parsed = parse_song_meter_summary(text)
-                if parsed:
-                    rows.extend(parsed)
-                    names.append(f.filename)
-            elif f.kind == "config":
-                cfg = parse_audiomoth_config(text)
-                if cfg is not None:
-                    config = cfg
-                    names.append(f.filename)
+            try:
+                if f.kind == "summary":
+                    parsed = parse_song_meter_summary(text)
+                    if parsed:
+                        rows.extend(parsed)
+                        names.append(f.filename)
+                elif f.kind == "config":
+                    cfg = parse_audiomoth_config(text)
+                    if cfg is not None:
+                        config = cfg
+                        names.append(f.filename)
+            except (csv.Error, ValueError, OverflowError):
+                # An unreadable sidecar is left out; it must not fail the whole batch.
+                log.warning("sidecar could not be parsed", extra={"kind": f.kind})
+                continue
         return rows, config, names
 
     def _ingest_one(

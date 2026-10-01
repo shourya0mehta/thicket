@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import csv
 import io
+import math
 import re
 import struct
 from dataclasses import dataclass, field
@@ -35,6 +36,24 @@ from pathlib import Path
 MAX_TEXT_CHUNK = 64 * 1024
 MAX_CHUNKS = 256
 SUMMARY_MATCH_SECONDS = 60.0
+# Plausible ranges: anything outside is garbled or hostile metadata, kept out of
+# telemetry so it can neither raise alerts ("Observed inf C") nor break JSON.
+BATTERY_RANGE_V = (0.0, 100.0)
+TEMPERATURE_RANGE_C = (-100.0, 150.0)
+MAX_UTC_OFFSET_HOURS = 14.0
+
+
+def _in_range(value: float | None, bounds: tuple[float, float]) -> float | None:
+    if value is None or not math.isfinite(value) or not bounds[0] <= value <= bounds[1]:
+        return None
+    return value
+
+
+def _coords(lat: float | None, lon: float | None) -> tuple[float | None, float | None]:
+    """Both coordinates when they are finite and on Earth, else neither."""
+    lat = _in_range(lat, (-90.0, 90.0))
+    lon = _in_range(lon, (-180.0, 180.0))
+    return (lat, lon) if lat is not None and lon is not None else (None, None)
 
 
 # ------------------------------------------------------------------ RIFF
@@ -165,9 +184,9 @@ def parse_audiomoth_comment(comment: str | None) -> AudioMothComment | None:
         captured_at=captured,
         device_id=dev.group(1).upper() if dev else None,
         gain=gain.group(1).lower() if gain else None,
-        battery_v=float(bat["v"]) if bat else None,
+        battery_v=_in_range(float(bat["v"]), BATTERY_RANGE_V) if bat else None,
         battery_qualifier=bat["q"].strip() if bat and bat["q"] else None,
-        temperature_c=float(temp.group(1)) if temp else None,
+        temperature_c=_in_range(float(temp.group(1)), TEMPERATURE_RANGE_C) if temp else None,
     )
 
 
@@ -220,12 +239,12 @@ def parse_guano(text: str | None) -> Guano | None:
             parts = value.replace(",", " ").split()
             if len(parts) >= 2:
                 try:
-                    g.latitude, g.longitude = float(parts[0]), float(parts[1])
+                    g.latitude, g.longitude = _coords(float(parts[0]), float(parts[1]))
                 except ValueError:
                     pass
         elif lk == "temperature int":
             try:
-                g.temperature_c = float(value)
+                g.temperature_c = _in_range(float(value), TEMPERATURE_RANGE_C)
             except ValueError:
                 pass
         elif lk == "make":
@@ -318,12 +337,17 @@ def _parse_coord(text: str, negative_letters: str) -> float | None:
         value = float(digits)
     except ValueError:
         return None
+    if not math.isfinite(value):
+        return None
     return sign * abs(value) if sign < 0 else value
 
 
 def _parse_float(text: str) -> float | None:
     m = re.search(r"-?\d+(?:\.\d+)?", text or "")
-    return float(m.group(0)) if m else None
+    if not m:
+        return None
+    value = float(m.group(0))
+    return value if math.isfinite(value) else None
 
 
 def parse_song_meter_summary(text: str) -> list[SummaryRow]:
@@ -353,13 +377,16 @@ def parse_song_meter_summary(text: str) -> list[SummaryRow]:
             ts = datetime(*d, *t)
         except ValueError:
             continue
+        lat, lon = _coords(
+            _parse_coord(cells.get("lat", ""), "S"), _parse_coord(cells.get("lon", ""), "W")
+        )
         rows.append(
             SummaryRow(
                 timestamp=ts,
-                latitude=_parse_coord(cells.get("lat", ""), "S"),
-                longitude=_parse_coord(cells.get("lon", ""), "W"),
-                battery_v=_parse_float(cells.get("power", "")),
-                temperature_c=_parse_float(cells.get("temp", "")),
+                latitude=lat,
+                longitude=lon,
+                battery_v=_in_range(_parse_float(cells.get("power", "")), BATTERY_RANGE_V),
+                temperature_c=_in_range(_parse_float(cells.get("temp", "")), TEMPERATURE_RANGE_C),
             )
         )
     return rows
@@ -428,11 +455,14 @@ def parse_audiomoth_config(text: str) -> AudioMothConfig | None:
                 off = (m.group(1) or "0").replace(" ", "")
                 if ":" in off:
                     h, mm = off.split(":")
-                    cfg.utc_offset_hours = float(h) + (float(mm) / 60.0) * (
-                        1 if float(h) >= 0 else -1
-                    )
+                    hours = float(h) + (float(mm) / 60.0) * (-1 if h.startswith("-") else 1)
                 else:
-                    cfg.utc_offset_hours = float(off)
+                    hours = float(off)
+                # Real offsets lie within UTC-12 to UTC+14; anything else would fail
+                # every file of the batch when the offset is applied.
+                cfg.utc_offset_hours = _in_range(
+                    hours, (-MAX_UTC_OFFSET_HOURS, MAX_UTC_OFFSET_HOURS)
+                )
     return cfg if cfg.raw else None
 
 

@@ -332,6 +332,13 @@ class PlatformRepository:
                     MembershipRow.organization_id == org_id, MembershipRow.user_id == user_id
                 )
             )
+            # Notifications carry the whole alert (title, detail, sites); a former
+            # member must neither read them in the app nor get them in a digest.
+            s.execute(
+                delete(NotificationRow).where(
+                    NotificationRow.organization_id == org_id, NotificationRow.user_id == user_id
+                )
+            )
             return (res.rowcount or 0) > 0
 
     # ============================================================== invites
@@ -1190,6 +1197,27 @@ class PlatformRepository:
                 .limit(1)
             ).scalar_one_or_none()
 
+    def resolved_alert_covering(
+        self, org_id: str, dedupe_key: str, recording_ids: Sequence[str]
+    ) -> AlertRow | None:
+        """A resolved alert with this key whose evidence includes every one of ``recording_ids``."""
+        wanted = set(recording_ids)
+        with self.db.session() as s:
+            rows = s.execute(
+                select(AlertRow)
+                .where(
+                    AlertRow.organization_id == org_id,
+                    AlertRow.dedupe_key == dedupe_key,
+                    AlertRow.status == "resolved",
+                )
+                .order_by(AlertRow.updated_at.desc())
+                .limit(50)
+            ).scalars()
+            for row in rows:
+                if wanted <= set(row.recording_ids or []):
+                    return row
+        return None
+
     def insert_alert(self, values: dict) -> AlertRow:
         with self.db.session() as s:
             row = AlertRow(id=new_id("alr"), **values)
@@ -1285,6 +1313,28 @@ class PlatformRepository:
             if recorder_id:
                 q = q.where(AlertRow.recorder_id == recorder_id)
             return list(s.execute(q.order_by(AlertRow.last_seen_at.desc())).scalars())
+
+    def detach_recording_from_alerts(self, org_id: str, recording_id: str) -> int:
+        """Drop a deleted recording from its alerts' evidence; an open alert left with
+        no recording behind it is resolved (its evidence is gone). Returns alerts changed."""
+        now = utcnow()
+        changed = 0
+        with self.db.session() as s:
+            rows = s.execute(select(AlertRow).where(AlertRow.organization_id == org_id)).scalars()
+            for a in rows:
+                ids = list(a.recording_ids or [])
+                if recording_id not in ids:
+                    continue
+                a.recording_ids = [i for i in ids if i != recording_id]
+                if not a.recording_ids and a.status in OPEN_ALERT_STATUSES:
+                    a.status = "resolved"
+                    a.snoozed_until = None
+                    a.note = a.note or (
+                        "Resolved automatically: the recordings behind this alert were deleted."
+                    )
+                a.updated_at = now
+                changed += 1
+        return changed
 
     def unsnooze_due(self, now: datetime | None = None) -> int:
         now = now or utcnow()

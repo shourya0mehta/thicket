@@ -50,6 +50,7 @@ from thicket.persistence.db import (
     RecorderRow,
     SiteRow,
     UserRow,
+    as_utc,
 )
 from thicket.persistence.platform_repositories import PlatformRepository, RecordingView
 from thicket.persistence.repositories import Repository
@@ -434,15 +435,20 @@ class PlatformService:
         site = self.platform.get_site(body.site_id) if is_valid_id(body.site_id, "site") else None
         if site is None or site.organization_id != org_id:
             raise invalid_parameter("site_id is not a site of this organization.", field="site_id")
-        if body.ended_at is not None and body.ended_at <= body.started_at:
-            raise invalid_parameter("ended_at must be after started_at.", field="ended_at")
         values = _clean(body.model_dump(), DEPLOYMENT_TEXT)
+        # Naive times are UTC (as stored); mixing naive and aware must not 500.
+        values["started_at"] = as_utc(values["started_at"])
+        values["ended_at"] = as_utc(values.get("ended_at"))
+        if values["ended_at"] is not None and values["ended_at"] <= values["started_at"]:
+            raise invalid_parameter("ended_at must be after started_at.", field="ended_at")
         return self.deployment_model(self.platform.create_deployment(org_id, values))
 
     def update_deployment(self, row: DeploymentRow, body: DeploymentUpdate) -> Deployment:
         values = _clean(body.model_dump(exclude_unset=True), DEPLOYMENT_TEXT)
-        ended = values.get("ended_at", row.ended_at)
-        if ended is not None and ended <= row.started_at:
+        if "ended_at" in values:
+            values["ended_at"] = as_utc(values["ended_at"])
+        ended = as_utc(values.get("ended_at", row.ended_at))
+        if ended is not None and ended <= as_utc(row.started_at):  # type: ignore[operator]
             raise invalid_parameter("ended_at must be after started_at.", field="ended_at")
         updated = self.platform.update_deployment(row.id, values)
         assert updated is not None
@@ -524,4 +530,8 @@ class PlatformService:
         for aid in self.platform.analysis_ids_for_recording(view.recording.id):
             self.analysis.delete(aid)
         rollups.remove_recording(view.recording.id)
+        if view.recording.organization_id:
+            self.platform.detach_recording_from_alerts(
+                view.recording.organization_id, view.recording.id
+            )
         log.info("recording deleted", extra={"recording_id": view.recording.id})

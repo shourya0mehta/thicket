@@ -140,7 +140,10 @@ class RequestMiddleware:
         if container is None:
             return
         try:
-            token, _ = container.auth.issue_session(principal.user_id)
+            # Same session id: logout revokes the sid, which must cover the cookie
+            # this request presented as well as the refreshed one.
+            sid = principal.session.session_id if principal.session is not None else None
+            token, _ = container.auth.issue_session(principal.user_id, session_id=sid)
             params = container.auth.cookie_params(SESSION_MAX_AGE)
         except Exception:  # noqa: BLE001 - never break a response over a cookie refresh
             return

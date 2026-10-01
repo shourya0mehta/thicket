@@ -237,9 +237,12 @@ def delete_analysis(
     authorize_analysis(request, analysis_id, p, Role.manager)
     c = container(request)
     recording_id = c.platform.recording_id_for_analysis(analysis_id)
+    org_id = c.platform.org_of_analysis(analysis_id)
     c.analysis.delete(analysis_id)
     if recording_id:
         c.rollups.remove_recording(recording_id)
+        if org_id and c.platform.get_recording(recording_id) is None:
+            c.platform.detach_recording_from_alerts(org_id, recording_id)
     return Response(status_code=204)
 
 

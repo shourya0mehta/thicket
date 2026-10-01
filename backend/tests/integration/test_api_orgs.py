@@ -169,6 +169,40 @@ def test_members_roles_and_last_owner(client):
     assert client.get(f"{API}/orgs/{oid}").status_code == 403
 
 
+def test_removed_members_lose_the_orgs_notifications(client):
+    """In-app notifications embed the whole alert, and digests mail them out later."""
+    from datetime import UTC, datetime
+
+    from tests.platform_helpers import insert_analysis
+
+    dev_login(client, "owner@example.org")
+    oid = create_org(client)["id"]
+    join(client, oid, "owner@example.org", "a@example.org", "viewer")
+    a_id = client.get(f"{API}/auth/me").json()["user"]["id"]
+    r = client.put(
+        f"{API}/me/notification-prefs",
+        json={"email_enabled": True, "email_digest": "daily", "min_severity": "info"},
+        headers=CSRF,
+    )
+    assert r.status_code == 200, r.text
+    c = client.app.state.container
+    insert_analysis(
+        c,
+        org_id=oid,
+        captured_at=datetime.now(UTC),
+        telemetry={"battery_v": 2.0, "source": "audiomoth_comment"},
+    )
+    c.alerts.evaluate_org(oid)
+    assert client.get(f"{API}/me/notifications").json()["unread"] >= 1
+    assert c.platform.pending_email_notifications("daily")
+    dev_login(client, "owner@example.org")
+    assert client.delete(f"{API}/orgs/{oid}/members/{a_id}", headers=CSRF).status_code == 204
+    dev_login(client, "a@example.org")
+    page = client.get(f"{API}/me/notifications").json()
+    assert page["items"] == [] and page["unread"] == 0
+    assert all(u.id != a_id for _, _, u in c.platform.pending_email_notifications("daily"))
+
+
 def test_alert_rules_get_put(client):
     dev_login(client, "owner@example.org")
     org = create_org(client)

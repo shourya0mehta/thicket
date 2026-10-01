@@ -99,12 +99,41 @@ def test_immediate_email_goes_to_the_outbox(org):
     msg = email.message_from_bytes(files[0].read_bytes(), policy=email.policy.default)
     assert msg["To"] == "owner@example.org" and "Test alert 1" in msg["Subject"]
     body = msg.get_body(preferencelist=("plain",)).get_content()
-    assert "Observed 3.1 V" in body and "#/alerts/" in body
+    assert "Observed 3.1 V" in body
+    # The link opens the frontend's alert inbox route with this alert expanded.
+    alert_id = c.platform.list_alerts(o.id)[0][0].id
+    assert f"/#/orgs/{o.id}/alerts?status=all&alert={alert_id}" in body
     assert msg.get_body(preferencelist=("html",)) is not None
     assert not any(p.get_content_maintype() == "audio" for p in msg.walk())
     # Other members' addresses never appear.
     raw = files[0].read_text(errors="replace")
     assert "warn@example.org" not in raw and "eco@example.org" not in raw
+
+
+def test_immediate_email_survives_a_line_break_in_the_title(org):
+    """Site names and recorder labels keep newlines; the Subject header must not."""
+    c, o, users = org
+    c.notify.put_prefs(
+        users["owner"].id, NotificationPrefs(email_enabled=True, email_digest="immediate")
+    )
+    c.alerts.raise_alert(
+        o.id,
+        Candidate(
+            kind=AlertKind.battery_low,
+            severity=AlertSeverity.warning,
+            title="Battery low on North\nBcc: someone@example.org",
+            detail="Observed 3.1 V; baseline 3.6 V; n = 1 recording.",
+            evidence={},
+            recorder_id="rcd_" + "7" * 24,
+        ),
+    )
+    files = list(c.storage.outbox.glob("*.eml"))
+    assert len(files) == 1
+    msg = email.message_from_bytes(files[0].read_bytes(), policy=email.policy.default)
+    assert msg["Subject"] == "[Thicket] warning: Battery low on North Bcc: someone@example.org"
+    assert msg["Bcc"] is None
+    sent = [n for n, _, _ in c.platform.pending_email_notifications("daily")]
+    assert sent == []  # delivered immediately, not deferred to the digest
 
 
 def test_daily_and_weekly_digests(org):

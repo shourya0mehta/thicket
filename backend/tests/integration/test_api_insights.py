@@ -103,6 +103,17 @@ def test_alert_list_update_and_evaluate(client):
         f"{API}/alerts/{alert['id']}", json={"status": "snoozed", "snoozed_until": until}
     )
     assert r.json()["status"] == "snoozed" and r.json()["snoozed_until"]
+    # A time without an offset is read as UTC instead of failing the comparison (was a 500).
+    naive = (datetime.now(UTC) + timedelta(days=3)).replace(tzinfo=None).isoformat()
+    r = client.patch(
+        f"{API}/alerts/{alert['id']}", json={"status": "snoozed", "snoozed_until": naive}
+    )
+    assert r.status_code == 200, r.text
+    past = (datetime.now(UTC) - timedelta(days=1)).replace(tzinfo=None).isoformat()
+    r = client.patch(
+        f"{API}/alerts/{alert['id']}", json={"status": "snoozed", "snoozed_until": past}
+    )
+    assert r.status_code == 422
     r = client.patch(f"{API}/alerts/{alert['id']}", json={"status": "open"})
     assert r.json()["acknowledged_by"] is None and r.json()["snoozed_until"] is None
     assert client.patch(f"{API}/alerts/alr_nope", json={"status": "open"}).status_code == 404
@@ -165,3 +176,50 @@ def test_notifications_api(client):
     assert client.get(f"{API}/me/notification-prefs").json()["categories"] == ["recorder"]
     bad = dict(prefs, email_digest="hourly")
     assert client.put(f"{API}/me/notification-prefs", json=bad).status_code == 422
+
+
+def test_changing_the_org_time_zone_moves_day_boundaries_at_once(make_platform_client):
+    """Rollups were left on the old zone (and the zone cached) until the nightly rebuild."""
+    client = make_platform_client(auth_mode="dev")
+    dev_login(client, "tz@example.org")
+    oid = create_org(client, "Zone Farm", timezone="UTC")["id"]
+    c = client.app.state.container
+    site = c.platform.create_site(oid, {"name": "Evening"})
+    # 01:30 UTC on 15 May is 21:30 on 14 May in New York.
+    when = datetime(2026, 5, 15, 1, 30, tzinfo=UTC)
+    insert_analysis(c, org_id=oid, site_id=site.id, captured_at=when, species={A: 2})
+    period = {"from": "2026-05-01", "to": "2026-05-31"}
+
+    def days():
+        d = client.get(f"{API}/orgs/{oid}/dashboard", params=period).json()
+        return [p["date"] for p in d["richness_by_day"]]
+
+    assert days() == ["2026-05-15"]
+    r = client.patch(f"{API}/orgs/{oid}", json={"timezone": "America/New_York"}, headers=CSRF)
+    assert r.status_code == 200 and r.json()["timezone"] == "America/New_York"
+    assert days() == ["2026-05-14"]
+    # New analyses use the new zone too (the rollup service had cached the old one).
+    insert_analysis(c, org_id=oid, site_id=site.id, captured_at=when + timedelta(days=1))
+    assert days() == ["2026-05-14", "2026-05-15"]
+
+
+def test_default_dashboard_period_ends_on_the_orgs_local_today(make_platform_client, monkeypatch):
+    """At 21:00 UTC it is already tomorrow in Tokyo; that dawn's recordings must show."""
+    from thicket.services import dashboard
+
+    client = make_platform_client(auth_mode="dev")
+    dev_login(client, "tokyo@example.org")
+    oid = create_org(client, "Tokyo Farm", timezone="Asia/Tokyo")["id"]
+    c = client.app.state.container
+    site = c.platform.create_site(oid, {"name": "Paddy"})
+    now = datetime(2026, 6, 1, 21, 0, tzinfo=UTC)  # 2 June 06:00 in Tokyo
+    monkeypatch.setattr(dashboard, "_now", lambda: now)
+    insert_analysis(
+        c, org_id=oid, site_id=site.id, captured_at=now - timedelta(minutes=30), species={A: 1}
+    )
+    d = client.get(f"{API}/orgs/{oid}/dashboard").json()
+    assert d["period_end"] == "2026-06-02" and d["recordings"] == 1
+    cmp = client.get(f"{API}/orgs/{oid}/sites/compare").json()
+    assert cmp["period_end"] == "2026-06-02" and cmp["rows"][0]["recordings"] == 1
+    ph = client.get(f"{API}/orgs/{oid}/phenology", params={"scientific_name": A}).json()
+    assert sum(cell["recordings"] for cell in ph["cells"]) == 1

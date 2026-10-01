@@ -26,13 +26,25 @@ from thicket.api.platform_schemas import (
 from thicket.api.routes.openapi import ERRORS
 from thicket.errors import invalid_parameter, not_found
 from thicket.ids import is_valid_id
-from thicket.persistence.db import utcnow
+from thicket.persistence.db import as_utc, utcnow
 from thicket.services.auth import Principal
-from thicket.services.dashboard import build_dashboard, build_phenology, build_site_comparison
+from thicket.services.dashboard import (
+    build_dashboard,
+    build_phenology,
+    build_site_comparison,
+    local_today,
+)
 from thicket.services.intake import clean_text
 from thicket.services.notify import alert_model
 
 router = APIRouter(tags=["insights"])
+
+
+def _org_today(c, org_id: str) -> date:  # type: ignore[no-untyped-def]
+    """Today in the organization's time zone: rollup days are local dates, so a
+    default period ending on the UTC date would hide this morning east of UTC."""
+    org = c.platform.get_org(org_id)
+    return local_today(org.timezone if org else None)
 
 
 @router.get("/orgs/{org}/dashboard", response_model=Dashboard, responses=ERRORS)
@@ -57,6 +69,7 @@ def dashboard(
         end=to,
         site_id=site_id,
         priority_species=rules.priority_species,
+        today=_org_today(c, ctx.org_id),
     )
 
 
@@ -76,7 +89,12 @@ def phenology(
             raise not_found("No site with that id exists in this organization.")
     name = clean_text(scientific_name, 200, "scientific_name") or ""
     return build_phenology(
-        c.platform, ctx.org_id, scientific_name=name, site_id=site_id, years=years
+        c.platform,
+        ctx.org_id,
+        scientific_name=name,
+        site_id=site_id,
+        years=years,
+        today=_org_today(c, ctx.org_id),
     )
 
 
@@ -89,7 +107,9 @@ def compare_sites(
 ) -> SiteComparison:
     c = container(request)
     sites = c.services.list_sites(ctx.org_id)
-    return build_site_comparison(c.platform, ctx.org_id, sites, start=from_, end=to)
+    return build_site_comparison(
+        c.platform, ctx.org_id, sites, start=from_, end=to, today=_org_today(c, ctx.org_id)
+    )
 
 
 # ---------------------------------------------------------------- alerts
@@ -148,9 +168,10 @@ def update_alert(
     authorize_resource(p, row.organization_id, Role.reviewer)
     values: dict = {"status": body.status.value, "note": clean_text(body.note, 2000, "note")}
     if body.status == AlertStatus.snoozed:
-        if body.snoozed_until is None or body.snoozed_until <= utcnow():
+        until = as_utc(body.snoozed_until)
+        if until is None or until <= utcnow():
             raise invalid_parameter("snoozed_until must be a future time.", field="snoozed_until")
-        values["snoozed_until"] = body.snoozed_until
+        values["snoozed_until"] = until
     else:
         values["snoozed_until"] = None
     if body.status in (AlertStatus.acknowledged, AlertStatus.resolved, AlertStatus.snoozed):

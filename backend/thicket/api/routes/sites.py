@@ -93,7 +93,11 @@ def update_site(
     site_id: str, body: SiteUpdate, request: Request, p: Principal = Depends(current_user)
 ) -> Site:
     row, _ = _site(request, site_id, p, Role.manager)
-    return container(request).services.update_site(row, body)
+    c = container(request)
+    site = c.services.update_site(row, body)
+    # Coordinates drive sun-based hour buckets; do not keep the old ones cached.
+    c.rollups.reset_cache()
+    return site
 
 
 @router.delete("/sites/{site_id}", status_code=204, responses=ERRORS)

@@ -82,6 +82,15 @@ def test_v2_database_upgrades_in_place(tmp_path):
         "captured_at_utc",
     } <= rec_cols
     assert "reviewed_by" in {c["name"] for c in insp.get_columns("event_reviews")}
+    # Indexes declared on the added columns exist too (create_all skips existing tables).
+    assert {
+        "ix_recordings_organization_id",
+        "ix_recordings_captured_at_utc",
+        "ix_recordings_deployment_id",
+        "ix_recordings_recorder_id",
+        "ix_recordings_batch_job_id",
+    } <= {i["name"] for i in insp.get_indexes("recordings")}
+    assert "ix_sites_organization_id" in {i["name"] for i in insp.get_indexes("sites")}
     for table in (
         "users",
         "organizations",
@@ -134,6 +143,36 @@ def test_upgraded_recordings_are_visible_in_the_local_org(tmp_path):
         "rec_bbbbbbbbbbbbbbbbbbbbbbbb",
     }
     assert [s.name for s in platform.list_sites(LOCAL_ORG_ID)] == ["Sapsucker Woods"]
+    db.dispose()
+
+
+def test_upgraded_workspace_takes_the_recordings_time_zone(tmp_path):
+    """Day boundaries follow the org zone; UTC put 20:30 New York recordings on the next day."""
+    url = _old_db(tmp_path)
+    engine = create_engine(url)
+    with engine.begin() as conn:
+        conn.execute(text("UPDATE recordings SET timezone = 'America/New_York'"))
+        conn.execute(
+            text(
+                "INSERT INTO recordings (id, filename, byte_size, checksum_sha256,"
+                " duration_seconds, sample_rate_hz, channels, timezone, created_at) VALUES"
+                " ('rec_cccccccccccccccccccccccc', 'c.wav', 10, 'x', 30.0, 48000, 1,"
+                " 'Not/AZone', '2026-09-03 00:00:00')"
+            )
+        )
+    engine.dispose()
+    db = Database(url)
+    db.create_all()
+    with db.session() as s:
+        assert s.get(OrganizationRow, LOCAL_ORG_ID).timezone == "America/New_York"
+    db.dispose()
+    # Without any declared zone the workspace stays on UTC.
+    other = tmp_path / "other"
+    other.mkdir()
+    db = Database(_old_db(other))
+    db.create_all()
+    with db.session() as s:
+        assert s.get(OrganizationRow, LOCAL_ORG_ID).timezone == "UTC"
     db.dispose()
 
 

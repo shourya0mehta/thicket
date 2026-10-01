@@ -280,6 +280,7 @@ class AuthService:
         self.mode = AuthMode(settings.auth_mode)
         self._secret = secret
         self._serializer: URLSafeTimedSerializer | None = None
+        self._oauth_serializer: URLSafeTimedSerializer | None = None
         self._google = google
 
     # -- wiring ---------------------------------------------------------
@@ -290,6 +291,16 @@ class AuthService:
                 self._secret = load_session_secret(self.settings)
             self._serializer = URLSafeTimedSerializer(self._secret, salt="thicket.session")
         return self._serializer
+
+    @property
+    def oauth_serializer(self) -> URLSafeTimedSerializer:
+        """Signs the short-lived OAuth state cookie; its own salt, so it can never
+        be accepted as a session cookie or the other way round."""
+        if self._oauth_serializer is None:
+            if self._secret is None:
+                self._secret = load_session_secret(self.settings)
+            self._oauth_serializer = URLSafeTimedSerializer(self._secret, salt="thicket.oauth")
+        return self._oauth_serializer
 
     @property
     def google(self) -> GoogleOIDC:
@@ -326,8 +337,10 @@ class AuthService:
         )
 
     # -- sessions -------------------------------------------------------
-    def issue_session(self, user_id: str) -> tuple[str, SessionInfo]:
-        sid = new_id("ses")
+    def issue_session(self, user_id: str, session_id: str | None = None) -> tuple[str, SessionInfo]:
+        """Sign a session cookie. A rolling refresh passes the current ``session_id``
+        so that logging out revokes every cookie the session was ever issued as."""
+        sid = session_id or new_id("ses")
         now = self.clock()
         token = self.serializer.dumps({"sid": sid, "uid": user_id, "iat": int(now)})
         info = SessionInfo(
@@ -360,7 +373,10 @@ class AuthService:
         )
 
     def revoke(self, session: SessionInfo) -> None:
-        self.repo.revoke_session(session.session_id, session.user_id, session.expires_at)
+        # Rolling refreshes keep the session id, so a cookie issued for this sid
+        # may be newer than the one presented here; none outlives now + max age.
+        until = datetime.fromtimestamp(self.clock() + SESSION_MAX_AGE, UTC)
+        self.repo.revoke_session(session.session_id, session.user_id, until)
 
     # -- principals -----------------------------------------------------
     def local_principal(self) -> Principal:
@@ -413,7 +429,7 @@ class AuthService:
         state = secrets.token_urlsafe(24)
         nonce = secrets.token_urlsafe(24)
         url = self.google.authorization_url(state=state, code_challenge=challenge, nonce=nonce)
-        cookie = self.serializer.dumps(
+        cookie = self.oauth_serializer.dumps(
             {
                 "state": state,
                 "verifier": verifier,
@@ -433,7 +449,7 @@ class AuthService:
         if error:
             raise unauthenticated("Google sign-in was cancelled or refused.")
         try:
-            saved = self.serializer.loads(oauth_cookie or "", max_age=OAUTH_MAX_AGE)
+            saved = self.oauth_serializer.loads(oauth_cookie or "", max_age=OAUTH_MAX_AGE)
         except BadSignature as exc:
             raise unauthenticated(
                 "The sign-in attempt expired or did not start in this browser. Try again."
