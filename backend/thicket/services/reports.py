@@ -24,7 +24,6 @@ from thicket.persistence.platform_repositories import PlatformRepository
 from thicket.persistence.repositories import Repository
 from thicket.reports import field_schema
 from thicket.reports.bundle import build_bundle, dumps, sha256_text
-from thicket.reports.render import ReportRenderer
 from thicket.services.analysis import AnalysisService
 from thicket.services.intake import clean_text
 from thicket.services.results import validate_threshold
@@ -196,6 +195,9 @@ class ReportService:
             bundle_path = self.storage.report_bundle_path(report_id)
             pdf_path = self.storage.report_pdf_path(report_id)
             bundle_path.write_text(text, encoding="utf-8")
+            # Imported here: matplotlib and ReportLab add ~50 MB, only needed for PDFs.
+            from thicket.reports.render import ReportRenderer
+
             renderer = ReportRenderer(
                 bundle,
                 bundle_sha,

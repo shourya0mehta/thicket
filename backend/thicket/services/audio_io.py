@@ -9,15 +9,16 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import shutil
 import subprocess
+import tempfile
 from dataclasses import dataclass
 from fractions import Fraction
 from pathlib import Path
 
 import numpy as np
 import soundfile as sf
-from scipy.signal import resample_poly
 
 
 class AudioDecodeError(Exception):
@@ -94,6 +95,9 @@ def _resample(x: np.ndarray, sr_in: int, sr_out: int) -> np.ndarray:
     if sr_in == sr_out:
         return x
     frac = Fraction(sr_out, sr_in).limit_denominator(1000)
+    # Only the no-FFmpeg fallback resamples; importing SciPy costs ~70 MB, so do it here.
+    from scipy.signal import resample_poly
+
     return resample_poly(x, frac.numerator, frac.denominator).astype(np.float32)
 
 
@@ -125,13 +129,22 @@ def decode(
             "f32le",
             "-acodec",
             "pcm_f32le",
-            "-",
+            "-y",
         ]
+        # Decode to a temporary file and read it straight into the array: piping
+        # through stdout would hold the bytes and a copy of them at once (twice
+        # the audio in memory, 230 MB for 10 minutes at 48 kHz).
+        fd, tmp_name = tempfile.mkstemp(prefix="thicket-decode-", suffix=".f32")
+        os.close(fd)
+        tmp = Path(tmp_name)
         try:
-            raw = subprocess.run(cmd, capture_output=True, check=True, timeout=300).stdout
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
-            raise AudioDecodeError("FFmpeg could not decode this file.") from exc
-        x = np.frombuffer(raw, dtype=np.float32).copy()
+            try:
+                subprocess.run(cmd + [str(tmp)], capture_output=True, check=True, timeout=300)
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+                raise AudioDecodeError("FFmpeg could not decode this file.") from exc
+            x = np.fromfile(tmp, dtype=np.float32)
+        finally:
+            tmp.unlink(missing_ok=True)
         if not mono:
             x = x.reshape(-1, channels)
         if x.size == 0:
