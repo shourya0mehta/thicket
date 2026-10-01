@@ -58,10 +58,11 @@ exactly for the events in the counted set.
 Combined runs
 -------------
 Each adapter has its own ``model_run_id`` and consolidation never merges
-across runs, so two models detecting the same species yield separate events,
-each keeping its ``model_run_id``. The species table groups by scientific name
-and lists every contributing run in ``model_run_ids``; its event count is the
-sum over runs. Nothing is deduplicated across models.
+across runs. For species the frog/insect head covers, :func:`shared_species_rule`
+sets BirdNET's windows aside before consolidation, so one call is counted once
+and the better model decides (see that function for the evidence). For every
+other species, the species table groups by scientific name and lists each
+contributing run in ``model_run_ids``.
 """
 
 from __future__ import annotations
@@ -291,11 +292,49 @@ def derive(
     )
 
 
+HEAD_ADAPTER = "frog_insect"
+BASE_ADAPTER = "birdnet"
+
+
+def shared_species_rule(
+    raw: list[WindowDetection], runs: list[ModelRunRow]
+) -> tuple[list[WindowDetection], list[str]]:
+    """Ensemble rule for species both BirdNET and the frog/insect head can name.
+
+    When an analysis has a frog/insect head run, BirdNET windows for every
+    species in that head's label set are set aside before consolidation, so
+    one call is never counted twice and the better model decides. On the
+    observer-disjoint iNaturalist test split the head had higher average
+    precision than BirdNET's own label on 26 of the 27 shared species (macro
+    AP +0.155, 95% CI +0.109 to +0.190; ml/reports/frog_insect_v1.md), and
+    species where it did not are withheld from the shipped head, so BirdNET
+    keeps them. Returns (raw detections to use, species set aside).
+    """
+    head_labels: set[str] = set()
+    base_ids: set[str] = set()
+    for r in runs:
+        if r.adapter == HEAD_ADAPTER:
+            head_labels.update((r.configuration or {}).get("labels") or [])
+        elif r.adapter == BASE_ADAPTER:
+            base_ids.add(r.id)
+    if not head_labels or not base_ids:
+        return raw, []
+    kept: list[WindowDetection] = []
+    dropped: set[str] = set()
+    for d in raw:
+        if d.model_run_id in base_ids and d.scientific_name in head_labels:
+            dropped.add(d.scientific_name)
+        else:
+            kept.append(d)
+    return kept, sorted(dropped)
+
+
 def derive_bundle(bundle: AnalysisBundle, threshold: float) -> Derived:
     a = bundle.analysis
     duration = bundle.recording.duration_seconds if bundle.recording else 0.0
+    raw, _ = shared_species_rule(bundle.raw, bundle.model_runs)
     return derive(
-        bundle.raw,
+        raw,
         threshold=threshold,
         merge_gap_seconds=a.merge_gap_seconds,
         analysis_id=a.id,
@@ -497,6 +536,14 @@ def build_analysis(
     if status == AnalysisStatus.completed:
         derived = derive_bundle(bundle, t)
         warnings = [ABUNDANCE_DISCLAIMER, *list(a.warnings or []), *derived_warnings(derived)]
+        _, set_aside = shared_species_rule(bundle.raw, bundle.model_runs)
+        if set_aside:
+            warnings.append(
+                f"{_plural(len(set_aside), 'species')} that both models can name "
+                f"({', '.join(set_aside[:4])}{', ...' if len(set_aside) > 4 else ''}) "
+                "are counted from the frog and insect head only, so a call is never counted "
+                "twice. BirdNET's windows for them stay in the raw detections."
+            )
     else:
         warnings = list(a.warnings or [])
     analysis = Analysis(

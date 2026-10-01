@@ -24,7 +24,7 @@ Choices made during the September 2026 rebuild. Each entry says what was chosen,
 * **Metrics exclude**: human, noise, engine, siren, dog and environmental labels; reviewer-rejected events; birds flagged unlikely for the place and week. All are still listed.
 * **Range and season filter only for birds.** BirdNET's meta model was trained on eBird data and returns about 0.00002 for every frog and insect label (for example Spring Peeper in Ithaca in May). Applying it to non-birds would delete every frog and insect detection, so those stay `unknown`.
 * **No fallback location.** Missing coordinates mean no map and no range check, and the analysis says so.
-* **Combined mode** gives each adapter its own model run id and never deduplicates across runs. If two runs name the same species, the species table merges them by scientific name while each event keeps its run id.
+* **Combined mode** gives each adapter its own model run id. For the species the shipped frog and insect head covers, BirdNET's windows are set aside before consolidation and the head's events are the ones counted (the head beat BirdNET's own label on 26 of 27 shared species on the observer-disjoint test split, macro AP +0.155, 95% CI +0.109 to +0.190; the one exception is withheld from the head). BirdNET's windows stay in `raw_detections` and the analysis warns which species the rule applied to. Every other species comes from whichever model names it.
 * **Experimental models** are off by default, need an environment flag on the server and another in the frontend, and carry a badge and a warning in every result.
 
 ## Engineering choices and deviations from the spec's suggestions

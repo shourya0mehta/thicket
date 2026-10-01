@@ -85,7 +85,9 @@ class Settings(BaseSettings):
     birdnet_model_dir: Path | None = None
     location_filter: bool = True
     location_filter_threshold: float = Field(0.03, ge=0, le=1)
-    frog_insect_enabled: bool = False
+    # The packaged head (thicket/models/data/frog_insect_v1.npz) is used when no
+    # path is set. It is experimental: shown with a badge, never silently.
+    frog_insect_enabled: bool = True
     frog_insect_model_path: Path | None = None
 
     # Retention and workers

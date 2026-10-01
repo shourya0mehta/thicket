@@ -101,9 +101,7 @@ describe('batch upload polling', () => {
       () => expect(screen.getByTestId('batch-progress')).toHaveTextContent('1 of 1 files finished'),
       { timeout: 15000 },
     );
-    const posts = backend.requests.filter(
-      (r) => r.method === 'POST' && r.url.endsWith('/uploads'),
-    );
+    const posts = backend.requests.filter((r) => r.method === 'POST' && r.url.endsWith('/uploads'));
     expect(posts).toHaveLength(1);
     expect(screen.queryByRole('button', { name: /Try again|Retry/ })).toBeNull();
   }, 20000);

@@ -38,6 +38,9 @@ class ResizeObserverMock {
 let urlCounter = 0;
 
 beforeEach(() => {
+  // Most tests were written for a build that hides experimental models;
+  // tests of the default (shown, badged) stub this flag themselves.
+  vi.stubEnv('VITE_ENABLE_EXPERIMENTAL_MODELS', 'false');
   media.dark = false;
   media.reducedMotion = false;
   installMatchMedia();
@@ -66,4 +69,5 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllEnvs();
 });

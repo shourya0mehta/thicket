@@ -74,8 +74,12 @@ def test_frog_only_computes_embeddings_itself(frog_client, infer_calls):
     assert not any("coordinates" in w for w in a["warnings"])
 
 
-def test_same_species_from_two_runs_never_deduplicated(frog_client, monkeypatch, tmp_path):
-    """If both models report one species, events stay separate and species merge by name."""
+def test_shared_species_counted_once_from_the_head(frog_client, monkeypatch, tmp_path):
+    """If both models can name a species, only the head's events count (no double counting).
+
+    BirdNET's windows for that species stay in raw_detections for transparency,
+    and the response says which species the rule applied to.
+    """
     import numpy as np
 
     head_path = tmp_path / "chickadee.npz"
@@ -98,8 +102,20 @@ def test_same_species_from_two_runs_never_deduplicated(frog_client, monkeypatch,
     a = post_analysis(
         frog_client, SOUNDSCAPE, data={"models": "birdnet,frog_insect", "threshold": "0.3"}
     ).json()
+    runs = {r["adapter"]: r["id"] for r in a["model_runs"]}
     chick_events = [e for e in a["events"] if e["scientific_name"] == "Poecile atricapillus"]
-    assert len({e["model_run_id"] for e in chick_events}) == 2
+    assert chick_events and {e["model_run_id"] for e in chick_events} == {runs["frog_insect"]}
     chick = next(s for s in a["species"] if s["scientific_name"] == "Poecile atricapillus")
-    assert len(chick["model_run_ids"]) == 2
+    assert chick["model_run_ids"] == [runs["frog_insect"]]
     assert chick["detection_event_count"] == len(chick_events)
+    # BirdNET's chickadee windows are still visible as raw detections.
+    assert any(
+        d["model_run_id"] == runs["birdnet"] and d["scientific_name"] == "Poecile atricapillus"
+        for d in a["raw_detections"]
+    )
+    assert any("counted from the frog and insect head only" in w for w in a["warnings"])
+    # Species the head does not cover still come from BirdNET.
+    assert any(
+        e["model_run_id"] == runs["birdnet"] and e["scientific_name"] == "Haemorhous mexicanus"
+        for e in a["events"]
+    )

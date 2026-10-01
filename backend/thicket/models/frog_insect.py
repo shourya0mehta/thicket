@@ -316,6 +316,9 @@ class FrogInsectAdapter(AdapterLifecycle):
                 "per_class_floor": "max(raw_threshold, class threshold)",
                 "model_card": {k: self.card[k] for k in ("name", "version") if k in self.card},
                 "head_digest": hashlib.sha256(head.W1.tobytes()).hexdigest()[:16],
+                # The species this head covers. results.derive_bundle uses it to
+                # apply the shared-species rule (see that function).
+                "labels": [lab.scientific_name for lab in head.labels],
             },
             window_starts=np.asarray(window_starts, dtype=np.float64),
             embeddings=emb,

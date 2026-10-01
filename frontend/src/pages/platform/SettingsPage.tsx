@@ -449,8 +449,8 @@ function Members() {
               ))}
           </ul>
           <p className="mt-1 text-xs text-muted">
-            An invitation link is shown once. To send it again, revoke the invitation and invite
-            the same address again.
+            An invitation link is shown once. To send it again, revoke the invitation and invite the
+            same address again.
           </p>
         </div>
       ) : null}

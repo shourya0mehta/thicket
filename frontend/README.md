@@ -74,7 +74,7 @@ Copy `.env.example` to `.env.local` to override. All variables are optional.
 | Variable                          | Default                 | Purpose                                                                    |
 | --------------------------------- | ----------------------- | -------------------------------------------------------------------------- |
 | `VITE_API_BASE_URL`               | empty (same origin)     | Base URL of the API. Requests go to `${VITE_API_BASE_URL}/api/v1/...`.     |
-| `VITE_ENABLE_EXPERIMENTAL_MODELS` | `false`                 | Show experimental models (always badged) and the Combined option.          |
+| `VITE_ENABLE_EXPERIMENTAL_MODELS` | unset (shown)           | Set to `false` to hide experimental models; they are always badged.        |
 | `VITE_DEMO_MODE`                  | `false`                 | Static demo: no uploads, loads precomputed analyses from `public/demo/`.   |
 | `VITE_BASE_PATH`                  | `/`                     | Base path the app is served from, for example `/thicket/` on GitHub Pages. |
 | `VITE_DEV_API_PROXY`              | `http://localhost:8000` | Dev and preview servers only: where `/api` is proxied.                     |

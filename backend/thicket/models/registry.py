@@ -20,6 +20,7 @@ from __future__ import annotations
 import logging
 import threading
 from collections.abc import Iterable
+from pathlib import Path
 
 from thicket.api.schemas import ErrorCode, ModelInfo
 from thicket.config import Settings
@@ -174,6 +175,12 @@ class ModelRegistry:
         return index.get(text.strip().casefold())
 
 
+def packaged_frog_insect_head() -> Path | None:
+    """The head shipped inside the package, if this build includes one."""
+    p = Path(__file__).resolve().parent / "data" / "frog_insect_v1.npz"
+    return p if p.is_file() else None
+
+
 def build_registry(settings: Settings) -> ModelRegistry:
     shared = SharedBirdNET(settings.birdnet_model_dir)
     registry = ModelRegistry()
@@ -181,7 +188,7 @@ def build_registry(settings: Settings) -> ModelRegistry:
     registry.register(
         FrogInsectAdapter(
             shared,
-            model_path=settings.frog_insect_model_path,
+            model_path=settings.frog_insect_model_path or packaged_frog_insect_head(),
             enabled=settings.frog_insect_enabled,
         )
     )

@@ -126,11 +126,20 @@ describe('model selector', () => {
     expect(screen.getByRole('radio', { name: /Combined/ })).toBeInTheDocument();
   });
 
-  it('does not show experimental models in the app by default', async () => {
+  it('hides experimental models when the build sets the flag to false', async () => {
     installFakeBackend();
     renderApp();
     await screen.findByRole('radio', { name: /Birds and more/ });
     expect(screen.queryByRole('radio', { name: /Perch/ })).toBeNull();
+  });
+
+  it('shows experimental models, badged, when the flag is unset, and defaults to Combined', async () => {
+    vi.stubEnv('VITE_ENABLE_EXPERIMENTAL_MODELS', '');
+    installFakeBackend();
+    renderApp();
+    expect(await screen.findByRole('radio', { name: /Perch 2.0/ })).toBeInTheDocument();
+    expect(screen.getAllByText('Experimental').length).toBeGreaterThan(0);
+    expect(screen.getByRole('radio', { name: /Combined/ })).toBeChecked();
   });
 
   it('explains when the model list cannot be loaded', async () => {

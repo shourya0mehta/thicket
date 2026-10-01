@@ -33,7 +33,7 @@ export function WorkspacePage({ workspace }: { workspace: Workspace }) {
       selection === COMBINED_SELECTION
         ? experimental
         : visible.some((m) => m.key === selection && isSelectable(m));
-    if (!stillValid) setSelection(defaultSelection(visible));
+    if (!stillValid) setSelection(defaultSelection(visible, experimental));
   }, [modelsState.status, modelsState.models, selection, experimental]);
 
   const running = state.run.phase === 'uploading' || state.run.phase === 'processing';

@@ -28,7 +28,7 @@ def test_defaults(monkeypatch):
     assert s.hop_seconds == 3.0
     assert s.birdnet_enabled and s.location_filter
     assert s.location_filter_threshold == 0.03
-    assert not s.frog_insect_enabled and not s.retain_audio
+    assert s.frog_insect_enabled and not s.retain_audio
     assert s.worker_concurrency == 1 and s.rate_limit_per_minute == 30
     assert (API_PORT, FRONTEND_DEV_PORT) == (8000, 5173)
     assert s.app_version

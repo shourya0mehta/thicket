@@ -30,6 +30,9 @@ def make_settings(tmp_path: Path, **overrides: object) -> Settings:
         "rate_limit_per_minute": 0,
         "log_level": "WARNING",
         "environment": "test",
+        # Most tests exercise the BirdNET-only path; tests of the shipped
+        # frog and insect head turn it on explicitly.
+        "frog_insect_enabled": False,
     }
     values.update(overrides)
     return Settings(**values)

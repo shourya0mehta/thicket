@@ -65,14 +65,17 @@ export function modelStatusText(model: ModelInfo): string | null {
   }
 }
 
-/** Experimental models are only shown behind VITE_ENABLE_EXPERIMENTAL_MODELS. */
+/** Experimental models are hidden when the build sets VITE_ENABLE_EXPERIMENTAL_MODELS=false. */
 export function visibleModels(models: ModelInfo[], experimentalEnabled: boolean): ModelInfo[] {
   const filtered = models.filter((m) => experimentalEnabled || !m.experimental);
   // Stable models first, then experimental; keep server order within each group.
   return [...filtered.filter((m) => !m.experimental), ...filtered.filter((m) => m.experimental)];
 }
 
-export function defaultSelection(models: ModelInfo[]): string | null {
+export function defaultSelection(models: ModelInfo[], experimentalEnabled = false): string | null {
+  // With the frog and insect head ready, run both models: the server counts
+  // each shared species once (see docs/DECISIONS.md, combined mode).
+  if (canOfferCombined(models, experimentalEnabled)) return COMBINED_SELECTION;
   const birdnet = models.find((m) => m.key === 'birdnet' && isSelectable(m));
   if (birdnet) return birdnet.key;
   const stable = models.find((m) => !m.experimental && isSelectable(m));

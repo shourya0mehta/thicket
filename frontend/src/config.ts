@@ -43,8 +43,13 @@ export function isDemoMode(): boolean {
   return import.meta.env.VITE_DEMO_MODE === 'true';
 }
 
+/**
+ * Experimental models (badged) are shown unless the build opts out with
+ * VITE_ENABLE_EXPERIMENTAL_MODELS=false. The server decides whether a model is
+ * enabled at all (FROG_INSECT_ENABLED), so this only controls visibility.
+ */
 export function experimentalModelsEnabled(): boolean {
-  return import.meta.env.VITE_ENABLE_EXPERIMENTAL_MODELS === 'true';
+  return import.meta.env.VITE_ENABLE_EXPERIMENTAL_MODELS !== 'false';
 }
 
 /** Public asset base (Vite `base`), always ending with a slash. */
