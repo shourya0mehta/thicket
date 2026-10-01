@@ -23,7 +23,8 @@ Research-grade iNaturalist sound observations under CC0, CC BY, CC BY-NC, CC BY-
 ## Training and evaluation
 
 * Splits are 70 / 15 / 15, grouped by observer (3,998 observers; no observer in two splits) and stratified by species.
-* Two stages: stage 1 trains on every window with the clip label; stage 2 is multiple-instance refinement on each positive recording's top windows. Validation picked stage 1 (macro AP 0.790 vs 0.786). A one-hidden-layer MLP was also tried and was not meaningfully better on validation, so the linear head ships.
+* Two stages: stage 1 trains on every window with the clip label; stage 2 is multiple-instance refinement on each positive recording's top windows. Validation picked stage 1 (macro AP 0.790 vs 0.786).
+* A one-hidden-layer MLP (256 units) was also trained with the same splits ([report](../../ml/reports/frog_insect_v1_mlp.md)). Its validation macro AP was 0.797 against 0.790, and its test macro AP 0.802 (0.781 to 0.846) against 0.794 (0.770 to 0.838), so the intervals overlap. It fired on more open-set negatives (15.4% against 13.0%), its calibration error was slightly worse (0.006 against 0.004), and it took about five times longer to train. The linear head ships.
 * Recording score is the max over windows. Per-class thresholds and temperature are fit on validation only.
 * The test metrics use the test split once, with 95% intervals from a bootstrap over observers.
 
