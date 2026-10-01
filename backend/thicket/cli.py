@@ -1,14 +1,21 @@
-"""Command-line analysis using the same service as the API (no server).
+"""Command line using the same services as the API (no server).
 
-Example::
+Examples::
 
     python -m thicket.cli analyze recording.wav --threshold 0.6 \\
         --lat 42.44 --lon -76.50 --date 2026-05-14T06:30:00 --timezone America/New_York \\
         --json out.json --csv out.csv
 
-By default results live in a throwaway in-memory database and temp folder;
-pass ``--data-dir`` to keep them (and see them in the API's history).
-Exit codes: 0 success, 2 typed error (message on stderr), 1 unexpected error.
+    python -m thicket.cli ingest /media/SD_CARD --site "North pasture" \\
+        --recorder "AudioMoth 1" --timezone America/New_York
+
+    python -m thicket.cli nightly
+
+``analyze`` uses a throwaway in-memory database unless ``--data-dir`` is
+given. ``ingest`` and ``nightly`` work on the configured data dir
+(``THICKET_DATA_DIR`` or ``--data-dir``) and the local workspace
+organization. Exit codes: 0 success, 2 typed error (message on stderr),
+1 unexpected error.
 """
 
 from __future__ import annotations
@@ -53,6 +60,34 @@ def _parser() -> argparse.ArgumentParser:
     a.add_argument("--data-dir", type=Path, default=None, help="Persist results in this data dir")
     a.add_argument("--quiet", action="store_true", help="Only print errors")
     a.add_argument("--verbose", action="store_true", help="Show logs")
+
+    i = sub.add_parser(
+        "ingest", help="Batch-ingest a folder of recordings into the local workspace"
+    )
+    i.add_argument("dir", type=Path, help="Folder with audio, zips and sidecar files (recursive)")
+    i.add_argument("--site", required=True, help="Site name (created if it does not exist)")
+    i.add_argument("--recorder", default=None, help="Recorder label (created if it does not exist)")
+    i.add_argument(
+        "--make",
+        default=None,
+        choices=["audiomoth", "song_meter", "phone", "handheld", "other"],
+        help="Recorder make when --recorder creates a new recorder",
+    )
+    i.add_argument("--timezone", default="UTC", help="IANA time zone of the recorder clock")
+    i.add_argument("--models", default="birdnet", help="Comma list of model keys")
+    i.add_argument("--threshold", type=float, default=None, help="Decision threshold")
+    i.add_argument(
+        "--data-dir", type=Path, default=None, help="Data dir (default THICKET_DATA_DIR)"
+    )
+    i.add_argument("--verbose", action="store_true", help="Show logs")
+
+    n = sub.add_parser(
+        "nightly", help="Run the nightly jobs once (rollups, gaps, digests, cleanup)"
+    )
+    n.add_argument(
+        "--data-dir", type=Path, default=None, help="Data dir (default THICKET_DATA_DIR)"
+    )
+    n.add_argument("--verbose", action="store_true", help="Show logs")
     return p
 
 
@@ -156,10 +191,153 @@ def analyze(args: argparse.Namespace) -> int:
             shutil.rmtree(tmp_root, ignore_errors=True)
 
 
+def _platform_settings(args: argparse.Namespace) -> Settings | None:
+    overrides: dict = {"log_format": "text", "log_level": "INFO" if args.verbose else "WARNING"}
+    if args.data_dir is not None:
+        overrides["thicket_data_dir"] = args.data_dir
+    try:
+        return Settings(**overrides)
+    except ValidationError as exc:
+        first = exc.errors()[0]
+        print(f"error [invalid_parameter]: {first.get('loc')}: {first.get('msg')}", file=sys.stderr)
+        return None
+
+
+def _table(rows: list[list[str]]) -> str:
+    widths = [max(len(r[i]) for r in rows) for i in range(len(rows[0]))]
+    out = []
+    for n, r in enumerate(rows):
+        out.append("  ".join(c.ljust(widths[i]) for i, c in enumerate(r)).rstrip())
+        if n == 0:
+            out.append("  ".join("-" * w for w in widths))
+    return "\n".join(out)
+
+
+def ingest(args: argparse.Namespace, container: Container | None = None) -> int:
+    """Batch ingestion from a folder through the same ingest service as the API."""
+    from thicket.ids import LOCAL_ORG_ID, LOCAL_USER_ID
+    from thicket.services.ingest import stage_local_files
+
+    own = container is None
+    if container is None:
+        settings = _platform_settings(args)
+        if settings is None:
+            return 2
+        configure_logging(settings.log_level, settings.log_format)
+        container = Container(settings)
+    c = container
+    try:
+        if not args.dir.is_dir():
+            raise ThicketError(ErrorCode.invalid_parameter, f"Folder not found: {args.dir}")
+        if own:
+            c.startup(background=False)
+        org = LOCAL_ORG_ID
+        site = c.platform.find_site_by_name(org, args.site)
+        if site is None:
+            site = c.platform.create_site(
+                org, {"name": args.site.strip()[:120], "auto_created": False}
+            )
+        recorder_id = None
+        if args.recorder:
+            rec = c.platform.find_recorder(org, label=args.recorder)
+            if rec is None:
+                rec = c.platform.create_recorder(
+                    org, {"label": args.recorder.strip()[:120], "make": args.make or "other"}
+                )
+            recorder_id = rec.id
+        files = sorted(p for p in args.dir.rglob("*") if p.is_file() and not p.name.startswith("."))
+        if len(files) > c.settings.max_batch_files:
+            raise ThicketError(
+                ErrorCode.invalid_parameter,
+                f"The folder has {len(files)} files; the batch limit is {c.settings.max_batch_files}.",
+            )
+        fields = {
+            "site_id": [site.id],
+            "timezone": [args.timezone],
+            "models": [args.models],
+        }
+        if recorder_id:
+            fields["recorder_id"] = [recorder_id]
+        if args.threshold is not None:
+            fields["threshold"] = [str(args.threshold)]
+        req = c.ingest.parse_request(org, fields, c.registry, LOCAL_USER_ID)
+        staging = c.storage.job_tmp(new_id("job"))
+        staging.mkdir(parents=True)
+        staged = stage_local_files(files, staging)
+        if not staged:
+            raise ThicketError(
+                ErrorCode.invalid_parameter,
+                "No audio, zip or sidecar files were found in the folder.",
+            )
+        job = c.ingest.start(req, staged, staging, sync=True)
+        found = c.platform.get_job(job.id)
+        assert found is not None
+        model = c.ingest.job_model(*found)
+        rows = [["file", "status", "captured_at", "source", "species", "events", "note"]]
+        for item in model.items:
+            species = events = ""
+            if item.recording_id:
+                st = c.platform.get_recording_stats(item.recording_id)
+                if st is not None:
+                    species, events = str(st.richness), str(st.events)
+            rows.append(
+                [
+                    item.filename,
+                    item.status.value,
+                    item.captured_at.isoformat(timespec="seconds") if item.captured_at else "",
+                    item.captured_at_source.value,
+                    species,
+                    events,
+                    (item.error_message or "")[:60],
+                ]
+            )
+        print(_table(rows))
+        print(
+            f"\njob {model.id}: {model.done} completed, {model.failed} failed, "
+            f"{model.skipped} skipped of {model.total}"
+            + (
+                f"; sidecars read: {', '.join(model.sidecars_parsed)}"
+                if model.sidecars_parsed
+                else ""
+            )
+        )
+        return 0 if model.failed == 0 else 2
+    except ThicketError as exc:
+        print(f"error [{exc.code.value}]: {exc.message}", file=sys.stderr)
+        return 2
+    finally:
+        if own:
+            c.shutdown()
+
+
+def nightly(args: argparse.Namespace, container: Container | None = None) -> int:
+    own = container is None
+    if container is None:
+        settings = _platform_settings(args)
+        if settings is None:
+            return 2
+        configure_logging(settings.log_level, settings.log_format)
+        container = Container(settings)
+    try:
+        if own:
+            container.startup(background=False)
+        summary = container.nightly.run_once()
+        for k, v in summary.items():
+            print(f"{k}: {v}")
+        return 1 if any(v == "failed" for v in summary.values()) else 0
+    finally:
+        if own:
+            container.shutdown()
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     if args.command == "analyze":
         return analyze(args)
+    if args.command == "ingest":
+        return ingest(args)
+    if args.command == "nightly":
+        return nightly(args)
     return 1  # pragma: no cover
 
 

@@ -7,9 +7,12 @@ detection-derived metrics, acoustic indices and exportable evidence.
 * BirdNET v2.4 (TFLite, CC BY-NC-SA 4.0) through a typed adapter interface
 * FFmpeg for decoding (WAV, MP3, M4A/AAC, FLAC, OGG)
 
-The API contract lives in [`thicket/api/schemas.py`](thicket/api/schemas.py) and is
-exported to [`shared/api.schema.json`](../shared/api.schema.json), which the frontend
-turns into TypeScript types.
+The API contract lives in [`thicket/api/schemas.py`](thicket/api/schemas.py) (one
+analysis) and [`thicket/api/platform_schemas.py`](thicket/api/platform_schemas.py)
+(organizations, sites, recorders, batches, dashboards, alerts, reports), both
+exported to [`shared/api.schema.json`](../shared/api.schema.json), which the
+frontend turns into TypeScript types. The platform routes are specified in
+[`docs/PLATFORM_API.md`](../docs/PLATFORM_API.md).
 
 ## Quick start
 
@@ -50,6 +53,22 @@ The CLI runs the same service and pipeline as the API, with a throwaway
 in-memory database unless `--data-dir` is given. Exit code 2 means a typed
 error (printed as `error [code]: message`).
 
+Two more commands work on the configured data dir and the local workspace:
+
+```bash
+# Batch-ingest an SD card or folder (recursive; zips and sidecars included)
+python -m thicket.cli ingest /media/SD_CARD --site "North pasture" \
+  --recorder "AudioMoth 1" --make audiomoth --timezone America/New_York
+
+# Run the nightly jobs once (rollups, gap checks, digests, cleanup)
+python -m thicket.cli nightly
+```
+
+`ingest` creates the site (and recorder) when they do not exist, runs every
+file through the same ingest service as `POST /orgs/{org}/uploads`, and
+prints one row per file (status, timestamp, timestamp source, species,
+events). File modification times stand in for the browser's `last_modified`.
+
 ## Configuration
 
 All settings come from environment variables (or a `.env` file in the working
@@ -87,6 +106,19 @@ directory). [`.env.example`](.env.example) documents every one with its default.
 | `LOG_LEVEL` / `LOG_FORMAT` | `INFO` / `json` | Structured JSON logs to stdout |
 | `JANITOR_INTERVAL_SECONDS` | 600 | Cleanup cadence |
 | `THICKET_CACHE_DIR` | `~/.cache/thicket` | Cached dual-output BirdNET model |
+| `AUTH_MODE` | `disabled` | `disabled` (local owner, no login), `dev` (email form, refused in production) or `google` |
+| `SESSION_SECRET` | generated | Signs session cookies; generated once into `<data>/session_secret` when unset |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | none | Required for `AUTH_MODE=google` |
+| `PUBLIC_BASE_URL` | `http://localhost:8000` | Public API origin; callback URL and Secure cookies derive from it |
+| `FRONTEND_URL` | `http://localhost:5173` | Web app origin for sign-in redirects, invite and alert links |
+| `ALLOWED_SIGNIN_DOMAINS` | empty | Comma list of email domains allowed to sign in |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` | none / 587 | Email over SMTP with STARTTLS |
+| `EMAIL_FROM` | `Thicket <no-reply@thicket.local>` | Sender address |
+| `RESEND_API_KEY` | none | Email through Resend when no SMTP host is set |
+| `ALERTS_ENABLED` | true | Turn the alert engine off server-wide |
+| `NIGHTLY_JOBS_HOUR_UTC` | 6 | Hour for the nightly jobs |
+| `MAX_BATCH_FILES` / `MAX_BATCH_BYTES` | 200 / 2 GiB | Per batch upload, zip contents included |
+| `REPORT_LOGO_PATH` | none | png or jpg on report covers |
 
 ## API
 
@@ -124,8 +156,17 @@ All endpoints are under `/api/v1`. Every error is an `ErrorResponse`
 | `timezone` | IANA name, e.g. `America/New_York` |
 | `site_name`, `recorder_type`, `notes` | Free text (200, 200 and 2000 characters) |
 
+| `organization_id`, `site_id`, `deployment_id`, `recorder_id` | Platform links (optional). With sign-in, the caller needs the manager role in the organization; without `organization_id` the caller's only organization is used |
+
 Unknown form fields are rejected, so a misspelled parameter is never silently ignored.
 The response echoes the effective settings in `analysis.settings`.
+
+The platform routes (accounts, organizations, sites, recorders, deployments,
+batch uploads, recordings, dashboards, phenology, alerts, notifications,
+recorder health, reports, files) are listed with their roles in
+[`docs/PLATFORM_API.md`](../docs/PLATFORM_API.md). With `AUTH_MODE=disabled`
+every route works without a login as the owner of the local workspace
+(`org_000000000000000000000000`).
 
 ### curl examples
 
@@ -183,6 +224,9 @@ curl -s -X DELETE $API/analyses/$ID
 | `analysis_timeout` | 504 | The analysis exceeded `ANALYSIS_TIMEOUT_SECONDS` |
 | `request_timeout` | 504 | The request exceeded `REQUEST_TIMEOUT_SECONDS` |
 | `internal_error` | 500 | Unexpected failure; no internals are exposed |
+| `unauthenticated` | 401 | Sign-in required (or the session expired or was revoked) |
+| `forbidden` | 403 | Not a member of the organization, role too low, or missing `X-Requested-With: thicket` |
+| `conflict` | 409 | Deleting a site or recorder with recordings, last owner, used or expired invite |
 
 A completed analysis with no detections above the threshold is a valid result,
 not an error.
@@ -217,7 +261,13 @@ Code map:
 | `thicket/services/previews.py`, `janitor.py`, `exports.py`, `spectrogram.py` | As named |
 | `thicket/domain/` | Pure logic: consolidation, metrics, quality, acoustic indices |
 | `thicket/models/` | Adapter contract, BirdNET runtime and adapter, frog/insect head, registry |
-| `thicket/persistence/` | SQLAlchemy schema and repository |
+| `thicket/persistence/` | SQLAlchemy schema, analysis repository, platform repository |
+| `thicket/services/auth.py` | Sessions, dev sign-in, Google OpenID Connect |
+| `thicket/services/ingest.py`, `filenames.py`, `telemetry.py` | Batch uploads, zips, timestamps, device metadata |
+| `thicket/services/rollups.py`, `dashboard.py` | Day rollups, dashboard, phenology, accumulation, comparison |
+| `thicket/services/alerts.py`, `notify.py`, `recorder_health.py` | Alert engine, notifications and email, recorder health |
+| `thicket/services/nightly.py` | Nightly scheduler |
+| `thicket/reports/` | Field schema, data bundle and PDF renderer |
 | `thicket/cli.py` | Command line |
 
 ### One metrics path
@@ -307,6 +357,232 @@ power averaged into at most 2400 columns, 0 to 16 kHz linear
 the 99.5th percentile, dark forest to cream colormap, no axes. Output is
 byte-for-byte deterministic.
 
+## Accounts and sign-in
+
+Three modes, set with `AUTH_MODE`:
+
+| Mode | Who you are | Use it for |
+|---|---|---|
+| `disabled` (default) | The implicit owner of the implicit organization "Local workspace". No cookies, no CSRF header. | A laptop, the CLI, tests, or a private instance behind an authenticating proxy |
+| `dev` | Whoever types an email into `POST /api/v1/auth/dev` | Local development of the multi-user app. Refused when `ENVIRONMENT=production` |
+| `google` | A verified Google account | Any shared instance |
+
+Sessions are signed cookies (`thicket_session`, itsdangerous with
+`SESSION_SECRET`): HttpOnly, SameSite=Lax, Secure when `PUBLIC_BASE_URL` is
+https, valid 30 days and re-issued on use once they are an hour old. Logout
+puts the session id on a revocation list (pruned nightly). With sign-in
+enabled every POST, PATCH, PUT and DELETE under `/api/` must carry
+`X-Requested-With: thicket`; the frontend client always sends it. When the
+frontend is served from another origin, list it in `ALLOWED_ORIGINS`; CORS
+then allows credentials.
+
+Roles per organization: owner (everything, members, delete), manager (sites,
+recorders, uploads, alert rules, reports), reviewer (review events,
+acknowledge alerts, create reports), viewer (read). Invites
+(`POST /orgs/{org}/invites`) return a one-time link
+`FRONTEND_URL/#/invite/<token>`, valid 7 days, for the invited email only.
+
+### Google sign-in, step by step
+
+1. Open the [Google Cloud console](https://console.cloud.google.com/) and pick or
+   create a project for Thicket.
+2. **APIs & Services > OAuth consent screen**: choose *External* (or *Internal*
+   for a Google Workspace organization), fill in the app name, support email
+   and developer contact, and add the scopes `openid`, `email` and `profile`.
+   While the app is in *Testing*, add the Google accounts that may sign in as
+   test users, or publish the app.
+3. **APIs & Services > Credentials > Create credentials > OAuth client ID**,
+   application type *Web application*.
+4. Under **Authorized redirect URIs** add exactly
+   `${PUBLIC_BASE_URL}/api/v1/auth/google/callback`, for example
+   `https://thicket.example.org/api/v1/auth/google/callback`, and for local
+   work `http://localhost:8000/api/v1/auth/google/callback`. Authorized
+   JavaScript origins are not needed (the browser never talks to Google
+   directly).
+5. Copy the client ID and client secret into the environment:
+
+   ```bash
+   AUTH_MODE=google
+   GOOGLE_CLIENT_ID=1234-abc.apps.googleusercontent.com
+   GOOGLE_CLIENT_SECRET=GOCSPX-...
+   PUBLIC_BASE_URL=https://thicket.example.org      # where this API is reachable
+   FRONTEND_URL=https://thicket.example.org          # where the web app is served
+   SESSION_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(48))")
+   ALLOWED_SIGNIN_DOMAINS=farm.example.org           # optional
+   ```
+
+6. Restart the API and open `GET /api/v1/auth/config`: it reports
+   `"mode": "google"` and `sign_in_url: /api/v1/auth/google/start`. The sign-in
+   button sends the browser there; Google returns to the callback, which sets
+   the session cookie and redirects to `FRONTEND_URL/#/` (or the `next` path).
+7. The first person to sign in has no organization yet: they create one
+   (`POST /orgs`, they become owner) and invite the others.
+
+What the server checks: the authorization code flow uses PKCE (S256), with
+`state`, the PKCE verifier and a `nonce` in a ten-minute signed cookie. The ID
+token is verified against Google's JWKS (RS256 signature, `aud` equal to the
+client id, `iss` accounts.google.com, `exp`, `nonce`), and `email_verified`
+must be true. Discovery and keys are cached for an hour; an unknown key id
+triggers one refetch.
+
+## Batch ingestion
+
+`POST /api/v1/orgs/{org}/uploads` (manager) takes many files in one
+multipart request: audio (`.wav .mp3 .m4a .flac .ogg`), zips of them, Song
+Meter `*_Summary.txt` and AudioMoth `CONFIG.TXT`. `site_id` and `timezone` (the
+recorder clock's zone) are required; `deployment_id`, `recorder_id`, `models`,
+`threshold`, `last_modified` (one millisecond timestamp per file, same order)
+and `captured_at_override` are optional. It answers 202 with a `BatchJob` to
+poll at `GET /uploads/{job_id}`.
+
+* Caps: `MAX_UPLOAD_BYTES` per audio file, `MAX_BATCH_FILES` files and
+  `MAX_BATCH_BYTES` per batch, zip contents included, enforced while
+  streaming and while extracting.
+* Zips: members with absolute paths, `..`, hidden names or `__MACOSX` are
+  skipped, as are non-audio files and nested zips; corrupt members are
+  skipped and listed in `settings.skipped_entries`.
+* Each audio file becomes one recording and one analysis through the same
+  analysis service as the single-file workspace. Batch work runs in a lower
+  priority lane of the worker pool (at most half the workers, rounded up), so the
+  workspace stays responsive during a 200-file upload. A failing file fails
+  its item, not the job (`completed_with_errors`).
+* Recorders and deployments: a device id from an AudioMoth comment, GUANO
+  serial, Song Meter file prefix or `CONFIG.TXT` finds or creates the
+  recorder, and a deployment at the site is found or created around the
+  recording time (with the interval, clip length and gain from `CONFIG.TXT`).
+
+Timestamp order, recorded as `captured_at_source`: the file name pattern
+(`filename`), then the file's metadata (`file_metadata`: AudioMoth WAV
+comment or GUANO `Timestamp`), then the browser's `last_modified`
+(`browser_last_modified`), then `captured_at_override` (`user`).
+
+| File name | Read as |
+|---|---|
+| `20240514_053000.WAV`, `24A1D5F3_20240514_053000.WAV`, `north_20240514_0530.wav` | AudioMoth, UTC (or the fixed offset in `CONFIG.TXT`). Prefix optional, seconds optional, case-insensitive |
+| `SMA12345_20240514_053000.wav`, `SMM01234_20240514_053000.wav`, `S4A09876_20240514_053000_1.wav` | Song Meter, the recorder's local clock (the batch `timezone`) |
+| `2024-05-14T05-30-00.m4a`, `2024-05-14 05.30.00.wav`, `20240514T053000.flac` | ISO style, local clock |
+| `New Recording 7.m4a` | no timestamp in the name |
+
+A recorder registered as `audiomoth` or `song_meter` overrides the pattern's
+guess (a Song Meter is always local time, an AudioMoth always UTC).
+Telemetry comes from the AudioMoth comment (battery, temperature, gain,
+device), GUANO (temperature, serial, position) or the Song Meter summary row
+within 60 seconds of the recording's local start (battery `POWER(V)`,
+`TEMP(C)`, `LAT`/`LON`; header variants and separate hemisphere columns are
+accepted). Every recording also gets a signal profile: band energy fractions
+(0 to 1, 1 to 4, 4 to 8 and above 8 kHz, Welch PSD of the 48 kHz mono mix),
+spectral centroid, per-channel RMS from the original channels, peak, DC
+offset and clipping.
+
+## Rollups and dashboards
+
+After each completed analysis (and after each review) the recording's row in
+`recording_stats` and its site-day in `site_day_stats` and
+`species_day_stats` are recomputed from all of that day's analyses, each at
+its own recorded threshold, through the same `results.derive` path as every
+other view. Local dates use the organization's time zone; a recording
+without a timestamp falls on its upload date. The nightly job rebuilds all
+of it. `GET /orgs/{org}/dashboard` (default the last 90 days), `/phenology`
+(ISO week by year: presence fraction and events per minute),
+`/sites/{id}/accumulation` and `/orgs/{org}/sites/compare` read these
+tables. Across sites, a day's richness is the union of species and Shannon
+uses the summed per-species events.
+
+## Alerts and baselines
+
+The engine runs after each completed analysis, on
+`POST /orgs/{org}/alerts/evaluate` and nightly. Rules are per organization
+(`GET/PUT /orgs/{org}/alert-rules`).
+
+* **Comparable recordings** (ecology): same site, same hour bucket, earlier
+  recordings within plus or minus three ISO weeks of the current one across
+  years; if there are fewer than `min_baseline_recordings` (8), the last
+  eight weeks at that site and bucket; if still too few, no ecology alert.
+* **Hour buckets**: with site coordinates, from sunrise and sunset (astral):
+  dawn is one hour before to two hours after sunrise, dusk one hour either
+  side of sunset, day between, night the rest. Without coordinates (or with
+  no sunrise, near the poles): 04 to 09 dawn, 09 to 17 day, 17 to 21 dusk,
+  21 to 04 night, local time.
+* **Statistics**: median and MAD (scaled by 1.4826), never the mean, with a
+  small floor on the MAD so a perfectly flat history cannot turn a tiny change
+  into an alert.
+* **Kinds**: `richness_drop` and `activity_drop` (the last
+  `consecutive_recordings` all below the median by the configured MAD
+  multiple), `new_species_for_site`, `priority_species_detected` (no
+  baseline needed), `expected_species_missing` (nightly; a species present in
+  at least half of the comparable recordings is missing from the last six),
+  `species_surge`, `low_quality_streak`, `speech_detected`; recorder checks
+  per deployment: `muffled_audio` (high-band share and centroid both more than
+  3 MAD below, for the consecutive run), `level_drift` (more than 6 dB from
+  the deployment median for the bucket; warning above 12 dB),
+  `recording_gap` (nightly; longer than `gap_multiplier` times the declared or
+  inferred interval and at least `gap_min_hours`), `clipping_increase`,
+  `channel_imbalance` (more than 12 dB between channels), `dc_offset` (above
+  0.02), `battery_low` (per make), `temperature_extreme`, `clock_suspect`
+  (per recorder in one upload: out of order, duplicates, future times), and
+  `schedule_deviation` (when an interval is declared).
+* **Deduplication**: `(kind, site, recorder, species)`. A repeat of an open,
+  acknowledged or snoozed alert updates `last_seen_at`, `occurrences` and the
+  evidence and sends nothing new. Snoozed alerts reopen when due.
+* Every `detail` names the observed value, the baseline and `n`, for example
+  "Observed a high-band share of 5% and a spectral centroid of 600 Hz in the
+  last 3 recordings; baseline medians 30% (MAD 0) and 2500 Hz (MAD 0) from n =
+  12 recordings (same deployment, dawn recordings)." Each kind has a plain
+  `suggested_action`.
+
+Notifications: each new alert creates an in-app notification for every
+member whose preferences match (category, minimum severity; defaults watch
+and up). Email is immediate or in a daily (every night) or weekly (Mondays)
+digest, through SMTP (STARTTLS), Resend, or `.eml` files in
+`<data>/outbox/` when neither is configured. Email carries no audio and no
+notes.
+
+`GET /recorders/{id}/health?days=30` returns series (battery, temperature,
+level, high-band share, centroid, clipping), gaps, checks with their
+baselines, the median interval (declared on the deployment or inferred from
+at least three intervals) and `uptime_fraction_7d`.
+
+## Reports
+
+`POST /orgs/{org}/reports` (reviewer) queues one of five templates from
+[`docs/REPORTING.md`](../docs/REPORTING.md): `evidence`, `nrcs`, `aem`,
+`certification`, `credit`. `GET /reports/templates` lists their pages and
+user-entered fields (`thicket/reports/field_schema.json`, section 7 of that
+document with labels and help text). Rendering runs in the batch lane of the
+worker pool; poll `GET /reports/{id}` until `ready`, then download
+`/reports/{id}.pdf` or the data bundle `/reports/{id}.json`.
+
+* The bundle holds every number in the PDF; each analysis is derived at the
+  report's `decision_threshold` (or its own) through the same path as the API.
+* Every page footer prints the report id, the software version, the platform
+  schema version and the SHA-256 of the JSON bundle.
+* ReportLab and matplotlib (Agg, figure API) with no system dependencies;
+  forest greens on paper, no rainbow palettes.
+* Blank template fields print as "not provided" and are listed in
+  `missing_fields` (required ones first). Images (`deployment_photo`,
+  `tract_map_image`, `project_boundary_file`) are uploaded first with
+  `POST /orgs/{org}/files` and referenced by id.
+* A period without recordings renders a "No recordings in this period" page.
+* A test extracts the text of every template's PDF and checks that none of
+  the phrases in section 8 of `docs/REPORTING.md` appear.
+
+## Nightly jobs
+
+One scheduler (`thicket/services/nightly.py`) wakes at
+`NIGHTLY_JOBS_HOUR_UTC` and runs, each step isolated from the others: the
+full rollup rebuild, gap and expected-species checks for every organization,
+daily digests (and weekly ones on Mondays), pruning of the session revocation
+list and the janitor's cleanup. `python -m thicket.cli nightly` runs one pass
+by hand.
+
+## Database upgrades
+
+The schema is at version 3. A database written by the single-user build
+(schema 1 or 2) is upgraded in place at startup: new nullable columns are
+added with `ALTER TABLE`, new tables are created, the local workspace user
+and organization are created, existing sites and recordings are attached to
+it, and the rollups are built once.
+
 ## Privacy, retention and security
 
 * Uploaded audio lives only in a per-analysis temp folder and is deleted when
@@ -322,9 +598,14 @@ byte-for-byte deterministic.
   `CLIENT_IP_HEADER` behind a proxy), request and
   analysis timeouts, security headers, and no internals in error messages.
 * Logs are JSON lines with ids, stages, timings and error codes. They never
-  contain audio, filenames, notes or coordinates.
-* This pilot has no authentication: deploy it for a single user or behind an
-  authenticating proxy.
+  contain audio, filenames, notes, coordinates or email addresses, and invite
+  tokens are redacted from logged paths.
+* With `AUTH_MODE=disabled` there is no authentication: deploy it for a single
+  user or behind an authenticating proxy. Use `AUTH_MODE=google` for a shared
+  instance (see below).
+* Every platform resource belongs to one organization. A member of another
+  organization gets 404 for its resources by id and 403 on its
+  `/orgs/{org}/...` routes.
 
 ## Tests
 
@@ -338,7 +619,12 @@ python scripts/export_schema.py --check   # shared/api.schema.json is current
 
 Synthetic fixtures (tones, noise, silence, clipping, low sample rates, corrupt
 files, MP3/M4A/OGG transcodes) are generated per session; only
-`tests/fixtures/soundscape_30s.flac` is committed.
+`tests/fixtures/soundscape_30s.flac` is committed. Platform tests run without
+BirdNET: `tests/platform_helpers.py` writes synthetic analyses straight to the
+database and provides a tone-driven fake adapter, WAV writers with AudioMoth
+comments and GUANO chunks, and sign-in helpers; `tests/google_mock.py` serves
+Google's discovery document, JWKS and token endpoint through
+`httpx.MockTransport`.
 
 ## Deployment
 

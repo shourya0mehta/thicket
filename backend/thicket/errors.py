@@ -31,6 +31,9 @@ HTTP_STATUS: dict[ErrorCode, int] = {
     ErrorCode.request_timeout: 504,
     ErrorCode.rate_limited: 429,
     ErrorCode.internal_error: 500,
+    ErrorCode.unauthenticated: 401,
+    ErrorCode.forbidden: 403,
+    ErrorCode.conflict: 409,
 }
 
 
@@ -74,6 +77,18 @@ def event_not_found() -> ThicketError:
         ErrorCode.event_not_found,
         "No detection event with that id exists. Load the analysis first, then review its events.",
     )
+
+
+def unauthenticated(message: str = "Sign in to continue.") -> ThicketError:
+    return ThicketError(ErrorCode.unauthenticated, message)
+
+
+def forbidden(message: str = "You do not have permission to do this.") -> ThicketError:
+    return ThicketError(ErrorCode.forbidden, message)
+
+
+def conflict(message: str, *, detail: dict[str, Any] | None = None) -> ThicketError:
+    return ThicketError(ErrorCode.conflict, message, detail=detail)
 
 
 def from_adapter_error(exc: AdapterError) -> ThicketError:

@@ -20,11 +20,19 @@ Stages (``analysis.stage`` while running, with per-stage milliseconds in
   requested threshold. Events are never deduplicated across model runs.
 * ``metrics``: acoustic indices; species metrics are derived on read.
 
-Jobs run on a bounded thread pool (``WORKER_CONCURRENCY``). Each job has a
+Jobs run on a bounded pool of worker threads (``WORKER_CONCURRENCY``) fed by
+a two-level priority queue: interactive analyses (the single-file workspace)
+always go first, batch items (uploads of many files, report rendering) run
+when no interactive work is waiting and at most ``batch_cap`` of them at a
+time, so one large upload cannot starve the workspace. Each job has a
 deadline (``ANALYSIS_TIMEOUT_SECONDS``) checked between stages, plus a timer
 that marks the analysis failed with ``analysis_timeout`` if a stage hangs.
 The per-analysis temp directory is removed in ``finally`` on success and on
 failure; normalized audio is kept only when ``RETAIN_AUDIO`` is true.
+
+``completion_hooks`` run after an analysis completes (rollups, alerts) and
+``review_hooks`` after a review is saved; a failing hook is logged and never
+fails the analysis.
 """
 
 from __future__ import annotations
@@ -34,8 +42,9 @@ import logging
 import shutil
 import threading
 import time
-from collections.abc import Iterator
-from concurrent.futures import Future, ThreadPoolExecutor
+from collections import deque
+from collections.abc import Callable, Iterator, Sequence
+from concurrent.futures import Future
 from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
 from pathlib import Path
@@ -53,6 +62,7 @@ from thicket.config import Settings
 from thicket.domain.acoustic_indices import compute_indices
 from thicket.domain.consolidation import WindowDetection, consolidate
 from thicket.domain.quality import apply_qc_head, assess_quality, finalize_quality
+from thicket.domain.signal_profile import compute_signal_profile
 from thicket.errors import (
     ThicketError,
     analysis_not_found,
@@ -177,6 +187,106 @@ class Job:
     deadline: float = float("inf")
     future: Future | None = None
     stage: str = "queued"
+    batch: bool = False
+
+
+class PriorityWorkers:
+    """Worker threads with two queues: interactive first, batch capped.
+
+    ``submit`` returns a :class:`concurrent.futures.Future`. Batch tasks run
+    only when no interactive task is waiting and fewer than ``batch_cap`` batch
+    tasks are running, so a 200-file upload never blocks a workspace analysis
+    for more than one batch item.
+    """
+
+    def __init__(self, workers: int, batch_cap: int | None = None, name: str = "thicket-worker"):
+        self.workers = max(1, workers)
+        self.batch_cap = max(1, batch_cap if batch_cap is not None else (self.workers + 1) // 2)
+        self.name = name
+        self._cond = threading.Condition()
+        self._interactive: deque[tuple[Future, Callable[[], object]]] = deque()
+        self._batch: deque[tuple[Future, Callable[[], object]]] = deque()
+        self._running_batch = 0
+        self._threads: list[threading.Thread] = []
+        self._stopping = False
+
+    def start(self) -> None:
+        with self._cond:
+            if self._threads:
+                return
+            self._stopping = False
+            for i in range(self.workers):
+                th = threading.Thread(target=self._loop, name=f"{self.name}-{i}", daemon=True)
+                th.start()
+                self._threads.append(th)
+
+    def submit(self, fn: Callable[[], object], *, batch: bool = False) -> Future:
+        fut: Future = Future()
+        with self._cond:
+            if self._stopping or not self._threads:
+                raise RuntimeError("cannot schedule new futures after shutdown")
+            (self._batch if batch else self._interactive).append((fut, fn))
+            self._cond.notify()
+        return fut
+
+    def _pick(self) -> tuple[Future, Callable[[], object], bool] | None:
+        if self._interactive:
+            fut, fn = self._interactive.popleft()
+            return fut, fn, False
+        if self._batch and self._running_batch < self.batch_cap:
+            fut, fn = self._batch.popleft()
+            self._running_batch += 1
+            return fut, fn, True
+        return None
+
+    def _loop(self) -> None:
+        while True:
+            with self._cond:
+                item = self._pick()
+                while item is None and not self._stopping:
+                    self._cond.wait()
+                    item = self._pick()
+                if item is None:
+                    return
+            fut, fn, is_batch = item
+            try:
+                if fut.set_running_or_notify_cancel():
+                    try:
+                        fut.set_result(fn())
+                    except BaseException as exc:  # noqa: BLE001 - delivered through the future
+                        fut.set_exception(exc)
+            finally:
+                with self._cond:
+                    if is_batch:
+                        self._running_batch -= 1
+                    self._cond.notify_all()
+
+    def pending(self) -> tuple[int, int]:
+        with self._cond:
+            return len(self._interactive), len(self._batch)
+
+    def shutdown(
+        self, wait: bool = False, cancel_futures: bool = True, timeout: float = 30.0
+    ) -> None:
+        """Stop taking work, cancel queued tasks and (``wait``) join running ones.
+
+        Joining matters at process exit: a worker still inside matplotlib or
+        another C extension when the interpreter finalizes can crash it.
+        """
+        with self._cond:
+            self._stopping = True
+            if cancel_futures:
+                for q in (self._interactive, self._batch):
+                    for fut, _ in q:
+                        fut.cancel()
+                    q.clear()
+            threads = list(self._threads)
+            self._threads = []
+            self._cond.notify_all()
+        if wait:
+            deadline = time.monotonic() + timeout
+            for th in threads:
+                th.join(timeout=max(0.0, deadline - time.monotonic()))
 
 
 class AnalysisService:
@@ -191,25 +301,33 @@ class AnalysisService:
         self.storage = storage
         self.repo = repo
         self.registry = registry
-        self._pool: ThreadPoolExecutor | None = None
+        self._pool: PriorityWorkers | None = None
         self._jobs: dict[str, Job] = {}
         self._lock = threading.Lock()
+        self.completion_hooks: list[Callable[[str], None]] = []
+        self.failure_hooks: list[Callable[[str], None]] = []
+        self.review_hooks: list[Callable[[str], None]] = []
 
     # ------------------------------------------------------------ lifecycle
     def start(self) -> None:
         if self._pool is None:
-            self._pool = ThreadPoolExecutor(
-                max_workers=self.settings.worker_concurrency, thread_name_prefix="thicket-worker"
-            )
+            self._pool = PriorityWorkers(self.settings.worker_concurrency)
+            self._pool.start()
 
-    def shutdown(self, wait: bool = False) -> None:
+    def shutdown(self, wait: bool = False, timeout: float = 30.0) -> None:
         with self._lock:
             jobs = list(self._jobs.values())
         for job in jobs:
             job.cancel.set()
         if self._pool is not None:
-            self._pool.shutdown(wait=wait, cancel_futures=True)
+            self._pool.shutdown(wait=wait, cancel_futures=True, timeout=timeout)
             self._pool = None
+
+    def submit_task(self, fn: Callable[[], object], *, batch: bool = True) -> Future:
+        """Run any callable on the worker pool (report rendering uses the batch lane)."""
+        self.start()
+        assert self._pool is not None
+        return self._pool.submit(fn, batch=batch)
 
     def active_ids(self) -> set[str]:
         with self._lock:
@@ -217,11 +335,21 @@ class AnalysisService:
 
     # -------------------------------------------------------------- create
     def create(
-        self, analysis_id: str, upload: StoredUpload, params: AnalysisParams, tmp_dir: Path
+        self,
+        analysis_id: str,
+        upload: StoredUpload,
+        params: AnalysisParams,
+        tmp_dir: Path,
+        *,
+        batch: bool = False,
     ) -> Job:
         """Probe, validate and persist a queued analysis. Raises typed errors."""
         pr = probe_upload(upload.path)
         check_probe(pr, self.settings)
+        captured_utc = None
+        if params.captured_at is not None:
+            dt = params.captured_at
+            captured_utc = dt if dt.tzinfo is not None else None
         rec = RecordingRow(
             id=new_id("rec"),
             filename=upload.filename,
@@ -240,6 +368,15 @@ class AnalysisService:
             site_name=params.site_name,
             recorder_type=params.recorder_type,
             notes=params.notes,
+            organization_id=params.organization_id,
+            site_id=params.site_id,
+            deployment_id=params.deployment_id,
+            recorder_id=params.recorder_id,
+            captured_at_source=params.captured_at_source,
+            source_filename=params.source_filename,
+            captured_at_utc=captured_utc,
+            telemetry=params.telemetry,
+            batch_job_id=params.batch_job_id,
         )
         row = AnalysisRow(
             id=analysis_id,
@@ -259,7 +396,14 @@ class AnalysisService:
             has_spectrogram=False,
         )
         self.repo.create_analysis(rec, row)
-        job = Job(analysis_id=analysis_id, upload=upload, params=params, probe=pr, tmp_dir=tmp_dir)
+        job = Job(
+            analysis_id=analysis_id,
+            upload=upload,
+            params=params,
+            probe=pr,
+            tmp_dir=tmp_dir,
+            batch=batch,
+        )
         with self._lock:
             self._jobs[analysis_id] = job
         log.info(
@@ -269,6 +413,7 @@ class AnalysisService:
                 "models": params.models,
                 "byte_size": upload.byte_size,
                 "duration_seconds": round(pr.duration_seconds, 2),
+                "batch": batch,
             },
         )
         return job
@@ -277,7 +422,7 @@ class AnalysisService:
         self.start()
         assert self._pool is not None
         try:
-            job.future = self._pool.submit(self._execute, job)
+            job.future = self._pool.submit(lambda: self._execute(job), batch=job.batch)
         except RuntimeError as exc:
             self._finish(job)
             self.repo.fail(
@@ -338,6 +483,7 @@ class AnalysisService:
                     "stage_timings_ms": job.timings,
                 },
             )
+            self._run_hooks(self.failure_hooks, job.analysis_id)
 
     def _ordered_models(self, keys: list[str]) -> list[str]:
         """Embedding sources first, otherwise the requested order."""
@@ -354,6 +500,7 @@ class AnalysisService:
         timer.start()
         report: QualityReport | None = None
         retained: Path | None = None
+        profile: dict | None = None
         try:
             params = job.params
             with self._stage(job, "normalizing"):
@@ -379,6 +526,7 @@ class AnalysisService:
                     max_duration_seconds=self.settings.max_audio_duration_seconds,
                 )
                 self.repo.set_quality(aid, report.model_dump(mode="json"))
+                profile = compute_signal_profile(mono, sr, levels).model_dump(mode="json")
 
             with self._stage(job, "spectrogram"):
                 path = self.storage.spectrogram_path(aid)
@@ -479,6 +627,7 @@ class AnalysisService:
                 detections=detections,
                 storage_uri=self.storage.storage_uri(retained) if retained else None,
                 duration_seconds=round(duration, 3),
+                signal_profile=profile,
             )
             if not ok:
                 raise AnalysisCancelled()
@@ -493,6 +642,7 @@ class AnalysisService:
                     "models": order,
                 },
             )
+            self._run_hooks(self.completion_hooks, aid)
         except AnalysisCancelled:
             self._discard(retained)
             log.info("analysis cancelled", extra={"analysis_id": aid, "stage": job.stage})
@@ -531,6 +681,14 @@ class AnalysisService:
             self._jobs.pop(job.analysis_id, None)
 
     @staticmethod
+    def _run_hooks(hooks: list[Callable[[str], None]], analysis_id: str) -> None:
+        for hook in list(hooks):
+            try:
+                hook(analysis_id)
+            except Exception:  # noqa: BLE001 - hooks never fail the analysis
+                log.exception("post-analysis hook failed", extra={"analysis_id": analysis_id})
+
+    @staticmethod
     def _discard(path: Path | None) -> None:
         if path is not None:
             path.unlink(missing_ok=True)
@@ -560,6 +718,7 @@ class AnalysisService:
             },
             exc_info=exc_info,
         )
+        self._run_hooks(self.failure_hooks, job.analysis_id)
 
     def _run_row(
         self, aid: str, pos: int, key: str, ctx: AnalysisContext, out: AdapterOutput
@@ -630,8 +789,10 @@ class AnalysisService:
             )
         return analysis
 
-    def list_recent(self, limit: int = 20) -> AnalysisList:
-        return AnalysisList(items=[results.summary(b) for b in self.repo.list_recent(limit)])
+    def list_recent(self, limit: int = 20, org_ids: Sequence[str] | None = None) -> AnalysisList:
+        return AnalysisList(
+            items=[results.summary(b) for b in self.repo.list_recent(limit, org_ids=org_ids)]
+        )
 
     # --------------------------------------------------------------- writes
     def delete(self, analysis_id: str) -> None:
@@ -675,7 +836,13 @@ class AnalysisService:
                     return list(e.contributing_detection_ids)
         return None
 
-    def review(self, event_id: str, update: EventReviewUpdate, threshold: float | None) -> Analysis:
+    def review(
+        self,
+        event_id: str,
+        update: EventReviewUpdate,
+        threshold: float | None,
+        reviewed_by: str | None = None,
+    ) -> Analysis:
         if not is_valid_event_id(event_id):
             raise event_not_found()
         ref = self.repo.event_ref(event_id)
@@ -704,6 +871,7 @@ class AnalysisService:
             review_note=note,
             resolved=resolved,
             detection_ids=detection_ids,
+            reviewed_by=reviewed_by,
         )
         log.info(
             "event reviewed",
@@ -713,4 +881,5 @@ class AnalysisService:
                 "review_status": update.review_status.value,
             },
         )
+        self._run_hooks(self.review_hooks, analysis_id)
         return self.view(analysis_id, threshold)

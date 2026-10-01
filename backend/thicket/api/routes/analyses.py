@@ -1,20 +1,37 @@
-"""Analyses: create, list, read at a threshold, delete, assets and exports."""
+"""Analyses: create, list, read at a threshold, delete, assets and exports.
+
+Tenancy (schema 3): every recording belongs to an organization. ``POST
+/analyses`` takes ``organization_id`` (defaulting to the caller's only
+organization, or the local workspace when sign-in is disabled) and needs the
+manager role there; reads need membership of the recording's organization
+and a foreign id answers 404. With ``AUTH_MODE=disabled`` the implicit local
+owner satisfies all of this, so the single-recording workspace works as before.
+"""
 
 from __future__ import annotations
 
 import shutil
+from dataclasses import replace
 from pathlib import Path
 
-from fastapi import APIRouter, Query, Request, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
 from starlette.concurrency import run_in_threadpool
 
-from thicket.api.deps import check_content_length, container
+from thicket.api.deps import authorize_resource, check_content_length, container, current_user
+from thicket.api.platform_schemas import Role
 from thicket.api.routes.openapi import ERRORS, upload_body
 from thicket.api.schemas import Analysis, AnalysisExport, AnalysisList, AnalysisStatus, ErrorCode
 from thicket.container import Container
-from thicket.errors import ThicketError, analysis_not_found, invalid_parameter, not_found
-from thicket.ids import new_id
+from thicket.errors import (
+    ThicketError,
+    analysis_not_found,
+    forbidden,
+    invalid_parameter,
+    not_found,
+)
+from thicket.ids import LOCAL_ORG_ID, is_valid_id, new_id
+from thicket.services.auth import Principal
 from thicket.services.exports import csv_text, export_filename, json_export
 from thicket.services.intake import StoredUpload, clean_text, parse_multipart_upload
 from thicket.services.params import ANALYSIS_FIELDS, AnalysisParams, parse_analysis_params
@@ -41,6 +58,10 @@ _FORM = {
     "site_name": {"type": "string"},
     "notes": {"type": "string"},
     "recorder_type": {"type": "string"},
+    "organization_id": {"type": "string", "description": "Defaults to your only organization."},
+    "site_id": {"type": "string"},
+    "deployment_id": {"type": "string"},
+    "recorder_id": {"type": "string"},
 }
 
 
@@ -49,6 +70,67 @@ def _create_and_submit(
 ) -> None:
     job = c.analysis.create(analysis_id, upload, params, tmp)
     c.analysis.submit(job)
+
+
+def resolve_tenancy(c: Container, p: Principal, params: AnalysisParams) -> AnalysisParams:
+    """Pick the organization, check the manager role and that linked ids belong to it."""
+    org_id = params.organization_id
+    if org_id is None:
+        if p.is_local:
+            org_id = LOCAL_ORG_ID
+        elif not p.roles:
+            raise forbidden("Create or join an organization before uploading recordings.")
+        elif len(p.roles) == 1:
+            org_id = next(iter(p.roles))
+        else:
+            raise invalid_parameter(
+                "organization_id is required when you belong to more than one organization.",
+                field="organization_id",
+            )
+    if p.role_in(org_id) is None:
+        raise forbidden("You are not a member of that organization.")
+    if not p.has_role(org_id, Role.manager):
+        raise forbidden("Starting an analysis needs the manager role in the organization.")
+    site_id, deployment_id, recorder_id = params.site_id, params.deployment_id, params.recorder_id
+    if deployment_id:
+        dep = c.platform.get_deployment(deployment_id)
+        if dep is None or dep.organization_id != org_id:
+            raise invalid_parameter(
+                "deployment_id does not belong to this organization.", field="deployment_id"
+            )
+        site_id = site_id or dep.site_id
+        recorder_id = recorder_id or dep.recorder_id
+    if site_id:
+        site = c.platform.get_site(site_id)
+        if site is None or site.organization_id != org_id:
+            raise invalid_parameter(
+                "site_id does not belong to this organization.", field="site_id"
+            )
+    if recorder_id:
+        rec = c.platform.get_recorder(recorder_id)
+        if rec is None or rec.organization_id != org_id:
+            raise invalid_parameter(
+                "recorder_id does not belong to this organization.", field="recorder_id"
+            )
+    return replace(
+        params,
+        organization_id=org_id,
+        site_id=site_id,
+        deployment_id=deployment_id,
+        recorder_id=recorder_id,
+    )
+
+
+def authorize_analysis(request: Request, analysis_id: str, p: Principal, minimum: Role) -> None:
+    """404 for unknown or foreign analyses; 403 for too low a role."""
+    if not is_valid_id(analysis_id, "ana"):
+        raise analysis_not_found()
+    org_id = container(request).platform.org_of_analysis(analysis_id)
+    if org_id is None:
+        raise analysis_not_found()
+    if p.role_in(org_id) is None:
+        raise analysis_not_found()
+    authorize_resource(p, org_id, minimum)
 
 
 @router.post(
@@ -63,6 +145,7 @@ async def create_analysis(
     wait: bool = Query(
         False, description="Run synchronously and return the completed analysis (201)."
     ),
+    p: Principal = Depends(current_user),
 ) -> JSONResponse:
     """Upload a recording (or reuse a preview) and start an analysis.
 
@@ -83,7 +166,7 @@ async def create_analysis(
             max_bytes=c.settings.max_upload_bytes,
             allowed_fields=ANALYSIS_FIELDS,
         )
-        params = parse_analysis_params(fields, c.settings, c.registry)
+        params = resolve_tenancy(c, p, parse_analysis_params(fields, c.settings, c.registry))
         preview_id = clean_text(fields.get("preview_id"), 64, "preview_id")
         if upload is not None and preview_id:
             raise invalid_parameter(
@@ -95,6 +178,7 @@ async def create_analysis(
                     "Attach an audio file in the 'file' field or pass a preview_id.", field="file"
                 )
             upload = await run_in_threadpool(c.previews.materialize, preview_id, tmp)
+        params = replace(params, source_filename=upload.filename)
         await run_in_threadpool(_create_and_submit, c, analysis_id, upload, params, tmp)
         handed_off = True
     finally:
@@ -120,23 +204,42 @@ async def create_analysis(
 
 
 @router.get("/analyses", response_model=AnalysisList, responses=ERRORS)
-def list_analyses(request: Request, limit: int = Query(20, ge=1, le=100)) -> AnalysisList:
-    """Most recent analyses first."""
-    return container(request).analysis.list_recent(limit)
+def list_analyses(
+    request: Request,
+    limit: int = Query(20, ge=1, le=100),
+    p: Principal = Depends(current_user),
+) -> AnalysisList:
+    """Most recent analyses first, across the caller's organizations."""
+    c = container(request)
+    if p.is_local:
+        # The implicit local owner sees the whole local database.
+        return c.analysis.list_recent(limit)
+    return c.analysis.list_recent(limit, org_ids=list(p.roles))
 
 
 @router.get("/analyses/{analysis_id}", response_model=Analysis, responses=ERRORS)
 def get_analysis(
-    analysis_id: str, request: Request, threshold: float | None = THRESHOLD_QUERY
+    analysis_id: str,
+    request: Request,
+    threshold: float | None = THRESHOLD_QUERY,
+    p: Principal = Depends(current_user),
 ) -> Analysis:
     """The full analysis, with events, species and metrics recomputed at ``threshold``."""
+    authorize_analysis(request, analysis_id, p, Role.viewer)
     return container(request).analysis.view(analysis_id, threshold)
 
 
 @router.delete("/analyses/{analysis_id}", status_code=204, responses=ERRORS)
-def delete_analysis(analysis_id: str, request: Request) -> Response:
+def delete_analysis(
+    analysis_id: str, request: Request, p: Principal = Depends(current_user)
+) -> Response:
     """Delete the analysis, its detections, reviews, spectrogram and any retained audio."""
-    container(request).analysis.delete(analysis_id)
+    authorize_analysis(request, analysis_id, p, Role.manager)
+    c = container(request)
+    recording_id = c.platform.recording_id_for_analysis(analysis_id)
+    c.analysis.delete(analysis_id)
+    if recording_id:
+        c.rollups.remove_recording(recording_id)
     return Response(status_code=204)
 
 
@@ -145,7 +248,10 @@ def delete_analysis(analysis_id: str, request: Request) -> Response:
     response_class=FileResponse,
     responses={200: {"content": {"image/png": {}}}, **ERRORS},
 )
-def analysis_spectrogram(analysis_id: str, request: Request) -> FileResponse:
+def analysis_spectrogram(
+    analysis_id: str, request: Request, p: Principal = Depends(current_user)
+) -> FileResponse:
+    authorize_analysis(request, analysis_id, p, Role.viewer)
     c = container(request)
     path = c.storage.spectrogram_path(analysis_id)  # validates the id
     row = c.repo.get_analysis(analysis_id)
@@ -163,8 +269,11 @@ def analysis_spectrogram(analysis_id: str, request: Request) -> FileResponse:
     response_class=FileResponse,
     responses={200: {"content": {"audio/wav": {}}}, **ERRORS},
 )
-def analysis_audio(analysis_id: str, request: Request) -> FileResponse:
+def analysis_audio(
+    analysis_id: str, request: Request, p: Principal = Depends(current_user)
+) -> FileResponse:
     """Normalized audio (48 kHz mono WAV). Only when the server retains audio."""
+    authorize_analysis(request, analysis_id, p, Role.viewer)
     c = container(request)
     path = c.storage.audio_path(analysis_id)
     bundle = c.repo.load_bundle(analysis_id, with_detections=False)
@@ -185,8 +294,12 @@ def analysis_audio(analysis_id: str, request: Request) -> FileResponse:
     responses={200: {"content": {"text/csv": {}}}, **ERRORS},
 )
 def export_csv(
-    analysis_id: str, request: Request, threshold: float | None = THRESHOLD_QUERY
+    analysis_id: str,
+    request: Request,
+    threshold: float | None = THRESHOLD_QUERY,
+    p: Principal = Depends(current_user),
 ) -> Response:
+    authorize_analysis(request, analysis_id, p, Role.viewer)
     analysis = container(request).analysis.view(analysis_id, threshold)
     _require_completed(analysis)
     return Response(
@@ -200,8 +313,12 @@ def export_csv(
 
 @router.get("/analyses/{analysis_id}/export.json", response_model=AnalysisExport, responses=ERRORS)
 def export_json(
-    analysis_id: str, request: Request, threshold: float | None = THRESHOLD_QUERY
+    analysis_id: str,
+    request: Request,
+    threshold: float | None = THRESHOLD_QUERY,
+    p: Principal = Depends(current_user),
 ) -> JSONResponse:
+    authorize_analysis(request, analysis_id, p, Role.viewer)
     analysis = container(request).analysis.view(analysis_id, threshold)
     _require_completed(analysis)
     return JSONResponse(

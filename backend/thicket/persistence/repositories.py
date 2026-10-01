@@ -12,7 +12,7 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 
 from thicket.domain.consolidation import WindowDetection
-from thicket.ids import new_id
+from thicket.ids import LOCAL_ORG_ID, new_id
 from thicket.persistence.db import (
     AnalysisRow,
     Database,
@@ -62,22 +62,50 @@ class Repository:
         recording: RecordingRow,
         analysis: AnalysisRow,
     ) -> None:
+        """Insert a recording and its queued analysis.
+
+        A recording always belongs to an organization (the implicit local
+        workspace when none is given). ``site_name`` without ``site_id`` finds
+        or creates the site of that name inside the same organization.
+        """
         with self.db.session() as s:
-            if recording.site_name:
+            if not recording.organization_id:
+                recording.organization_id = LOCAL_ORG_ID
+            if recording.site_id:
+                site = s.get(SiteRow, recording.site_id)
+                if site is not None:
+                    if not recording.site_name:
+                        recording.site_name = site.name
+                    if recording.latitude is None and site.latitude is not None:
+                        recording.latitude, recording.longitude = site.latitude, site.longitude
+            elif recording.site_name:
                 recording.site_id = self._site_id(
-                    s, recording.site_name, recording.latitude, recording.longitude
+                    s,
+                    recording.organization_id,
+                    recording.site_name,
+                    recording.latitude,
+                    recording.longitude,
                 )
             s.add(recording)
             s.flush()
             s.add(analysis)
 
     @staticmethod
-    def _site_id(s, name: str, lat: float | None, lon: float | None) -> str:  # type: ignore[no-untyped-def]
+    def _site_id(s, org_id: str, name: str, lat: float | None, lon: float | None) -> str:  # type: ignore[no-untyped-def]
         row = s.execute(
-            select(SiteRow).where(func.lower(SiteRow.name) == name.lower()).limit(1)
+            select(SiteRow)
+            .where(SiteRow.organization_id == org_id, func.lower(SiteRow.name) == name.lower())
+            .limit(1)
         ).scalar_one_or_none()
         if row is None:
-            row = SiteRow(id=new_id("site"), name=name, latitude=lat, longitude=lon)
+            row = SiteRow(
+                id=new_id("site"),
+                organization_id=org_id,
+                name=name,
+                latitude=lat,
+                longitude=lon,
+                auto_created=True,
+            )
             s.add(row)
             s.flush()
         elif row.latitude is None and lat is not None:
@@ -120,12 +148,14 @@ class Repository:
         detections: Sequence[WindowDetection],
         storage_uri: str | None,
         duration_seconds: float | None = None,
+        signal_profile: dict | None = None,
     ) -> bool:
         """Persist results and mark completed. False if the analysis is gone or already final.
 
         ``duration_seconds`` is the decoded duration; it replaces the container's
         declared duration on the recording so rates and time axes match the audio
-        that was actually analyzed.
+        that was actually analyzed. ``signal_profile`` is stored on the recording
+        for recorder health baselines.
         """
         with self.db.session() as s:
             row = s.get(AnalysisRow, analysis_id, with_for_update=True)
@@ -161,13 +191,15 @@ class Repository:
             row.status = "completed"
             row.stage = "completed"
             row.completed_at = utcnow()
-            if storage_uri or duration_seconds is not None:
+            if storage_uri or duration_seconds is not None or signal_profile is not None:
                 rec = s.get(RecordingRow, row.recording_id)
                 if rec is not None:
                     if storage_uri:
                         rec.storage_uri = storage_uri
                     if duration_seconds is not None:
                         rec.duration_seconds = duration_seconds
+                    if signal_profile is not None:
+                        rec.signal_profile = signal_profile
             return True
 
     def fail(
@@ -251,13 +283,21 @@ class Repository:
             analysis=row, recording=rec, model_runs=runs, raw=raw, reviews=reviews
         )
 
-    def list_recent(self, limit: int = 20) -> list[AnalysisBundle]:
+    def list_recent(
+        self, limit: int = 20, org_ids: Sequence[str] | None = None
+    ) -> list[AnalysisBundle]:
+        """Most recent analyses, optionally only those whose recording is in ``org_ids``."""
         with self.db.session() as s:
+            q = select(AnalysisRow)
+            if org_ids is not None:
+                if not org_ids:
+                    return []
+                q = q.join(RecordingRow, RecordingRow.id == AnalysisRow.recording_id).where(
+                    RecordingRow.organization_id.in_(list(org_ids))
+                )
             rows = list(
                 s.execute(
-                    select(AnalysisRow)
-                    .order_by(AnalysisRow.created_at.desc(), AnalysisRow.id)
-                    .limit(limit)
+                    q.order_by(AnalysisRow.created_at.desc(), AnalysisRow.id).limit(limit)
                 ).scalars()
             )
             return [self._bundle(s, r, True) for r in rows]
@@ -293,8 +333,15 @@ class Repository:
 
     @staticmethod
     def _delete_orphan_site(s, site_id: str | None) -> None:  # type: ignore[no-untyped-def]
-        """Drop a site (name and coordinates) once no recording refers to it."""
+        """Drop an implicitly created site once no recording refers to it.
+
+        Sites created through the platform API (``auto_created`` false) are
+        explicit objects with deployments and history, so they stay.
+        """
         if site_id is None:
+            return
+        site = s.get(SiteRow, site_id)
+        if site is None or not site.auto_created:
             return
         users = s.execute(
             select(func.count()).select_from(RecordingRow).where(RecordingRow.site_id == site_id)
@@ -368,6 +415,7 @@ class Repository:
         resolved: tuple[str, str, str] | None,
         detection_ids: Sequence[str] | None = None,
         updated_at: datetime | None = None,
+        reviewed_by: str | None = None,
     ) -> None:
         """Create, update or (``unreviewed``) delete a review.
 
@@ -394,6 +442,8 @@ class Repository:
             if detection_ids is not None or row.detection_ids is not None:
                 merged = set(row.detection_ids or []) | set(detection_ids or [])
                 row.detection_ids = sorted(merged, key=_detection_sort_key)
+            if reviewed_by:
+                row.reviewed_by = reviewed_by
             row.updated_at = updated_at or utcnow()
 
 

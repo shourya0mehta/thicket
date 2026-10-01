@@ -28,6 +28,11 @@ ANALYSIS_FIELDS = frozenset(
         "site_name",
         "notes",
         "recorder_type",
+        # platform (schema 3)
+        "organization_id",
+        "site_id",
+        "deployment_id",
+        "recorder_id",
     }
 )
 MAX_MODELS = 4
@@ -46,6 +51,16 @@ class AnalysisParams:
     site_name: str | None = None
     notes: str | None = None
     recorder_type: str | None = None
+    # Platform tenancy. ``organization_id`` is filled in by the route (the
+    # caller's organization, or the implicit local workspace).
+    organization_id: str | None = None
+    site_id: str | None = None
+    deployment_id: str | None = None
+    recorder_id: str | None = None
+    captured_at_source: str = "unknown"
+    telemetry: dict | None = None
+    source_filename: str | None = None
+    batch_job_id: str | None = None
 
     @property
     def recording_date(self) -> date | None:
@@ -170,4 +185,21 @@ def parse_analysis_params(
         site_name=clean_text(fields.get("site_name"), 200, "site_name"),
         notes=clean_text(fields.get("notes"), 2000, "notes"),
         recorder_type=clean_text(fields.get("recorder_type"), 200, "recorder_type"),
+        organization_id=_ref(fields.get("organization_id"), "org", "organization_id"),
+        site_id=_ref(fields.get("site_id"), "site", "site_id"),
+        deployment_id=_ref(fields.get("deployment_id"), "dep", "deployment_id"),
+        recorder_id=_ref(fields.get("recorder_id"), "rcd", "recorder_id"),
+        captured_at_source="user" if captured is not None else "unknown",
     )
+
+
+def _ref(value: str | None, prefix: str, field: str) -> str | None:
+    """A platform id (validated shape only; existence is checked by the route)."""
+    from thicket.ids import is_valid_id
+
+    text = clean_text(value, 64, field)
+    if text is None:
+        return None
+    if not is_valid_id(text, prefix):  # type: ignore[arg-type]
+        raise invalid_parameter(f"{field} is not a valid id.", field=field)
+    return text

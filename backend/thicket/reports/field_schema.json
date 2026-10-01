@@ -1,0 +1,1739 @@
+{
+  "report_field_schema": {
+    "version": "0.1",
+    "source": "docs/REPORTING.md section 7",
+    "groups": [
+      "identity",
+      "location",
+      "deployment",
+      "review",
+      "nrcs",
+      "aem",
+      "certification",
+      "credit",
+      "statements"
+    ],
+    "templates": {
+      "a": "evidence",
+      "b": "nrcs",
+      "c": "aem",
+      "d": "certification",
+      "e": "credit"
+    },
+    "fields": [
+      {
+        "name": "report_title",
+        "type": "string",
+        "group": "identity",
+        "templates": [
+          "a",
+          "b",
+          "c",
+          "d",
+          "e"
+        ],
+        "example": "Spring 2027 acoustic survey, north pasture",
+        "label": "Report title",
+        "help": "Shown on the cover. Say what, where and when.",
+        "required": true
+      },
+      {
+        "name": "organization_name",
+        "type": "string",
+        "group": "identity",
+        "templates": [
+          "a",
+          "b",
+          "c",
+          "d",
+          "e"
+        ],
+        "example": "Fall Creek Grazing LLC",
+        "label": "Organization name",
+        "help": "The farm, land trust, agency or project the report is prepared under.",
+        "required": true
+      },
+      {
+        "name": "preparer_name",
+        "type": "string",
+        "group": "identity",
+        "templates": [
+          "a",
+          "b",
+          "c",
+          "d",
+          "e"
+        ],
+        "example": "Shourya Mehta",
+        "label": "Prepared by (name)",
+        "help": "The person who assembled this report. Thicket cannot sign anything; this name does.",
+        "required": true
+      },
+      {
+        "name": "preparer_role",
+        "type": "string",
+        "group": "identity",
+        "templates": [
+          "a",
+          "b",
+          "c",
+          "d",
+          "e"
+        ],
+        "example": "Farm manager",
+        "label": "Preparer's role",
+        "help": "Relationship to the land or project, for example farm manager or project ecologist.",
+        "required": false
+      },
+      {
+        "name": "prepared_for",
+        "type": "string",
+        "group": "identity",
+        "templates": [
+          "a",
+          "d",
+          "e"
+        ],
+        "example": "Tompkins County SWCD",
+        "label": "Prepared for",
+        "help": "Who will read it: a planner, certifier, verifier or reviewer.",
+        "required": false
+      },
+      {
+        "name": "property_name",
+        "type": "string",
+        "group": "location",
+        "templates": [
+          "a",
+          "b",
+          "c",
+          "d",
+          "e"
+        ],
+        "example": "Hilltop Farm",
+        "label": "Property name",
+        "help": "Name of the property or holding the sites belong to.",
+        "required": false
+      },
+      {
+        "name": "property_address",
+        "type": "string",
+        "group": "location",
+        "templates": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "example": "123 Ellis Hollow Rd, Ithaca, NY 14850",
+        "label": "Property address",
+        "help": "Street address or a locating description of the property.",
+        "required": false
+      },
+      {
+        "name": "county",
+        "type": "string",
+        "group": "location",
+        "templates": [
+          "a",
+          "b",
+          "c"
+        ],
+        "example": "Tompkins",
+        "label": "County",
+        "help": "County where the sites are.",
+        "required": false
+      },
+      {
+        "name": "state",
+        "type": "string",
+        "group": "location",
+        "templates": [
+          "a",
+          "b",
+          "c"
+        ],
+        "example": "NY",
+        "label": "State",
+        "help": "Two-letter state or province code.",
+        "required": false
+      },
+      {
+        "name": "monitoring_objective",
+        "type": "text",
+        "group": "identity",
+        "templates": [
+          "a",
+          "d",
+          "e"
+        ],
+        "example": "Document grassland bird use of the rotationally grazed north pasture",
+        "label": "Monitoring objective",
+        "help": "One or two sentences on why the recordings were made and what they are meant to show.",
+        "required": false
+      },
+      {
+        "name": "habitat_type",
+        "type": "enum",
+        "group": "location",
+        "options": [
+          "pasture",
+          "hayfield",
+          "cropland",
+          "shrubland",
+          "forest",
+          "wetland",
+          "riparian buffer",
+          "farmstead",
+          "other"
+        ],
+        "templates": [
+          "a",
+          "b",
+          "c",
+          "d",
+          "e"
+        ],
+        "example": "pasture",
+        "label": "Habitat type",
+        "help": "Dominant habitat at the monitored sites. Site records in Thicket can override this per site.",
+        "required": false
+      },
+      {
+        "name": "land_use",
+        "type": "string",
+        "group": "location",
+        "templates": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "example": "Rotational grazing, 12 paddocks",
+        "label": "Land use",
+        "help": "How the land is used during the monitoring period.",
+        "required": false
+      },
+      {
+        "name": "site_field_map",
+        "type": "list",
+        "group": "location",
+        "item": {
+          "site_name": "string",
+          "fsa_field_number": "string",
+          "paddock_id": "string"
+        },
+        "templates": [
+          "b",
+          "c",
+          "d"
+        ],
+        "example": [
+          {
+            "site_name": "North pasture",
+            "fsa_field_number": "4",
+            "paddock_id": "P4"
+          }
+        ],
+        "label": "Site to field mapping",
+        "help": "Which Thicket site sits in which FSA field number or paddock, one row per site.",
+        "required": false
+      },
+      {
+        "name": "recorder_make",
+        "type": "string",
+        "group": "deployment",
+        "templates": [
+          "a",
+          "b",
+          "c",
+          "d",
+          "e"
+        ],
+        "example": "Open Acoustic Devices",
+        "label": "Recorder make",
+        "help": "Manufacturer of the recorder (filled from the deployment record when known).",
+        "required": false
+      },
+      {
+        "name": "recorder_model",
+        "type": "string",
+        "group": "deployment",
+        "templates": [
+          "a",
+          "b",
+          "c",
+          "d",
+          "e"
+        ],
+        "example": "AudioMoth 1.2.0",
+        "label": "Recorder model",
+        "help": "Recorder model and hardware revision.",
+        "required": false
+      },
+      {
+        "name": "recorder_serial",
+        "type": "string",
+        "group": "deployment",
+        "templates": [
+          "a",
+          "e"
+        ],
+        "example": "24A1F3C9",
+        "label": "Recorder serial number",
+        "help": "Serial number or device id printed on or in the recorder.",
+        "required": false
+      },
+      {
+        "name": "firmware_version",
+        "type": "string",
+        "group": "deployment",
+        "templates": [
+          "a",
+          "e"
+        ],
+        "example": "1.11.0",
+        "label": "Firmware version",
+        "help": "Firmware version running on the recorder.",
+        "required": false
+      },
+      {
+        "name": "microphone_type",
+        "type": "string",
+        "group": "deployment",
+        "templates": [
+          "a",
+          "e"
+        ],
+        "example": "Built-in MEMS",
+        "label": "Microphone type",
+        "help": "Built-in or external microphone, and its type.",
+        "required": false
+      },
+      {
+        "name": "mount_height_m",
+        "type": "number",
+        "group": "deployment",
+        "templates": [
+          "a",
+          "c",
+          "d",
+          "e"
+        ],
+        "example": 1.5,
+        "label": "Mount height (m)",
+        "help": "Height of the microphone above ground, in meters.",
+        "required": false
+      },
+      {
+        "name": "orientation",
+        "type": "string",
+        "group": "deployment",
+        "templates": [
+          "a",
+          "e"
+        ],
+        "example": "Facing south, open aspect",
+        "label": "Orientation",
+        "help": "Compass direction the microphone faced, and whether the aspect was open or shielded.",
+        "required": false
+      },
+      {
+        "name": "gain_setting",
+        "type": "string",
+        "group": "deployment",
+        "templates": [
+          "a",
+          "e"
+        ],
+        "example": "Medium",
+        "label": "Gain setting",
+        "help": "Gain or sensitivity setting used.",
+        "required": false
+      },
+      {
+        "name": "sample_rate_setting",
+        "type": "integer",
+        "group": "deployment",
+        "templates": [
+          "a",
+          "e"
+        ],
+        "example": 48000,
+        "label": "Sample rate setting (Hz)",
+        "help": "Sample rate the recorder was set to, in Hz.",
+        "required": false
+      },
+      {
+        "name": "recording_schedule",
+        "type": "string",
+        "group": "deployment",
+        "templates": [
+          "a",
+          "c",
+          "d",
+          "e"
+        ],
+        "example": "1 min every 5 min, 04:30 to 09:30 and 19:00 to 22:00",
+        "label": "Recording schedule",
+        "help": "Duty cycle and daily windows, for example 1 min every 5 min from 04:30 to 09:30.",
+        "required": false
+      },
+      {
+        "name": "deployment_start",
+        "type": "datetime",
+        "group": "deployment",
+        "templates": [
+          "a",
+          "b",
+          "c",
+          "d",
+          "e"
+        ],
+        "example": "2027-05-10T18:00:00-04:00",
+        "label": "Deployment start",
+        "help": "When the recorder was switched on in the field.",
+        "required": false
+      },
+      {
+        "name": "deployment_end",
+        "type": "datetime",
+        "group": "deployment",
+        "templates": [
+          "a",
+          "b",
+          "c",
+          "d",
+          "e"
+        ],
+        "example": "2027-05-17T09:00:00-04:00",
+        "label": "Deployment end",
+        "help": "When the recorder was collected. Leave blank if it is still out.",
+        "required": false
+      },
+      {
+        "name": "gps_accuracy_m",
+        "type": "number",
+        "group": "deployment",
+        "templates": [
+          "a",
+          "e"
+        ],
+        "example": 4,
+        "label": "GPS accuracy (m)",
+        "help": "Reported accuracy of the recorder coordinates, in meters.",
+        "required": false
+      },
+      {
+        "name": "distance_to_edge_m",
+        "type": "number",
+        "group": "deployment",
+        "templates": [
+          "a",
+          "e"
+        ],
+        "example": 60,
+        "label": "Distance to habitat edge (m)",
+        "help": "Distance from the recorder to the nearest habitat edge, in meters.",
+        "required": false
+      },
+      {
+        "name": "deployment_photo",
+        "type": "file",
+        "group": "deployment",
+        "templates": [
+          "a",
+          "b",
+          "c",
+          "e"
+        ],
+        "example": "north_pasture_recorder.jpg",
+        "label": "Deployment photo",
+        "help": "Upload a photo of the recorder in place (png or jpg). It is placed on the site page.",
+        "required": false
+      },
+      {
+        "name": "deployed_by",
+        "type": "string",
+        "group": "deployment",
+        "templates": [
+          "a",
+          "b",
+          "c",
+          "e"
+        ],
+        "example": "S. Mehta",
+        "label": "Deployed by",
+        "help": "Who placed and collected the recorder.",
+        "required": false
+      },
+      {
+        "name": "weather_summary",
+        "type": "text",
+        "group": "deployment",
+        "templates": [
+          "a",
+          "b",
+          "e"
+        ],
+        "example": "Clear, 8 to 14 C, wind under 3 m/s on survey mornings",
+        "label": "Weather summary",
+        "help": "Weather during the recording windows, especially wind and rain.",
+        "required": false
+      },
+      {
+        "name": "survey_protocol_reference",
+        "type": "string",
+        "group": "deployment",
+        "templates": [
+          "a",
+          "e"
+        ],
+        "example": "UK ecoacoustic good practice quick-start, adapted",
+        "label": "Survey protocol reference",
+        "help": "A published protocol or guideline the deployment followed, if any.",
+        "required": false
+      },
+      {
+        "name": "reviewer_name",
+        "type": "string",
+        "group": "review",
+        "templates": [
+          "a",
+          "d",
+          "e"
+        ],
+        "example": "J. Doe",
+        "label": "Reviewer name",
+        "help": "Who listened to and reviewed detection events.",
+        "required": false
+      },
+      {
+        "name": "reviewer_qualifications",
+        "type": "text",
+        "group": "review",
+        "templates": [
+          "a",
+          "e"
+        ],
+        "example": "10 years NY breeding bird atlas volunteer; eBird reviewer",
+        "label": "Reviewer qualifications",
+        "help": "Experience relevant to identifying the species by sound.",
+        "required": false
+      },
+      {
+        "name": "review_date",
+        "type": "date",
+        "group": "review",
+        "templates": [
+          "a",
+          "d",
+          "e"
+        ],
+        "example": "2027-05-20",
+        "label": "Review date",
+        "help": "When the review was done.",
+        "required": false
+      },
+      {
+        "name": "validation_method",
+        "type": "text",
+        "group": "review",
+        "templates": [
+          "a",
+          "e"
+        ],
+        "example": "All events above 0.60 listened to; 20 random events per species below 0.60",
+        "label": "Validation method",
+        "help": "How events were chosen for review and what was checked.",
+        "required": false
+      },
+      {
+        "name": "analytics_provider",
+        "type": "string",
+        "group": "review",
+        "templates": [
+          "e"
+        ],
+        "example": "Approved PV Nature data analytics provider name",
+        "label": "Analytics provider",
+        "help": "For PV Nature: the approved third-party data analytics provider responsible for species identification.",
+        "required": false
+      },
+      {
+        "name": "participant_name",
+        "type": "string",
+        "group": "nrcs",
+        "templates": [
+          "b"
+        ],
+        "example": "Jane Farmer",
+        "label": "Participant name (as on contract)",
+        "help": "Exactly as it appears on the NRCS contract.",
+        "required": true
+      },
+      {
+        "name": "nrcs_program",
+        "type": "enum",
+        "group": "nrcs",
+        "options": [
+          "EQIP",
+          "CSP",
+          "RCPP",
+          "other"
+        ],
+        "templates": [
+          "b"
+        ],
+        "example": "CSP",
+        "label": "NRCS program",
+        "help": "EQIP, CSP, RCPP or other.",
+        "required": true
+      },
+      {
+        "name": "nrcs_contract_number",
+        "type": "string",
+        "group": "nrcs",
+        "templates": [
+          "b"
+        ],
+        "example": "74-2B29-26-123",
+        "label": "NRCS contract number",
+        "help": "Contract number from the CPA-1202.",
+        "required": false
+      },
+      {
+        "name": "fsa_farm_number",
+        "type": "string",
+        "group": "nrcs",
+        "templates": [
+          "b",
+          "c"
+        ],
+        "example": "1234",
+        "label": "FSA farm number",
+        "help": "Farm number from FSA-156EZ or farmers.gov.",
+        "required": false
+      },
+      {
+        "name": "fsa_tract_number",
+        "type": "string",
+        "group": "nrcs",
+        "templates": [
+          "b",
+          "c"
+        ],
+        "example": "5678",
+        "label": "FSA tract number",
+        "help": "Tract number from FSA records.",
+        "required": false
+      },
+      {
+        "name": "fsa_field_numbers",
+        "type": "list",
+        "group": "nrcs",
+        "item": "string",
+        "templates": [
+          "b",
+          "c"
+        ],
+        "example": [
+          "3",
+          "4"
+        ],
+        "label": "FSA field numbers",
+        "help": "Field numbers covered by the recordings.",
+        "required": false
+      },
+      {
+        "name": "practice_code",
+        "type": "string",
+        "group": "nrcs",
+        "templates": [
+          "b",
+          "c"
+        ],
+        "example": "645",
+        "label": "Practice code",
+        "help": "NRCS conservation practice code, for example 645.",
+        "required": false
+      },
+      {
+        "name": "practice_name",
+        "type": "string",
+        "group": "nrcs",
+        "templates": [
+          "b",
+          "c"
+        ],
+        "example": "Upland Wildlife Habitat Management",
+        "label": "Practice name",
+        "help": "Name of the practice as in the standard.",
+        "required": false
+      },
+      {
+        "name": "enhancement_code",
+        "type": "string",
+        "group": "nrcs",
+        "templates": [
+          "b"
+        ],
+        "example": "E645D",
+        "label": "Enhancement code",
+        "help": "CSP enhancement code, for example E645D.",
+        "required": false
+      },
+      {
+        "name": "contract_item_number",
+        "type": "string",
+        "group": "nrcs",
+        "templates": [
+          "b"
+        ],
+        "example": "3",
+        "label": "Contract item number",
+        "help": "Contract item number (CIN) the documentation supports.",
+        "required": false
+      },
+      {
+        "name": "planned_amount",
+        "type": "number",
+        "group": "nrcs",
+        "templates": [
+          "b"
+        ],
+        "example": 42.0,
+        "label": "Planned amount",
+        "help": "Planned amount from the schedule of operations.",
+        "required": false
+      },
+      {
+        "name": "applied_amount",
+        "type": "number",
+        "group": "nrcs",
+        "templates": [
+          "b"
+        ],
+        "example": 42.0,
+        "label": "Applied amount",
+        "help": "Amount applied so far.",
+        "required": false
+      },
+      {
+        "name": "amount_unit",
+        "type": "enum",
+        "group": "nrcs",
+        "options": [
+          "ac",
+          "ft",
+          "no",
+          "ea"
+        ],
+        "templates": [
+          "b"
+        ],
+        "example": "ac",
+        "label": "Amount unit",
+        "help": "Unit of the amounts: ac, ft, no or ea.",
+        "required": false
+      },
+      {
+        "name": "fiscal_year",
+        "type": "integer",
+        "group": "nrcs",
+        "templates": [
+          "b"
+        ],
+        "example": 2027,
+        "label": "Fiscal year",
+        "help": "Fiscal year the item is scheduled or completed in.",
+        "required": false
+      },
+      {
+        "name": "nrcs_planner_name",
+        "type": "string",
+        "group": "nrcs",
+        "templates": [
+          "b"
+        ],
+        "example": "District Conservationist name",
+        "label": "NRCS planner name",
+        "help": "District conservationist or planner handling the case file.",
+        "required": false
+      },
+      {
+        "name": "conservation_plan_id",
+        "type": "string",
+        "group": "nrcs",
+        "templates": [
+          "b"
+        ],
+        "example": "NY-TOMP-00123",
+        "label": "Conservation plan ID",
+        "help": "Conservation plan identifier from the case file.",
+        "required": false
+      },
+      {
+        "name": "target_species",
+        "type": "list",
+        "group": "nrcs",
+        "item": "string",
+        "templates": [
+          "b",
+          "d"
+        ],
+        "example": [
+          "Bobolink",
+          "Eastern Meadowlark",
+          "Savannah Sparrow"
+        ],
+        "label": "Target species",
+        "help": "Species named in the plan that the monitoring looks for.",
+        "required": false
+      },
+      {
+        "name": "habitat_objectives",
+        "type": "text",
+        "group": "nrcs",
+        "templates": [
+          "b"
+        ],
+        "example": "Maintain 8 to 12 inch residual cover through July 15",
+        "label": "Habitat objectives",
+        "help": "Habitat objectives from the plan, in the planner's words.",
+        "required": false
+      },
+      {
+        "name": "limiting_factors",
+        "type": "text",
+        "group": "nrcs",
+        "templates": [
+          "b"
+        ],
+        "example": "Early hay cutting; lack of residual cover",
+        "label": "Limiting factors",
+        "help": "Habitat-limiting factors identified in the evaluation.",
+        "required": false
+      },
+      {
+        "name": "habitat_management_plan_reference",
+        "type": "string",
+        "group": "nrcs",
+        "templates": [
+          "b",
+          "d"
+        ],
+        "example": "WHMP dated 2026-11-02",
+        "label": "Habitat management plan reference",
+        "help": "Title and date of the plan this evidence supports.",
+        "required": false
+      },
+      {
+        "name": "management_action_dates",
+        "type": "list",
+        "group": "nrcs",
+        "item": {
+          "action": "string",
+          "date": "date"
+        },
+        "templates": [
+          "b",
+          "c",
+          "d"
+        ],
+        "example": [
+          {
+            "action": "Delayed first cut",
+            "date": "2027-07-20"
+          }
+        ],
+        "label": "Management actions and dates",
+        "help": "Dated management actions during the period, one row each.",
+        "required": false
+      },
+      {
+        "name": "tract_map_image",
+        "type": "file",
+        "group": "nrcs",
+        "templates": [
+          "b"
+        ],
+        "example": "fsa_tract_5678.png",
+        "label": "Tract map image",
+        "help": "Upload the FSA tract map (png or jpg); recorder points are described next to it.",
+        "required": false
+      },
+      {
+        "name": "aem_id",
+        "type": "string",
+        "group": "aem",
+        "templates": [
+          "c"
+        ],
+        "example": "T-0456",
+        "label": "AEM identification number",
+        "help": "Tier 1 AEM identification number.",
+        "required": true
+      },
+      {
+        "name": "county_swcd",
+        "type": "string",
+        "group": "aem",
+        "templates": [
+          "c"
+        ],
+        "example": "Tompkins County SWCD",
+        "label": "County SWCD",
+        "help": "County Soil and Water Conservation District.",
+        "required": false
+      },
+      {
+        "name": "swcd_planner_name",
+        "type": "string",
+        "group": "aem",
+        "templates": [
+          "c"
+        ],
+        "example": "Planner name",
+        "label": "SWCD planner name",
+        "help": "District planner doing the evaluation.",
+        "required": false
+      },
+      {
+        "name": "evaluating_agency",
+        "type": "string",
+        "group": "aem",
+        "templates": [
+          "c"
+        ],
+        "example": "Tompkins County SWCD",
+        "label": "Evaluating agency",
+        "help": "Agency responsible for the evaluation.",
+        "required": false
+      },
+      {
+        "name": "farm_name",
+        "type": "string",
+        "group": "aem",
+        "templates": [
+          "c"
+        ],
+        "example": "Hilltop Farm",
+        "label": "Farm name",
+        "help": "Farm name as on the AEM Tier 1 form.",
+        "required": true
+      },
+      {
+        "name": "owner_name",
+        "type": "string",
+        "group": "aem",
+        "templates": [
+          "c"
+        ],
+        "example": "Jane Farmer",
+        "label": "Owner name",
+        "help": "Owner's name as on the Tier 1 form.",
+        "required": false
+      },
+      {
+        "name": "operator_name",
+        "type": "string",
+        "group": "aem",
+        "templates": [
+          "c"
+        ],
+        "example": "Jane Farmer",
+        "label": "Operator name",
+        "help": "Operator's name as on the Tier 1 form.",
+        "required": false
+      },
+      {
+        "name": "watershed_name",
+        "type": "string",
+        "group": "aem",
+        "templates": [
+          "c"
+        ],
+        "example": "Fall Creek",
+        "label": "Watershed name",
+        "help": "Watershed from the Tier 1 form.",
+        "required": false
+      },
+      {
+        "name": "huc12",
+        "type": "string",
+        "group": "aem",
+        "templates": [
+          "c",
+          "e"
+        ],
+        "example": "041402010304",
+        "label": "HUC-12 code",
+        "help": "12-digit hydrologic unit code.",
+        "required": false
+      },
+      {
+        "name": "aem_tier",
+        "type": "enum",
+        "group": "aem",
+        "options": [
+          "5A",
+          "5B"
+        ],
+        "templates": [
+          "c"
+        ],
+        "example": "5B",
+        "label": "AEM tier",
+        "help": "5A (business practice changes) or 5B (installed BMP evaluation).",
+        "required": false
+      },
+      {
+        "name": "bmp_system",
+        "type": "enum",
+        "group": "aem",
+        "options": [
+          "Riparian Buffer System",
+          "Access Control System",
+          "Prescribed Rotational Grazing System",
+          "Stream Corridor and Shoreline Management System",
+          "Forestry / Agroforestry System",
+          "Soil Health System",
+          "other"
+        ],
+        "templates": [
+          "c"
+        ],
+        "example": "Access Control System",
+        "label": "BMP system",
+        "help": "BMP system from the NYS Agricultural BMP Systems Catalogue.",
+        "required": false
+      },
+      {
+        "name": "bmp_install_date",
+        "type": "date",
+        "group": "aem",
+        "templates": [
+          "c"
+        ],
+        "example": "2025-09-30",
+        "label": "BMP installation date",
+        "help": "Date the BMP was completed.",
+        "required": false
+      },
+      {
+        "name": "funding_program",
+        "type": "enum",
+        "group": "aem",
+        "options": [
+          "AgNPS",
+          "CRF",
+          "EQIP",
+          "CSP",
+          "self-funded",
+          "other"
+        ],
+        "templates": [
+          "c"
+        ],
+        "example": "AgNPS",
+        "label": "Funding program",
+        "help": "Program that funded the BMP.",
+        "required": false
+      },
+      {
+        "name": "project_contract_number",
+        "type": "string",
+        "group": "aem",
+        "templates": [
+          "c"
+        ],
+        "example": "C00xxxx",
+        "label": "Project or contract number",
+        "help": "Project or contract number for the BMP.",
+        "required": false
+      },
+      {
+        "name": "tier2_worksheets_completed",
+        "type": "list",
+        "group": "aem",
+        "item": "string",
+        "templates": [
+          "c"
+        ],
+        "example": [
+          "Pasture Management",
+          "Stream and Floodplain Management"
+        ],
+        "label": "Tier 2 worksheets completed",
+        "help": "Tier 2 worksheets this evidence relates to.",
+        "required": false
+      },
+      {
+        "name": "worksheet_rows_addressed",
+        "type": "list",
+        "group": "aem",
+        "item": "string",
+        "templates": [
+          "c"
+        ],
+        "example": [
+          "Stream and Floodplain 6 livestock access",
+          "Stream and Floodplain 8 streamside vegetation width"
+        ],
+        "label": "Worksheet rows addressed",
+        "help": "Specific worksheet rows the evidence speaks to.",
+        "required": false
+      },
+      {
+        "name": "level_of_concern_before",
+        "type": "integer",
+        "group": "aem",
+        "min": 1,
+        "max": 4,
+        "templates": [
+          "c"
+        ],
+        "example": 4,
+        "label": "Level of concern before (1 to 4)",
+        "help": "Planner's rating before the BMP, 1 (low) to 4 (high). The planner owns this rating.",
+        "required": false
+      },
+      {
+        "name": "level_of_concern_after",
+        "type": "integer",
+        "group": "aem",
+        "min": 1,
+        "max": 4,
+        "templates": [
+          "c"
+        ],
+        "example": 1,
+        "label": "Level of concern after (1 to 4)",
+        "help": "Planner's rating after the BMP, 1 (low) to 4 (high). The planner owns this rating.",
+        "required": false
+      },
+      {
+        "name": "planner_notes",
+        "type": "text",
+        "group": "aem",
+        "templates": [
+          "c"
+        ],
+        "example": "Buffer vegetation established; fence intact",
+        "label": "Planner notes",
+        "help": "Free text from the planner.",
+        "required": false
+      },
+      {
+        "name": "certification_program",
+        "type": "enum",
+        "group": "certification",
+        "options": [
+          "ROC",
+          "Land to Market EOV",
+          "Audubon Conservation Ranching",
+          "Regenified",
+          "A Greener World Certified Regenerative",
+          "Certified Wildlife Friendly",
+          "other"
+        ],
+        "templates": [
+          "d"
+        ],
+        "example": "Audubon Conservation Ranching",
+        "label": "Certification program",
+        "help": "Which certification the summary is for.",
+        "required": true
+      },
+      {
+        "name": "certifier_name",
+        "type": "string",
+        "group": "certification",
+        "templates": [
+          "d"
+        ],
+        "example": "FoodChain ID",
+        "label": "Certifier or verifier",
+        "help": "Certifier, verifier or hub doing the review.",
+        "required": false
+      },
+      {
+        "name": "certification_id",
+        "type": "string",
+        "group": "certification",
+        "templates": [
+          "d"
+        ],
+        "example": "ROC-2027-0001",
+        "label": "Certification ID",
+        "help": "Certificate or application number.",
+        "required": false
+      },
+      {
+        "name": "audit_date",
+        "type": "date",
+        "group": "certification",
+        "templates": [
+          "d"
+        ],
+        "example": "2027-08-15",
+        "label": "Audit date",
+        "help": "Date of the audit or verification visit.",
+        "required": false
+      },
+      {
+        "name": "operation_name",
+        "type": "string",
+        "group": "certification",
+        "templates": [
+          "d"
+        ],
+        "example": "Hilltop Farm",
+        "label": "Operation name",
+        "help": "Name of the operation under certification.",
+        "required": true
+      },
+      {
+        "name": "land_base_acres",
+        "type": "number",
+        "group": "certification",
+        "templates": [
+          "d"
+        ],
+        "example": 180,
+        "label": "Land base (acres)",
+        "help": "Total land base covered by the certification, in acres.",
+        "required": false
+      },
+      {
+        "name": "pasture_or_paddock_ids",
+        "type": "list",
+        "group": "certification",
+        "item": "string",
+        "templates": [
+          "d"
+        ],
+        "example": [
+          "P1",
+          "P2",
+          "P3"
+        ],
+        "label": "Pasture or paddock IDs",
+        "help": "Pastures or paddocks the sites fall in.",
+        "required": false
+      },
+      {
+        "name": "grazing_system_description",
+        "type": "text",
+        "group": "certification",
+        "templates": [
+          "d"
+        ],
+        "example": "Adaptive multi-paddock, 1 to 3 day moves, 35 day rest",
+        "label": "Grazing or cropping system",
+        "help": "How the land is grazed or cropped, including rest periods.",
+        "required": false
+      },
+      {
+        "name": "habitat_practices",
+        "type": "list",
+        "group": "certification",
+        "item": "string",
+        "templates": [
+          "d"
+        ],
+        "example": [
+          "Riparian Restoration",
+          "Wildlife Habitat"
+        ],
+        "label": "Habitat practices in place",
+        "help": "Habitat practices in place (for example the ROC 2.8 list).",
+        "required": false
+      },
+      {
+        "name": "hmp_reference",
+        "type": "string",
+        "group": "certification",
+        "templates": [
+          "d"
+        ],
+        "example": "ACR HMP approved 2026-10-01",
+        "label": "Habitat Management Plan reference",
+        "help": "Audubon Conservation Ranching Habitat Management Plan reference, if any.",
+        "required": false
+      },
+      {
+        "name": "priority_species",
+        "type": "list",
+        "group": "certification",
+        "item": "string",
+        "templates": [
+          "d"
+        ],
+        "example": [
+          "Bobolink",
+          "Grasshopper Sparrow"
+        ],
+        "label": "Priority species",
+        "help": "Species the program or plan treats as priority.",
+        "required": false
+      },
+      {
+        "name": "sensitive_areas",
+        "type": "text",
+        "group": "certification",
+        "templates": [
+          "d"
+        ],
+        "example": "Wet meadow in P7 excluded May to July",
+        "label": "Sensitive areas",
+        "help": "Areas with seasonal exclusions or special management.",
+        "required": false
+      },
+      {
+        "name": "eov_site_ids",
+        "type": "list",
+        "group": "certification",
+        "item": "string",
+        "templates": [
+          "d"
+        ],
+        "example": [
+          "LTM-1",
+          "LTM-2"
+        ],
+        "label": "EOV monitoring site IDs",
+        "help": "Land to Market EOV long-term monitoring site ids the Thicket sites map to.",
+        "required": false
+      },
+      {
+        "name": "management_changes_since_last_period",
+        "type": "text",
+        "group": "certification",
+        "templates": [
+          "c",
+          "d"
+        ],
+        "example": "Added 2 paddocks; first cut moved to after Aug 1",
+        "label": "Management changes since last period",
+        "help": "What changed on the land since the previous report.",
+        "required": false
+      },
+      {
+        "name": "project_id",
+        "type": "string",
+        "group": "credit",
+        "templates": [
+          "e"
+        ],
+        "example": "PV-N-0042",
+        "label": "Project ID",
+        "help": "Registry project identifier.",
+        "required": true
+      },
+      {
+        "name": "registry",
+        "type": "enum",
+        "group": "credit",
+        "options": [
+          "Verra",
+          "Plan Vivo",
+          "Wallacea Trust aligned",
+          "internal",
+          "other"
+        ],
+        "templates": [
+          "e"
+        ],
+        "example": "Plan Vivo",
+        "label": "Registry",
+        "help": "Registry or standard family the project is listed with.",
+        "required": true
+      },
+      {
+        "name": "standard_version",
+        "type": "string",
+        "group": "credit",
+        "templates": [
+          "e"
+        ],
+        "example": "PV Nature Methodology and Data Protocol v1.2",
+        "label": "Standard and version",
+        "help": "Exact standard, methodology and version.",
+        "required": true
+      },
+      {
+        "name": "project_proponent",
+        "type": "string",
+        "group": "credit",
+        "templates": [
+          "e"
+        ],
+        "example": "Hilltop Farm LLC",
+        "label": "Project proponent",
+        "help": "Legal entity responsible for the project.",
+        "required": false
+      },
+      {
+        "name": "monitoring_period_start",
+        "type": "date",
+        "group": "credit",
+        "templates": [
+          "c",
+          "d",
+          "e"
+        ],
+        "example": "2027-04-01",
+        "label": "Monitoring period start",
+        "help": "First day of the monitoring period under the standard.",
+        "required": false
+      },
+      {
+        "name": "monitoring_period_end",
+        "type": "date",
+        "group": "credit",
+        "templates": [
+          "c",
+          "d",
+          "e"
+        ],
+        "example": "2027-07-31",
+        "label": "Monitoring period end",
+        "help": "Last day of the monitoring period under the standard.",
+        "required": false
+      },
+      {
+        "name": "project_boundary_file",
+        "type": "file",
+        "group": "credit",
+        "templates": [
+          "e"
+        ],
+        "example": "boundary.geojson",
+        "label": "Project boundary file",
+        "help": "Upload the project boundary (image export of the map).",
+        "required": false
+      },
+      {
+        "name": "strata_definitions",
+        "type": "list",
+        "group": "credit",
+        "item": {
+          "stratum": "string",
+          "habitat_type": "string",
+          "hectares": "number"
+        },
+        "templates": [
+          "e"
+        ],
+        "example": [
+          {
+            "stratum": "S1",
+            "habitat_type": "pasture",
+            "hectares": 40
+          }
+        ],
+        "label": "Strata definitions",
+        "help": "Strata with habitat type and area, one row each.",
+        "required": false
+      },
+      {
+        "name": "vvb_name",
+        "type": "string",
+        "group": "credit",
+        "templates": [
+          "e"
+        ],
+        "example": "VVB name",
+        "label": "Validation/verification body",
+        "help": "Validation and verification body, if assigned.",
+        "required": false
+      },
+      {
+        "name": "land_tenure_note",
+        "type": "text",
+        "group": "credit",
+        "templates": [
+          "e"
+        ],
+        "example": "Owned in fee; no easement",
+        "label": "Land tenure note",
+        "help": "Ownership or easement situation of the land.",
+        "required": false
+      },
+      {
+        "name": "indicator_set",
+        "type": "list",
+        "group": "credit",
+        "item": "string",
+        "templates": [
+          "e"
+        ],
+        "example": [
+          "bird species richness (Hill q=0)",
+          "bird species diversity (Hill q=1)",
+          "ACI"
+        ],
+        "label": "Indicator set",
+        "help": "Indicators the monitoring plan commits to.",
+        "required": false
+      },
+      {
+        "name": "sampling_design_description",
+        "type": "text",
+        "group": "credit",
+        "templates": [
+          "e"
+        ],
+        "example": "1 point per 10 ha, stratified by habitat, 100 m spacing, 7 nights per season",
+        "label": "Sampling design",
+        "help": "Sites per stratum, spacing, effort, season and repeats.",
+        "required": false
+      },
+      {
+        "name": "reference_site_ids",
+        "type": "list",
+        "group": "credit",
+        "item": "string",
+        "templates": [
+          "e"
+        ],
+        "example": [
+          "REF-1"
+        ],
+        "label": "Reference site IDs",
+        "help": "Reference or control sites, if any.",
+        "required": false
+      },
+      {
+        "name": "deviations_from_plan",
+        "type": "text",
+        "group": "credit",
+        "templates": [
+          "e"
+        ],
+        "example": "Recorder at S1-3 failed night 4; redeployed night 5",
+        "label": "Deviations from the plan",
+        "help": "Anything that did not go as planned, and what was done about it.",
+        "required": false
+      },
+      {
+        "name": "chain_of_custody_notes",
+        "type": "text",
+        "group": "credit",
+        "templates": [
+          "a",
+          "e"
+        ],
+        "example": "SD cards collected by S. Mehta, uploaded same day, hashes recorded",
+        "label": "Chain of custody notes",
+        "help": "How files moved from the recorder to Thicket, and who handled them.",
+        "required": false
+      },
+      {
+        "name": "baseline_period_reference",
+        "type": "string",
+        "group": "credit",
+        "templates": [
+          "c",
+          "d",
+          "e"
+        ],
+        "example": "Spring 2026 analyses a1..a9",
+        "label": "Baseline period reference",
+        "help": "Which earlier analyses or period serve as the baseline.",
+        "required": false
+      },
+      {
+        "name": "baseline_analysis_ids",
+        "type": "list",
+        "group": "credit",
+        "item": "string",
+        "templates": [
+          "c",
+          "d",
+          "e"
+        ],
+        "example": [
+          "an_01HX..."
+        ],
+        "label": "Baseline analysis IDs",
+        "help": "Thicket analysis ids that form the baseline.",
+        "required": false
+      },
+      {
+        "name": "follow_up_analysis_ids",
+        "type": "list",
+        "group": "credit",
+        "item": "string",
+        "templates": [
+          "c",
+          "d",
+          "e"
+        ],
+        "example": [
+          "an_01HY..."
+        ],
+        "label": "Follow-up analysis IDs",
+        "help": "Thicket analysis ids that form the follow-up.",
+        "required": false
+      },
+      {
+        "name": "uncertainty_method",
+        "type": "text",
+        "group": "credit",
+        "templates": [
+          "e"
+        ],
+        "example": "Bootstrap over recordings, 95% CI",
+        "label": "Uncertainty method",
+        "help": "How intervals or uncertainty were estimated.",
+        "required": false
+      },
+      {
+        "name": "qaqc_notes",
+        "type": "text",
+        "group": "credit",
+        "templates": [
+          "e"
+        ],
+        "example": "3 recordings excluded for rain per QC head",
+        "label": "QA/QC notes",
+        "help": "Recordings excluded and why, duplicate and clock checks, other QA steps.",
+        "required": false
+      },
+      {
+        "name": "data_access_conditions",
+        "type": "text",
+        "group": "credit",
+        "templates": [
+          "e"
+        ],
+        "example": "Raw audio available to the VVB on request for 5 years",
+        "label": "Data access conditions",
+        "help": "Who can access raw audio and data, and for how long.",
+        "required": false
+      },
+      {
+        "name": "public_summary_text",
+        "type": "text",
+        "group": "credit",
+        "templates": [
+          "e"
+        ],
+        "example": "One paragraph for the public registry page",
+        "label": "Public summary",
+        "help": "One paragraph suitable for a public registry page.",
+        "required": false
+      },
+      {
+        "name": "audio_retention_statement",
+        "type": "text",
+        "group": "statements",
+        "templates": [
+          "a",
+          "b",
+          "e"
+        ],
+        "example": "Raw WAV retained offline for 5 years; Thicket RETAIN_AUDIO=false",
+        "label": "Audio retention statement",
+        "help": "Where the raw audio is kept, for how long, and the Thicket retention setting.",
+        "required": false
+      },
+      {
+        "name": "data_license",
+        "type": "enum",
+        "group": "statements",
+        "options": [
+          "CC BY 4.0",
+          "CC BY-NC 4.0",
+          "CC0",
+          "all rights reserved"
+        ],
+        "templates": [
+          "a",
+          "e"
+        ],
+        "example": "CC BY 4.0",
+        "label": "Data license",
+        "help": "License the exported data is shared under.",
+        "required": false
+      },
+      {
+        "name": "privacy_statement",
+        "type": "text",
+        "group": "statements",
+        "templates": [
+          "a",
+          "e"
+        ],
+        "example": "Recordings with detected speech were excluded from export",
+        "label": "Privacy statement",
+        "help": "How recordings with possible speech were handled.",
+        "required": false
+      },
+      {
+        "name": "landowner_consent",
+        "type": "boolean",
+        "group": "statements",
+        "templates": [
+          "a",
+          "e"
+        ],
+        "example": true,
+        "label": "Landowner consent to record",
+        "help": "Confirm the landowner agreed to acoustic recording on the land.",
+        "required": false
+      },
+      {
+        "name": "caveats_acknowledged",
+        "type": "boolean",
+        "group": "statements",
+        "templates": [
+          "a",
+          "b",
+          "c",
+          "d",
+          "e"
+        ],
+        "example": true,
+        "label": "Caveats acknowledged",
+        "help": "Confirm you have read the limitations page.",
+        "required": false
+      },
+      {
+        "name": "attestation_name",
+        "type": "string",
+        "group": "statements",
+        "templates": [
+          "a",
+          "b",
+          "c",
+          "d",
+          "e"
+        ],
+        "example": "Jane Farmer",
+        "label": "Attestation name",
+        "help": "Name of the person attesting that the report is accurate to their knowledge.",
+        "required": false
+      },
+      {
+        "name": "attestation_date",
+        "type": "date",
+        "group": "statements",
+        "templates": [
+          "a",
+          "b",
+          "c",
+          "d",
+          "e"
+        ],
+        "example": "2027-08-01",
+        "label": "Attestation date",
+        "help": "Date of the attestation.",
+        "required": false
+      }
+    ]
+  }
+}

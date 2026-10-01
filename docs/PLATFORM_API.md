@@ -167,3 +167,63 @@ MAX_BATCH_FILES=200
 MAX_BATCH_BYTES=2147483648
 REPORT_LOGO_PATH=
 ```
+
+## Implementation notes (backend, October 2026)
+
+The backend implements every route above. Where it had to pick a detail the
+tables leave open, or deviates, it is listed here with the reason. No model
+in `platform_schemas.py` was renamed, removed or given new fields.
+
+* **Error codes**: `ErrorCode` gained `unauthenticated` (401), `forbidden`
+  (403) and `conflict` (409, used for deletes refused while recordings exist,
+  the last owner, used or expired invites). `SCHEMA_VERSION` is 1.3.0; the
+  frontend's generated types need a regeneration for the new codes.
+* **Status codes**: creates return 201 (`POST /orgs`, sites, recorders,
+  deployments, invites, files); uploads and reports return 202 with a
+  `Location` header to poll.
+* **Foreign ids**: a resource addressed by id (`/sites/{id}`,
+  `/recordings/{id}`, `/analyses/{id}`, `/events/{id}`, `/reports/{id}`...) in
+  an organization the caller does not belong to answers 404, so ids do not
+  reveal existence. `/orgs/{org}/...` answers 403 to non-members.
+* **CSRF header**: required on mutating requests only when sign-in is on
+  (`dev` or `google`). With `AUTH_MODE=disabled` there is no session cookie and
+  the header is not needed, so existing single-analysis clients keep working.
+* **Invites**: `accept_url` is `FRONTEND_URL/#/invite/<token>`, valid 7 days,
+  and only accepted by a signed-in user whose email matches the invite (422
+  otherwise). Only an owner may invite another owner.
+* **Members**: `DELETE /orgs/{org}/members/{user_id}` by any member for
+  themselves (leave); the last owner can neither leave nor be demoted (409).
+* **`POST /analyses`**: without `organization_id` the caller's only
+  organization is used; 422 when they have several, 403 when they have none.
+  `site_id`, `deployment_id` and `recorder_id` must belong to that
+  organization (422 otherwise). Reviews (`PATCH /events/{id}`) need the
+  reviewer role.
+* **`POST /orgs/{org}/uploads`**: `timezone` is required; `site_id` is
+  required unless `deployment_id` names one. Files may also be sent under
+  the field name `files[]` or `file`. Unknown form fields are rejected.
+  Recorders and deployments are created from device ids when none are given.
+  Corrupt or unsafe zip members are skipped and listed in
+  `BatchJob.settings.skipped_entries`.
+* **`GET /orgs/{org}/recordings`** also accepts `recorder_id` and
+  `deployment_id`; `from` and `to` are ISO dates or date-times (naive values
+  in the organization's time zone); `page_size` up to 200. `species` matches a
+  scientific or common name.
+* **`GET /orgs/{org}/alerts`** also accepts `page_size` (up to 200).
+  `PATCH /alerts/{id}` with `snoozed` needs a future `snoozed_until`;
+  acknowledging, resolving or snoozing records `acknowledged_by`, reopening
+  clears it.
+* **`clock_suspect`** is evaluated per recorder within one upload; the order
+  test uses files whose time came from file metadata.
+* **`recording_gap`** with an inferred interval needs at least three
+  intervals; with a declared `expected_interval_minutes` it does not.
+* **Dashboards**: `from` must not be after `to`, and a period may span at most
+  five years.
+* **Report fields** are validated against the template: unknown names, invalid
+  enum values and non-numbers are 422; `file` fields take ids returned by
+  `POST /orgs/{org}/files` in the same organization. A period without
+  recordings renders a "No recordings in this period" page (status `ready`).
+* **Extra table**: `recording_stats` (one derived row per completed
+  analysis) sits next to `site_day_stats` and `species_day_stats`.
+* **CLI**: `python -m thicket.cli ingest DIR --site NAME [--recorder LABEL]
+  [--make MAKE] [--timezone TZ]` and `python -m thicket.cli nightly` use the
+  same services on the configured data dir and the local workspace.

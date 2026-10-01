@@ -13,7 +13,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-SCHEMA_VERSION = "1.2.0"
+SCHEMA_VERSION = "1.3.0"
 
 
 class _Model(BaseModel):
@@ -75,6 +75,10 @@ class ErrorCode(StrEnum):
     not_found = "not_found"
     rate_limited = "rate_limited"
     request_timeout = "request_timeout"
+    # Added in 1.3.0 for the platform (additive).
+    unauthenticated = "unauthenticated"
+    forbidden = "forbidden"
+    conflict = "conflict"
 
 
 class ErrorResponse(_Model):

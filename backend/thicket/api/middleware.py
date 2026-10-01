@@ -11,15 +11,21 @@ structured access logs, in one pure ASGI layer.
 * Timeout: ``REQUEST_TIMEOUT_SECONDS`` per request, plus
   ``ANALYSIS_TIMEOUT_SECONDS`` for ``?wait=true``. A timed-out request gets
   504 ``request_timeout`` if nothing was sent yet.
+* CSRF guard (sign-in enabled only): mutating requests under ``/api/`` must
+  carry ``X-Requested-With: thicket``; the frontend client always sets it.
+  The Google OAuth callback is exempt (it is a GET anyway).
+* Rolling sessions: when a route resolved a session older than an hour, a
+  fresh cookie is set on the response (``scope["state"]["refresh_session"]``).
 * Unhandled exceptions become 500 ``internal_error`` without internals.
 * Access log: method, path, status, duration and request id. Never query
-  bodies, filenames, notes or client IPs.
+  bodies, filenames, notes, emails or client IPs.
 """
 
 from __future__ import annotations
 
 import logging
 import math
+import re
 import secrets
 import threading
 import time
@@ -32,6 +38,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from thicket.api.errors import error_response
 from thicket.api.schemas import ErrorCode
 from thicket.config import Settings
+from thicket.services.auth import SESSION_COOKIE, SESSION_MAX_AGE
 
 log = logging.getLogger("thicket.access")
 
@@ -76,6 +83,18 @@ SECURITY_HEADERS = [
     (b"x-content-type-options", b"nosniff"),
     (b"referrer-policy", b"no-referrer"),
 ]
+MUTATING = frozenset({"POST", "PATCH", "PUT", "DELETE"})
+_INVITE_PATH = re.compile(r"(/invites/)[^/]+(/accept)")
+
+
+def safe_path(path: str) -> str:
+    """The path for logs, with secrets in it (invite tokens) redacted."""
+    return _INVITE_PATH.sub(r"\1[redacted]\2", path)
+
+
+CSRF_EXEMPT_PATHS = frozenset({"/api/v1/auth/google/callback"})
+CSRF_HEADER = b"x-requested-with"
+CSRF_VALUE = b"thicket"
 
 
 class RequestMiddleware:
@@ -101,6 +120,35 @@ class RequestMiddleware:
                 return found[:64]
         client = scope.get("client")
         return client[0] if client else "unknown"
+
+    @staticmethod
+    def _has_csrf_header(scope: Scope) -> bool:
+        for key, value in scope.get("headers") or []:
+            if key.lower() == CSRF_HEADER:
+                return value.strip().lower() == CSRF_VALUE
+        return False
+
+    @staticmethod
+    def _refresh_session(scope: Scope, headers: MutableHeaders) -> None:
+        """Re-sign the session cookie when a route asked for it (rolling 30 days)."""
+        st = scope.get("state") or {}
+        principal = st.get("principal")
+        if not st.get("refresh_session") or principal is None or "set-cookie" in headers:
+            return
+        app = scope.get("app")
+        container = getattr(getattr(app, "state", None), "container", None)
+        if container is None:
+            return
+        try:
+            token, _ = container.auth.issue_session(principal.user_id)
+            params = container.auth.cookie_params(SESSION_MAX_AGE)
+        except Exception:  # noqa: BLE001 - never break a response over a cookie refresh
+            return
+        cookie = (
+            f"{SESSION_COOKIE}={token}; Max-Age={params['max_age']}; Path=/; HttpOnly; SameSite=Lax"
+            + ("; Secure" if params["secure"] else "")
+        )
+        headers.append("set-cookie", cookie)
 
     def _timeout(self, scope: Scope) -> float:
         timeout = self.settings.request_timeout_seconds
@@ -128,9 +176,24 @@ class RequestMiddleware:
                 for k, v in SECURITY_HEADERS:
                     if k.decode() not in headers:
                         headers.append(k.decode(), v.decode())
+                self._refresh_session(scope, headers)
             await send(message)
 
         try:
+            if (
+                self.settings.auth_enabled
+                and method in MUTATING
+                and path.startswith("/api/")
+                and path not in CSRF_EXEMPT_PATHS
+                and not self._has_csrf_header(scope)
+            ):
+                resp = error_response(
+                    ErrorCode.forbidden,
+                    "Missing the X-Requested-With: thicket header on a state-changing request.",
+                    403,
+                )
+                await resp(scope, receive, send_wrapper)
+                return
             if method == "POST" and path.startswith("/api/"):
                 allowed, wait = self.limiter.allow(self._client_key(scope))
                 if not allowed:
@@ -152,7 +215,9 @@ class RequestMiddleware:
                 )
                 await resp(scope, receive, send_wrapper)
         except Exception:  # noqa: BLE001 - last-resort safety net
-            log.exception("unhandled error", extra={"request_id": request_id, "path": path})
+            log.exception(
+                "unhandled error", extra={"request_id": request_id, "path": safe_path(path)}
+            )
             if not state["started"]:
                 resp = error_response(ErrorCode.internal_error, "An internal error occurred.", 500)
                 await resp(scope, receive, send_wrapper)
@@ -162,7 +227,7 @@ class RequestMiddleware:
                 extra={
                     "request_id": request_id,
                     "method": method,
-                    "path": path,
+                    "path": safe_path(path),
                     "status": state["status"],
                     "duration_ms": round((time.perf_counter() - t0) * 1000, 1),
                 },

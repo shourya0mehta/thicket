@@ -156,3 +156,39 @@ def make_client(tmp_path: Path) -> Iterator[Callable[..., TestClient]]:
 @pytest.fixture
 def client(make_client: Callable[..., TestClient]) -> TestClient:
     return make_client()
+
+
+# ------------------------------------------------------------- platform
+
+
+@pytest.fixture
+def make_platform_client(tmp_path: Path) -> Iterator[Callable[..., TestClient]]:
+    """Clients backed by the tone adapter (no BirdNET weights needed)."""
+    from tests.platform_helpers import tone_registry
+
+    clients: list[TestClient] = []
+
+    def _make(**overrides: object) -> TestClient:
+        data = tmp_path / f"data{len(clients)}"
+        overrides.setdefault("thicket_data_dir", data)
+        app = create_app(make_settings(tmp_path, **overrides), registry=tone_registry())
+        client = TestClient(app, raise_server_exceptions=False)
+        client.__enter__()
+        clients.append(client)
+        return client
+
+    yield _make
+    for c in clients:
+        c.__exit__(None, None, None)
+
+
+@pytest.fixture
+def container(tmp_path: Path) -> Iterator:
+    """A started container on a temp data dir with the tone adapter."""
+    from tests.platform_helpers import tone_registry
+    from thicket.container import Container
+
+    c = Container(make_settings(tmp_path), registry=tone_registry())
+    c.startup(background=False)
+    yield c
+    c.shutdown()

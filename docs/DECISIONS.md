@@ -44,3 +44,48 @@ Choices made during the September 2026 rebuild. Each entry says what was chosen,
 
 * The build sandbox could not reach iNaturalist, Zenodo, xeno-canto or Hugging Face, and pushing to GitHub from it was not possible. The iNaturalist dataset and frog and insect training therefore live in a GitHub Actions workflow that runs once the repo is on GitHub.
 * A soundscape QC head was trained instead, on ESC-50, because it is reachable, has proper source-disjoint folds, and fills a real gap in the spec (audio QC).
+
+## Platform
+
+Choices made while building the multi-tenant backend (October 2026). The contract is `backend/thicket/api/platform_schemas.py` and `docs/PLATFORM_API.md`; nothing in the schema module was renamed or removed, and no model fields were added. `ErrorCode` gained `unauthenticated`, `forbidden` and `conflict` (additive, `SCHEMA_VERSION` 1.3.0).
+
+### Accounts, sessions and tenancy
+
+* **Stateless signed cookies plus a revocation list** instead of a sessions table. The cookie is `{sid, uid, iat}` signed with itsdangerous, 30 days, re-issued on use once an hour old. Logout writes the `sid` to `revoked_sessions`, pruned nightly once the cookie would have expired anyway. No database write per request.
+* **Google sign-in is hand-rolled with httpx and PyJWT**, not authlib: about 150 lines, every check visible (PKCE S256, `state` and `nonce` in a ten-minute signed cookie, RS256 against Google's JWKS, `aud`, `iss`, `exp`, `email_verified`, one JWKS refetch on an unknown `kid`). Tests swap the HTTP client for an `httpx.MockTransport`.
+* **The local workspace has fixed ids** (`user_` and `org_` followed by 24 zeros) and exists in every auth mode, so a database can move between modes and an upgraded single-user database keeps pointing at it. The local user can never sign in by cookie, and the local workspace cannot be deleted.
+* **CSRF header only when sign-in is on.** With `AUTH_MODE=disabled` there is no cookie to ride on, and requiring the header would break the existing single-analysis clients and tests.
+* **404 for other organizations' resources, 403 for their org routes.** `/sites/{id}` and friends answer 404 to non-members so ids do not reveal existence; `/orgs/{org}/...` answers 403 for any well-formed org id the caller is not in (also for ids that do not exist, for the same reason).
+* **Invite tokens** are stored as SHA-256 only, shown once (`accept_url`), valid 7 days, and only accepted by a signed-in user with the invited email. Access logs redact them from paths.
+* **`POST /analyses` without `organization_id`** uses the caller's only organization; with several it asks for one (422), with none it refuses (403). The local owner always uses the local workspace.
+
+### Data model
+
+* **`recording_stats`** (one derived row per completed analysis: richness, events, Shannon, quality, species map, local date, hour bucket, ISO week) was added next to the two rollup tables the contract names. Alerts, recorder health, accumulation and the heatmap read it instead of re-deriving thousands of analyses. `site_day_stats` also stores quality counts and an hour-of-day activity map; `species_day_stats` stores first and last detection times.
+* **Implicit and explicit sites.** Sites created from a recording's `site_name` are marked `auto_created` and are still removed with their last recording (the old behaviour). Sites created through the platform persist; deleting one with recordings is a 409.
+* **Upgrades**: schema 3 adds nullable columns with `ALTER TABLE`, creates the new tables, the local workspace, attaches existing sites and recordings to it, and rebuilds rollups once at startup.
+* **Local date without a timestamp** is the upload date, so untimed phone recordings still appear on the dashboard.
+
+### Batch ingestion
+
+* **One analysis pipeline.** Every batch file goes through `AnalysisService.create` and the same intake checks as a single upload.
+* **Priority worker pool** replaces the thread pool: interactive analyses first, batch items (uploads and report rendering) only when nothing interactive waits and at most half the workers (rounded up) at once. Shutdown now joins workers for up to 30 s: a worker still inside matplotlib when the interpreter exits crashes the process.
+* **No compression-ratio rule for zips.** Silent field recordings compress a thousandfold, so a ratio rule rejects real data. Caps are checked on the declared size and again while streaming; Python's zipfile also refuses to read past the declared size. Corrupt, encrypted or traversing members are skipped and listed.
+* **Clocks.** AudioMoth-style names are UTC (or the fixed offset in `CONFIG.TXT`), Song Meter and ISO-style names are the recorder's local clock (the batch `timezone`), a registered recorder's make overrides the guess, naive GUANO timestamps are local. The CLI uses file modification times where the browser would send `last_modified`.
+* **Recorders and deployments are created from device ids** (AudioMoth comment, GUANO serial, Song Meter prefix, `CONFIG.TXT`) so an SD card upload needs only a site. A deployment's start moves earlier when older files arrive.
+* **Clock checks run per recorder**, and the out-of-order test only among files timed from metadata: a file named by its own timestamp is in name order by construction.
+
+### Alerts and notifications
+
+* **MAD floors** stop a perfectly flat history from alerting on noise: 1 species, 0.05 events per minute, 1 event per species, 0.01 high-band share, 50 Hz centroid. Drops are `warning` at 1.5 times the configured MAD multiple, `watch` below. Level drift is `warning` above 12 dB.
+* **Inferred intervals need three intervals** before gap alerts or uptime figures use them.
+* **Battery and temperature alerts fire on telemetry even without a registered recorder** (make `other`, 3.6 V), because the SD card often arrives before anyone registers the device.
+* **Default preferences skip `info` alerts** (minimum severity `watch`), so speech flags and new species stay on the alerts page without filling inboxes. The local user and `.invalid` addresses are never emailed. A failed immediate email is queued for the daily digest. Daily digests go out every night, weekly ones on Mondays.
+
+### Reports
+
+* **The JSON bundle is the single source** for every number in the PDF; its SHA-256 is in every footer. Footers use two lines so the checksum and page number never overlap.
+* **Wording that section 8 forbids is avoided even where section 6 suggests it.** The NRCS statement reads "Not a practice certification, a habitat evaluation score or a ranking assessment" (section 6(b) names the WHEG and CART tools, which section 8 bans), and the certification summary says "not the certifier's own bird index, ecological health index or field observation" rather than naming those indices. Non-bird species from BirdNET are shown as "unverified non-bird label".
+* **Uncertainty** in the credit template is a percentile bootstrap of the per-recording mean (500 resamples, fixed seed, so rendering is deterministic).
+* **Charts use matplotlib's Figure API** (no pyplot global state), safe on several worker threads.
+* **Report fields are validated** against the template's field list: unknown names, invalid enum values and non-numeric numbers are 422, and file fields must be ids of images uploaded to the same organization.

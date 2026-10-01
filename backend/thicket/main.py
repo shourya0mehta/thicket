@@ -22,17 +22,19 @@ from thicket.api.routes import api_router
 from thicket.config import API_PORT, Settings, get_settings
 from thicket.container import Container
 from thicket.logging_setup import configure_logging
+from thicket.models.registry import ModelRegistry
 
 API_PREFIX = "/api/v1"
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, registry: ModelRegistry | None = None) -> FastAPI:
+    """Build the app. ``registry`` replaces the model registry (tests use a fake adapter)."""
     settings = settings or get_settings()
     configure_logging(settings.log_level, settings.log_format)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        c = Container(settings)
+        c = Container(settings, registry=registry)
         app.state.container = c
         c.startup(background=True)
         try:
@@ -62,9 +64,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.allowed_origins,
-        allow_credentials=False,
-        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Content-Type", "Accept"],
+        # Cookies carry the session when the frontend is hosted on another origin.
+        allow_credentials=settings.auth_enabled,
+        allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "Accept", "X-Requested-With"],
         expose_headers=["Content-Disposition", "Location", "Retry-After", "X-Request-ID"],
         max_age=600,
     )

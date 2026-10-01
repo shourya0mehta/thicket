@@ -12,14 +12,51 @@ import re
 import secrets
 from typing import Literal
 
-Prefix = Literal["ana", "rec", "prv", "site"]
+Prefix = Literal[
+    "ana",
+    "rec",
+    "prv",
+    "site",
+    # platform
+    "user",
+    "org",
+    "inv",
+    "rcd",
+    "dep",
+    "job",
+    "alr",
+    "ntf",
+    "rpt",
+    "file",
+    "ses",
+]
 
 _TOKEN_HEX = 24
-_ID_RE = {
-    p: re.compile(rf"\A{p}_[0-9a-f]{{{_TOKEN_HEX}}}\Z") for p in ("ana", "rec", "prv", "site")
-}
+_PREFIXES = (
+    "ana",
+    "rec",
+    "prv",
+    "site",
+    "user",
+    "org",
+    "inv",
+    "rcd",
+    "dep",
+    "job",
+    "alr",
+    "ntf",
+    "rpt",
+    "file",
+    "ses",
+)
+_ID_RE = {p: re.compile(rf"\A{p}_[0-9a-f]{{{_TOKEN_HEX}}}\Z") for p in _PREFIXES}
 RUN_ID_RE = re.compile(r"\Arun_[0-9a-f]{16}\Z")
 EVENT_ID_RE = re.compile(r"\Aevt_[0-9a-f]{16}\Z")
+
+# The implicit local workspace (AUTH_MODE=disabled) has fixed ids so a
+# database upgraded from the single-user build keeps pointing at them.
+LOCAL_USER_ID = "user_" + "0" * _TOKEN_HEX
+LOCAL_ORG_ID = "org_" + "0" * _TOKEN_HEX
 
 
 def new_id(prefix: Prefix) -> str:

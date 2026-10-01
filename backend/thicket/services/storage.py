@@ -3,9 +3,14 @@
 ::
 
     <data>/tmp/<analysis_id>/        per-analysis scratch, removed when the job ends
+    <data>/tmp/<job_id>/             batch upload staging, removed when the job settles
     <data>/previews/<preview_id>/    uploaded file + spectrogram, removed after the TTL
     <data>/spectrograms/<id>.png     analysis spectrograms (no audio)
     <data>/recordings/<id>.wav       normalized audio, only when RETAIN_AUDIO=true
+    <data>/reports/<report_id>.pdf   rendered reports and their JSON bundles
+    <data>/files/<file_id>.<ext>     uploaded images (deployment photos, tract maps)
+    <data>/outbox/*.eml              email written to disk when no transport is set
+    <data>/session_secret            generated session secret (AUTH_MODE dev/google)
 
 Every path is built from a validated id (see :mod:`thicket.ids`) and checked
 to resolve inside the data directory. Client filenames never appear in paths.
@@ -20,6 +25,8 @@ from pathlib import Path
 from thicket.errors import analysis_not_found, not_found
 from thicket.ids import is_valid_id
 
+IMAGE_EXTENSIONS = {"image/png": ".png", "image/jpeg": ".jpg"}
+
 
 class Storage:
     def __init__(self, data_dir: Path) -> None:
@@ -28,9 +35,21 @@ class Storage:
         self.previews = self.root / "previews"
         self.spectrograms = self.root / "spectrograms"
         self.recordings = self.root / "recordings"
+        self.reports = self.root / "reports"
+        self.files = self.root / "files"
+        self.outbox = self.root / "outbox"
 
     def ensure(self) -> None:
-        for d in (self.root, self.tmp, self.previews, self.spectrograms, self.recordings):
+        for d in (
+            self.root,
+            self.tmp,
+            self.previews,
+            self.spectrograms,
+            self.recordings,
+            self.reports,
+            self.files,
+            self.outbox,
+        ):
             d.mkdir(parents=True, exist_ok=True)
 
     def _inside(self, path: Path) -> Path:
@@ -43,6 +62,11 @@ class Storage:
         if not is_valid_id(analysis_id, "ana"):
             raise analysis_not_found()
         return self._inside(self.tmp / analysis_id)
+
+    def job_tmp(self, job_id: str) -> Path:
+        if not is_valid_id(job_id, "job"):
+            raise not_found("No upload job with that id exists.")
+        return self._inside(self.tmp / job_id)
 
     def preview_dir(self, preview_id: str) -> Path:
         if not is_valid_id(preview_id, "prv"):
@@ -58,6 +82,22 @@ class Storage:
         if not is_valid_id(analysis_id, "ana"):
             raise analysis_not_found()
         return self._inside(self.recordings / f"{analysis_id}.wav")
+
+    def report_pdf_path(self, report_id: str) -> Path:
+        if not is_valid_id(report_id, "rpt"):
+            raise not_found("No report with that id exists.")
+        return self._inside(self.reports / f"{report_id}.pdf")
+
+    def report_bundle_path(self, report_id: str) -> Path:
+        if not is_valid_id(report_id, "rpt"):
+            raise not_found("No report with that id exists.")
+        return self._inside(self.reports / f"{report_id}.json")
+
+    def uploaded_file_path(self, file_id: str, content_type: str) -> Path:
+        if not is_valid_id(file_id, "file"):
+            raise not_found("No file with that id exists.")
+        ext = IMAGE_EXTENSIONS.get(content_type, ".bin")
+        return self._inside(self.files / f"{file_id}{ext}")
 
     def storage_uri(self, path: Path) -> str:
         return "local:" + path.resolve().relative_to(self.root).as_posix()

@@ -21,7 +21,7 @@ It is built for the people who have to measure habitat outcomes (land trusts, re
 
 | Capability | Status | Evidence |
 |---|---|---|
-| Upload, validation, normalization, temp cleanup | Built | 279 backend tests incl. magic-byte sniffing, 413/415 paths, cleanup on failure |
+| Upload, validation, normalization, temp cleanup | Built | 600 backend tests incl. magic-byte sniffing, 413/415 paths, cleanup on failure |
 | BirdNET v2.4 detections with timestamps | Built | Adapter contract test on a pinned fixture (chickadee 0.81 at 0 s, house finch 0.64 at 9 s, blue jay at 18 s) |
 | Threshold control, consolidation, metrics | Built | Server recomputes at any threshold from stored raw windows; hand-computed metric tests |
 | Range and season plausibility (birds) | Built | Uses BirdNET's meta model; never applied to frogs or insects (it scores them near 0) |
@@ -32,7 +32,7 @@ It is built for the people who have to measure habitat outcomes (land trusts, re
 | Frontend analysis workspace | Built | 92 unit tests, Playwright e2e with an axe scan in light and dark |
 | Soundscape QC head (rain, wind, engines...) | Trained here | ESC-50, 5 official folds, macro AP 0.866 (0.835 to 0.896) |
 | Frog and insect species head | Pipeline ready, not trained | No reachable, openly licensed North American data met the bar tonight. See below. |
-| Accounts, organizations, long-term site trends | Not built | Release D in the spec |
+| Accounts, organizations, sites, recorders, batch ingestion, trends, alerts, PDF reports | Backend built | Google sign-in, roles, org isolation tests, alert engine with median/MAD baselines, five report templates; see [backend/README.md](backend/README.md) and [docs/PLATFORM_API.md](docs/PLATFORM_API.md) |
 
 ## Models
 
@@ -137,7 +137,7 @@ scripts/    publish.sh
 
 ```bash
 make lint     # ruff, frontend eslint and typecheck
-make test     # backend pytest (279), ml tests (14), frontend vitest (92)
+make test     # backend pytest (600), ml tests (14), frontend vitest (92)
 make e2e      # Playwright with a mocked API, including an axe accessibility scan
 ```
 
@@ -152,12 +152,11 @@ CI (`.github/workflows/ci.yml`) runs the same checks plus schema and generated-t
 
 ## What is not built
 
-* No accounts, organizations or roles; the pilot is single user and local.
+* Accounts, organizations, sites, recorders, deployments, batch ingestion, dashboards, alerts and PDF reports exist in the backend API; the web app for them is being built. Protocol objects do not exist yet.
 * No object storage or Postgres deployment yet (SQLite and local disk, behind interfaces).
-* No site, deployment or protocol objects, so no longitudinal trends or before/after comparisons yet.
 * No site-specific expert gold set yet, so no field precision or recall claims for any model. The protocol and the benchmark tool are ready: [docs/VALIDATION.md](docs/VALIDATION.md).
 * No frog and insect species model (see above).
-* No PDF evidence package, batch ingestion or recorder integrations.
+* No live recorder integrations (cellular or Wi-Fi uploads); recorders arrive as SD card uploads.
 * Not deployed to a public host; the repo includes the configs to do it.
 
 ## Licenses

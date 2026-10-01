@@ -84,6 +84,8 @@ class LevelStats:
     dc_offset: float
     total_samples: int
     channels: int
+    # Per-channel RMS (linear, 0..1) from the original channels; schema 3.
+    channel_rms: list[float] = field(default_factory=list)
 
 
 @dataclass
@@ -97,6 +99,7 @@ class LevelAccumulator:
     sum_squares: float = 0.0
     channel_sums: np.ndarray = field(default_factory=lambda: np.zeros(0))
     channel_counts: int = 0
+    channel_sum_squares: np.ndarray = field(default_factory=lambda: np.zeros(0))
 
     def update(self, block: np.ndarray) -> None:
         """``block`` is (frames,) or (frames, channels) float in [-1, 1]."""
@@ -108,18 +111,22 @@ class LevelAccumulator:
         if self.channels == 0:
             self.channels = x.shape[1]
             self.channel_sums = np.zeros(self.channels)
+            self.channel_sum_squares = np.zeros(self.channels)
         ax = np.abs(x)
         self.peak = max(self.peak, float(ax.max()))
         self.clipped += int(np.count_nonzero(ax >= CLIP_LEVEL))
         self.total += int(x.size)
-        self.sum_squares += float(np.sum(x * x))
+        sq = x * x
+        self.sum_squares += float(np.sum(sq))
         self.channel_sums += x.sum(axis=0)
+        self.channel_sum_squares += sq.sum(axis=0)
         self.channel_counts += x.shape[0]
 
     def result(self) -> LevelStats:
         if self.total == 0:
             return LevelStats(0.0, 0.0, 0.0, 0.0, 0, max(self.channels, 1))
         dc = self.channel_sums / max(self.channel_counts, 1)
+        per_channel = np.sqrt(self.channel_sum_squares / max(self.channel_counts, 1))
         return LevelStats(
             peak=self.peak,
             rms=math.sqrt(self.sum_squares / self.total),
@@ -127,6 +134,7 @@ class LevelAccumulator:
             dc_offset=float(dc[np.argmax(np.abs(dc))]) if dc.size else 0.0,
             total_samples=self.total,
             channels=self.channels,
+            channel_rms=[float(v) for v in per_channel],
         )
 
 

@@ -96,6 +96,75 @@ class Settings(BaseSettings):
     worker_concurrency: int = Field(1, ge=1, le=16)
     janitor_interval_seconds: float = Field(600.0, gt=0)
 
+    # Accounts and sign-in (platform)
+    auth_mode: Literal["disabled", "dev", "google"] = "disabled"
+    session_secret: str | None = Field(
+        None,
+        description=(
+            "Signs session cookies. When unset a random secret is generated once and kept "
+            "in <data dir>/session_secret (production logs a warning)."
+        ),
+    )
+    google_client_id: str | None = None
+    google_client_secret: str | None = None
+    public_base_url: str = f"http://localhost:{API_PORT}"
+    frontend_url: str = f"http://localhost:{FRONTEND_DEV_PORT}"
+    allowed_signin_domains: Annotated[list[str], NoDecode] = Field(default_factory=list)
+
+    # Email
+    smtp_host: str | None = None
+    smtp_port: int = Field(587, ge=1, le=65535)
+    smtp_user: str | None = None
+    smtp_password: str | None = None
+    email_from: str | None = None
+    resend_api_key: str | None = None
+
+    # Alerts, nightly jobs, batches, reports
+    alerts_enabled: bool = True
+    nightly_jobs_hour_utc: int = Field(6, ge=0, le=23)
+    max_batch_files: int = Field(200, ge=1, le=10_000)
+    max_batch_bytes: int = Field(2 * 1024 * MB, ge=MB)
+    report_logo_path: Path | None = None
+
+    @field_validator("allowed_signin_domains", mode="before")
+    @classmethod
+    def _split_domains(cls, v: object) -> object:
+        if isinstance(v, str):
+            text = v.strip()
+            if text.startswith("["):
+                import json
+
+                v = json.loads(text)
+            else:
+                v = [d for d in text.split(",")]
+        if isinstance(v, list):
+            return [str(d).strip().lower().lstrip("@") for d in v if str(d).strip()]
+        return v
+
+    @field_validator(
+        "session_secret",
+        "google_client_id",
+        "google_client_secret",
+        "smtp_host",
+        "smtp_user",
+        "smtp_password",
+        "email_from",
+        "resend_api_key",
+        mode="before",
+    )
+    @classmethod
+    def _blank_secret_to_none(cls, v: object) -> object:
+        return None if isinstance(v, str) and not v.strip() else v
+
+    @field_validator("public_base_url", "frontend_url")
+    @classmethod
+    def _check_url(cls, v: str) -> str:
+        text = v.strip()
+        parts = urlsplit(text)
+        if parts.scheme not in ("http", "https") or not parts.netloc:
+            raise ValueError(f"Invalid URL {v!r}: expected http(s)://host[:port][/path].")
+        return text.rstrip("/")
+
     @field_validator("allowed_origins", mode="before")
     @classmethod
     def _split_origins(cls, v: object) -> object:
@@ -126,7 +195,11 @@ class Settings(BaseSettings):
         return out
 
     @field_validator(
-        "thicket_data_dir", "serve_frontend_dir", "birdnet_model_dir", "frog_insect_model_path"
+        "thicket_data_dir",
+        "serve_frontend_dir",
+        "birdnet_model_dir",
+        "frog_insect_model_path",
+        "report_logo_path",
     )
     @classmethod
     def _absolute(cls, v: Path | None) -> Path | None:
@@ -150,7 +223,11 @@ class Settings(BaseSettings):
         return None if isinstance(v, str) and not v.strip() else v
 
     @field_validator(
-        "serve_frontend_dir", "birdnet_model_dir", "frog_insect_model_path", mode="before"
+        "serve_frontend_dir",
+        "birdnet_model_dir",
+        "frog_insect_model_path",
+        "report_logo_path",
+        mode="before",
     )
     @classmethod
     def _blank_path_to_none(cls, v: object) -> object:
@@ -174,6 +251,16 @@ class Settings(BaseSettings):
             raise ValueError("MIN_AUDIO_DURATION_SECONDS must be below MAX_AUDIO_DURATION_SECONDS.")
         if self.database_url is None:
             self.database_url = f"sqlite:///{self.thicket_data_dir / 'thicket.sqlite3'}"
+        if self.environment == "production" and self.auth_mode == "dev":
+            raise ValueError(
+                "AUTH_MODE=dev is an email-only sign-in form for development and is refused "
+                "when ENVIRONMENT=production. Use AUTH_MODE=google (or disabled behind a proxy)."
+            )
+        if self.auth_mode == "google" and not (self.google_client_id and self.google_client_secret):
+            raise ValueError(
+                "AUTH_MODE=google needs GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET "
+                "(see backend/README.md, Google sign-in)."
+            )
         return self
 
     # Convenience accessors -------------------------------------------------
@@ -185,6 +272,22 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
+
+    @property
+    def auth_enabled(self) -> bool:
+        return self.auth_mode != "disabled"
+
+    @property
+    def cookie_secure(self) -> bool:
+        return self.public_base_url.lower().startswith("https://")
+
+    @property
+    def google_redirect_uri(self) -> str:
+        return f"{self.public_base_url}/api/v1/auth/google/callback"
+
+    @property
+    def email_configured(self) -> bool:
+        return bool(self.smtp_host or self.resend_api_key)
 
 
 @lru_cache(maxsize=1)
