@@ -13,11 +13,18 @@ import {
   pendingAnalysis,
   type BuildOptions,
 } from './fixtures/analysis';
+import {
+  createPlatformServer,
+  handlePlatformRequest,
+  type PlatformServerOptions,
+  type PlatformServerState,
+} from './fixtures/platformServer';
 
 export interface RecordedRequest {
   method: string;
   url: string;
   body: unknown;
+  headers: Record<string, string>;
 }
 
 export interface FakeBackendOptions {
@@ -32,6 +39,12 @@ export interface FakeBackendOptions {
   modelsError?: boolean;
   /** The analysis fails server-side with this code (returned by the first poll). */
   failWith?: { code: NonNullable<ErrorResponse['error_code']>; message: string } | null;
+  /**
+   * Serve the platform routes (auth, organizations, dashboard...). Without
+   * this the backend behaves like an older server: /auth/config is a 404 and
+   * the app shows the standalone workspace.
+   */
+  platform?: PlatformServerOptions;
 }
 
 export interface FakeBackend {
@@ -39,6 +52,8 @@ export interface FakeBackend {
   reviews: Record<string, ReviewStatus>;
   options: FakeBackendOptions;
   urls: (method?: string) => string[];
+  /** In-memory platform state (sites created, alerts updated...), when enabled. */
+  platform: PlatformServerState | null;
 }
 
 interface Reply {
@@ -50,6 +65,11 @@ function handle(backend: FakeBackend, method: string, rawUrl: string, body: unkn
   const url = new URL(rawUrl, 'http://localhost');
   const path = url.pathname.replace(/^.*\/api\/v1/, '');
   const opts = backend.options;
+
+  if (backend.platform) {
+    const reply = handlePlatformRequest(backend.platform, method, path, url.searchParams, body);
+    if (reply) return reply;
+  }
 
   if (method === 'GET' && path === '/models') {
     if (opts.modelsError) return { status: 503, body: 'Service Unavailable' };
@@ -138,6 +158,7 @@ export function installFakeBackend(options: FakeBackendOptions = {}): FakeBacken
     options: { ...options, createErrors: [...(options.createErrors ?? [])] },
     urls: (method?: string) =>
       backend.requests.filter((r) => !method || r.method === method).map((r) => r.url),
+    platform: options.platform ? createPlatformServer(options.platform) : null,
   };
 
   vi.stubGlobal(
@@ -151,7 +172,11 @@ export function installFakeBackend(options: FakeBackendOptions = {}): FakeBacken
         return Promise.reject(error);
       }
       const body = typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : null;
-      backend.requests.push({ method, url, body });
+      const headers: Record<string, string> = {};
+      new Headers(init?.headers).forEach((value, key) => {
+        headers[key.toLowerCase()] = value;
+      });
+      backend.requests.push({ method, url, body, headers });
       const reply = handle(backend, method, url, body);
       const text = serialize(reply.body);
       return Promise.resolve(
@@ -179,12 +204,15 @@ export function installFakeBackend(options: FakeBackendOptions = {}): FakeBacken
     private method = 'GET';
     private url = '';
     private aborted = false;
+    private headers: Record<string, string> = {};
 
     open(method: string, url: string) {
       this.method = method.toUpperCase();
       this.url = url;
     }
-    setRequestHeader() {}
+    setRequestHeader(name: string, value: string) {
+      this.headers[name.toLowerCase()] = value;
+    }
     abort() {
       this.aborted = true;
       this.onabort?.();
@@ -192,9 +220,19 @@ export function installFakeBackend(options: FakeBackendOptions = {}): FakeBacken
     send(body: FormData) {
       const fields: Record<string, unknown> = {};
       body.forEach((value, key) => {
-        fields[key] = value instanceof File ? `file:${value.name}` : value;
+        const item = value instanceof File ? `file:${value.name}` : value;
+        const existing = fields[key];
+        // Repeated keys (files, last_modified) become arrays.
+        if (existing === undefined) fields[key] = item;
+        else if (Array.isArray(existing)) existing.push(item);
+        else fields[key] = [existing, item];
       });
-      backend.requests.push({ method: this.method, url: this.url, body: fields });
+      backend.requests.push({
+        method: this.method,
+        url: this.url,
+        body: fields,
+        headers: this.headers,
+      });
       setTimeout(() => {
         if (this.aborted) return;
         this.upload.onprogress?.({

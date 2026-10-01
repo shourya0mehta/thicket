@@ -31,7 +31,7 @@ export default function MapView({ analysis }: { analysis: Analysis }) {
         </p>
       </div>
       <div
-        className="h-[26rem] overflow-hidden rounded-xl ring-1 ring-black/10 dark:ring-white/10"
+        className="isolate h-[26rem] overflow-hidden rounded-xl ring-1 ring-black/10 dark:ring-white/10"
         data-testid="map"
       >
         <MapContainer

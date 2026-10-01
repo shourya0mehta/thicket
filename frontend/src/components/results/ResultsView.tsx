@@ -56,10 +56,16 @@ export function ResultsView({
   workspace,
   models,
   demoAttribution,
+  reviewDisabledReason = null,
+  allowDelete = true,
 }: {
   workspace: Workspace;
   models: ModelInfo[];
   demoAttribution?: string | null;
+  /** Platform roles below reviewer cannot accept or reject events. */
+  reviewDisabledReason?: string | null;
+  /** Platform roles below manager cannot delete. */
+  allowDelete?: boolean;
 }) {
   const { state } = workspace;
   const analysis = state.analysis as Analysis;
@@ -238,7 +244,9 @@ export function ResultsView({
               events={events}
               threshold={applied}
               reviewingEventId={state.reviewingEventId}
-              reviewDisabledReason={demo ? 'Review is turned off in the demo.' : null}
+              reviewDisabledReason={
+                demo ? 'Review is turned off in the demo.' : reviewDisabledReason
+              }
               onReview={(id, status) => void workspace.review(id, status)}
               dimmed={dimmed}
             />
@@ -289,7 +297,7 @@ export function ResultsView({
       <ExportBar
         analysis={analysis}
         clientSide={demo}
-        onDelete={demo ? undefined : workspace.deleteCurrent}
+        onDelete={demo || !allowDelete ? undefined : workspace.deleteCurrent}
       />
     </section>
   );

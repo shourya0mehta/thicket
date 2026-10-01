@@ -10,8 +10,31 @@ import type {
   Preview,
 } from './types';
 
-/** Server error codes plus client-side failure kinds. */
-export type ApiErrorCode = ErrorCode | 'network' | 'backend_unavailable' | 'invalid_response';
+/**
+ * Server error codes plus client-side failure kinds. `unauthenticated` (401),
+ * `forbidden` (403) and `conflict` (409) come from the platform routes.
+ */
+export type ApiErrorCode =
+  | ErrorCode
+  | 'unauthenticated'
+  | 'forbidden'
+  | 'conflict'
+  | 'network'
+  | 'backend_unavailable'
+  | 'invalid_response';
+
+/** Header required by the backend on every mutating request (CSRF guard). */
+export const REQUESTED_WITH_HEADER = { 'X-Requested-With': 'thicket' } as const;
+
+const MUTATING = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
+
+type UnauthenticatedHandler = () => void;
+let onUnauthenticated: UnauthenticatedHandler | null = null;
+
+/** The auth provider registers itself here so any 401 routes the app to sign-in. */
+export function setUnauthenticatedHandler(handler: UnauthenticatedHandler | null): void {
+  onUnauthenticated = handler;
+}
 
 export class ApiError extends Error {
   readonly code: ApiErrorCode;
@@ -110,11 +133,31 @@ export function errorFromResponse(status: number, bodyText: string): ApiError {
     body = null;
   }
 
+  const bodyMessage =
+    isRecord(body) && typeof body.message === 'string' ? body.message.trim() || null : null;
+  if (status === 401) {
+    return new ApiError('unauthenticated', bodyMessage ?? 'Sign in to continue.', status);
+  }
+  if (status === 403) {
+    return new ApiError(
+      'forbidden',
+      bodyMessage ?? 'Your role in this organization does not allow that.',
+      status,
+    );
+  }
+  if (status === 409) {
+    return new ApiError(
+      'conflict',
+      bodyMessage ?? 'That change conflicts with existing data.',
+      status,
+    );
+  }
+
   if (isRecord(body) && typeof body.error_code === 'string') {
     const code = KNOWN_CODES.has(body.error_code)
       ? (body.error_code as ErrorCode)
       : 'internal_error';
-    const message = typeof body.message === 'string' ? body.message : `Request failed (${status}).`;
+    const message = bodyMessage ?? `Request failed (${status}).`;
     const detail = isRecord(body.detail) ? body.detail : null;
     return new ApiError(code, message, status, detail);
   }
@@ -144,12 +187,23 @@ export function errorFromResponse(status: number, bodyText: string): ApiError {
   return new ApiError('internal_error', detailMessage ?? `Request failed (${status}).`, status);
 }
 
-async function requestJson<T>(path: string, init: RequestInit = {}): Promise<T> {
+/**
+ * JSON request against the API. Mutating methods carry the CSRF header; a 401
+ * also notifies the registered handler so the app can show the sign-in page.
+ * Exported for the platform client (src/api/platform.ts).
+ */
+export async function requestJson<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const method = (init.method ?? 'GET').toUpperCase();
   let response: Response;
   try {
     response = await fetch(apiUrl(path), {
       ...init,
-      headers: { Accept: 'application/json', ...(init.headers ?? {}) },
+      credentials: apiBaseUrl() ? 'include' : 'same-origin',
+      headers: {
+        Accept: 'application/json',
+        ...(MUTATING.has(method) ? REQUESTED_WITH_HEADER : {}),
+        ...(init.headers ?? {}),
+      },
     });
   } catch (error) {
     if (isAbortError(error)) throw error;
@@ -163,7 +217,9 @@ async function requestJson<T>(path: string, init: RequestInit = {}): Promise<T> 
     } catch {
       text = '';
     }
-    throw errorFromResponse(response.status, text);
+    const error = errorFromResponse(response.status, text);
+    if (error.code === 'unauthenticated') onUnauthenticated?.();
+    throw error;
   }
 
   if (response.status === 204) return undefined as T;
@@ -175,10 +231,25 @@ async function requestJson<T>(path: string, init: RequestInit = {}): Promise<T> 
   }
 }
 
+/** JSON body helper for POST, PATCH and PUT. */
+export function requestWithBody<T>(
+  method: 'POST' | 'PATCH' | 'PUT',
+  path: string,
+  body: unknown,
+  signal?: AbortSignal,
+): Promise<T> {
+  return requestJson<T>(path, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body ?? {}),
+    signal,
+  });
+}
+
 export type ProgressHandler = (fraction: number) => void;
 
 /** Multipart POST with upload progress (fetch cannot report upload progress). */
-function uploadForm<T>(
+export function uploadForm<T>(
   path: string,
   form: FormData,
   onProgress?: ProgressHandler,
@@ -192,6 +263,9 @@ function uploadForm<T>(
     const xhr = new XMLHttpRequest();
     xhr.open('POST', apiUrl(path));
     xhr.setRequestHeader('Accept', 'application/json');
+    xhr.setRequestHeader('X-Requested-With', 'thicket');
+    // The session cookie must travel when the API lives on another origin.
+    xhr.withCredentials = apiBaseUrl() !== '';
 
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable && event.total > 0) onProgress?.(event.loaded / event.total);
@@ -210,7 +284,9 @@ function uploadForm<T>(
         }
         return;
       }
-      reject(errorFromResponse(xhr.status, text));
+      const error = errorFromResponse(xhr.status, text);
+      if (error.code === 'unauthenticated') onUnauthenticated?.();
+      reject(error);
     };
     xhr.onerror = () => reject(new ApiError('network', 'Could not reach the Thicket server.'));
     xhr.ontimeout = () => reject(new ApiError('network', 'The upload timed out.'));
@@ -255,6 +331,10 @@ export function buildAnalysisForm(params: CreateAnalysisParams): FormData {
   if (params.capturedAt) form.append('captured_at', params.capturedAt);
   if (params.timezone) form.append('timezone', params.timezone);
   if (params.siteName) form.append('site_name', params.siteName);
+  if (params.organizationId) form.append('organization_id', params.organizationId);
+  if (params.siteId) form.append('site_id', params.siteId);
+  if (params.deploymentId) form.append('deployment_id', params.deploymentId);
+  if (params.recorderId) form.append('recorder_id', params.recorderId);
   return form;
 }
 

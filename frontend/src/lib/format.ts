@@ -120,6 +120,20 @@ export function formatDate(iso: string | null | undefined, timeZone?: string | n
   }).format(date);
 }
 
+/** "5:47 AM EDT": the wall-clock time at the recording site with its zone. */
+export function formatTime(iso: string | null | undefined, timeZone?: string | null): string {
+  if (!iso) return 'Not provided';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  const zone = isValidTimeZone(timeZone) ? timeZone : undefined;
+  return new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: zone,
+    timeZoneName: zone ? 'short' : undefined,
+  }).format(date);
+}
+
 export function formatCoordinate(value: number, axis: 'lat' | 'lon'): string {
   const hemisphere = axis === 'lat' ? (value >= 0 ? 'N' : 'S') : value >= 0 ? 'E' : 'W';
   return `${Math.abs(value).toFixed(4)}° ${hemisphere}`;

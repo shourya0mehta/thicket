@@ -1,9 +1,12 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+import { ORG, RECORDER_MOTH2, SITE_NORTH } from '../src/test/fixtures/platform';
 import { mockApi } from './support/mockApi';
+import { mockPlatform } from './support/mockPlatform';
 import { chooseRecording, fillMetadata, runToResults, setTheme } from './support/flows';
 
 /**
- * Captures reference screenshots of the results view into ./screenshots.
+ * Captures reference screenshots of the results view and the platform pages
+ * (dashboard, site, recorder health, alerts, report wizard) into ./screenshots.
  * Opt-in: `npm run screenshots` (sets SCREENSHOTS=1).
  */
 test.skip(!process.env.SCREENSHOTS, 'Set SCREENSHOTS=1 to capture screenshots.');
@@ -91,3 +94,58 @@ test('states: preview, processing, methods, history', async ({ page }) => {
   await page.waitForTimeout(300);
   await page.screenshot({ path: 'screenshots/history-desktop-light.png', fullPage: true });
 });
+
+const PLATFORM_PAGES: Array<{
+  name: string;
+  path: string;
+  ready: string;
+  prepare?: (page: Page) => Promise<void>;
+}> = [
+  { name: 'dashboard', path: '', ready: 'heatmap-chart' },
+  { name: 'site', path: `/sites/${SITE_NORTH}`, ready: 'phenology-chart' },
+  { name: 'recorder', path: `/recorders/${RECORDER_MOTH2}`, ready: 'level-chart' },
+  {
+    name: 'alerts',
+    path: '/alerts',
+    ready: 'alerts-ecology',
+    prepare: async (page) => {
+      await page.getByTestId('alert-row').first().getByRole('button', { expanded: false }).click();
+    },
+  },
+  {
+    name: 'report-wizard',
+    path: '/reports/new',
+    ready: 'template-cards',
+  },
+  {
+    name: 'report-fields',
+    path: '/reports/new',
+    ready: 'template-cards',
+    prepare: async (page) => {
+      await page.getByTestId('template-nrcs').click();
+      await page.getByTestId('to-fields').click();
+      await page.getByTestId('group-nrcs').waitFor();
+    },
+  },
+];
+
+for (const theme of ['light', 'dark'] as const) {
+  for (const [device, viewport] of Object.entries(VIEWPORTS)) {
+    test(`platform ${device} ${theme}`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await setTheme(page, theme);
+      await mockApi(page, { pollsBeforeComplete: 0 });
+      await mockPlatform(page, {});
+      for (const p of PLATFORM_PAGES) {
+        await page.goto(`/#/orgs/${ORG.id}${p.path}`);
+        await page.getByTestId(p.ready).waitFor();
+        if (p.prepare) await p.prepare(page);
+        await page.waitForTimeout(700);
+        await page.screenshot({
+          path: `screenshots/${p.name}-${device}-${theme}.png`,
+          fullPage: true,
+        });
+      }
+    });
+  }
+}

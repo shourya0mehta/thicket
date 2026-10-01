@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { buildAnalysis } from '../src/test/fixtures/analysis';
+import { buildDemoPlatformFile } from '../src/test/fixtures/platform';
 import { spectrogramPng } from './support/mockApi';
 import { syntheticWav } from './support/png';
 
@@ -62,4 +63,49 @@ test('demo mode loads precomputed analyses without uploads', async ({ page }) =>
   await expect(csv).toHaveAttribute('href', /^blob:/);
   await expect(csv).toHaveAttribute('download', 'thicket_demo_hc_t0.45.csv');
   await expect(page.getByRole('button', { name: 'Delete from server' })).toHaveCount(0);
+});
+
+test('demo mode shows a read-only dashboard when demo/platform.json exists', async ({ page }) => {
+  const today = new Date();
+  const to = today.toISOString().slice(0, 10);
+  const from = new Date(today.getTime() - 89 * 86_400_000).toISOString().slice(0, 10);
+  await page.route(
+    (url) => url.pathname.startsWith('/demo/'),
+    async (route) => {
+      const url = new URL(route.request().url());
+      if (url.pathname.endsWith('/demo/platform.json')) {
+        return route.fulfill({ json: buildDemoPlatformFile(from, to) });
+      }
+      const match = /threshold-(\d\.\d\d)\.json$/.exec(url.pathname);
+      if (match) {
+        return route.fulfill({
+          json: buildAnalysis({ id: 'demo_hc', threshold: Number(match[1]) }),
+        });
+      }
+      if (url.pathname.endsWith('spectrogram.png'))
+        return route.fulfill({ body: spectrogramPng(), contentType: 'image/png' });
+      return route.fulfill({ status: 404 });
+    },
+  );
+  await page.route('**/api/v1/**', (route) => route.fulfill({ status: 500, body: 'unexpected' }));
+  await page.route(/tile\.openstreetmap\.org/, (route) => route.fulfill({ status: 404 }));
+
+  await page.goto('/');
+  await expect(page.getByTestId('demo-banner')).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeVisible();
+  await expect(page.getByTestId('kpi-row')).toBeVisible();
+  // Read-only: no uploads, no alert actions, no sign out.
+  await page
+    .getByRole('navigation', { name: 'Organization' })
+    .getByRole('link', { name: 'Alerts' })
+    .click();
+  await expect(page.getByTestId('alerts-ecology')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Acknowledge', exact: true })).toHaveCount(0);
+  await page.getByTestId('user-menu').click();
+  await expect(page.getByRole('menuitem', { name: 'Sign out' })).toHaveCount(0);
+  // A recording that matches a demo analysis opens the results view.
+  await page.goto('/#/orgs/org_hollow_creek/recordings/rc_0940');
+  await expect(page.getByRole('heading', { name: 'Species with detection events' })).toBeVisible({
+    timeout: 15_000,
+  });
 });

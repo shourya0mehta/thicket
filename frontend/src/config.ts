@@ -22,6 +22,17 @@ export const MAX_POLL_DURATION_MS = 20 * 60 * 1000;
 export const HISTORY_KEY = 'thicket-history';
 export const THEME_KEY = 'thicket-theme';
 export const HISTORY_LIMIT = 3;
+/** The organization opened last, so the next visit lands on its dashboard. */
+export const LAST_ORG_KEY = 'thicket-last-org';
+/** "1" once the server has answered /auth/config, so later visits wait for the probe. */
+export const PLATFORM_HINT_KEY = 'thicket-platform';
+
+/** Batch upload client guard (the server enforces MAX_BATCH_FILES and MAX_BATCH_BYTES too). */
+export const MAX_BATCH_FILES = 200;
+export const MAX_BATCH_BYTES = 2 * 1024 * 1024 * 1024;
+export const BATCH_POLL_INTERVAL_MS = 1500;
+export const REPORT_POLL_INTERVAL_MS = 2000;
+export const NOTIFICATION_POLL_INTERVAL_MS = 60_000;
 
 export function apiBaseUrl(): string {
   const raw: unknown = import.meta.env.VITE_API_BASE_URL;

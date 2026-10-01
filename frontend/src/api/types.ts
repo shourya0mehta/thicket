@@ -48,4 +48,9 @@ export interface CreateAnalysisParams {
   capturedAt?: string | null;
   timezone?: string | null;
   siteName?: string | null;
+  /** Platform context: file the analysis under an organization and site. */
+  organizationId?: string | null;
+  siteId?: string | null;
+  deploymentId?: string | null;
+  recorderId?: string | null;
 }

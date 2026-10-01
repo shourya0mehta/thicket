@@ -60,7 +60,10 @@ export type ErrorCode =
   | 'unsupported_audio'
   | 'not_found'
   | 'rate_limited'
-  | 'request_timeout';
+  | 'request_timeout'
+  | 'unauthenticated'
+  | 'forbidden'
+  | 'conflict';
 /**
  * This interface was referenced by `ThicketAPI`'s JSON-Schema
  * via the `definition` "Taxon".
@@ -1289,4 +1292,4 @@ export interface UploadedFile {
 }
 
 /** Schema version these types were generated from. */
-export const API_SCHEMA_VERSION = '1.2.0';
+export const API_SCHEMA_VERSION = '1.3.0';

@@ -96,6 +96,21 @@ const COPY: Record<ApiErrorCode | 'unknown', Copy> = {
     body: 'The connection was too slow for this file. Try again, ideally on a faster connection.',
     action: 'retry',
   },
+  unauthenticated: {
+    title: 'Sign in to continue',
+    body: 'Your session has ended or you are not signed in yet.',
+    action: 'none',
+  },
+  forbidden: {
+    title: 'Your role does not allow this',
+    body: 'Ask an owner or manager of this organization to make the change or to update your role.',
+    action: 'none',
+  },
+  conflict: {
+    title: 'This change conflicts with existing data',
+    body: 'The item is still in use. Archive it instead, for example by ending its deployments.',
+    action: 'none',
+  },
   network: {
     title: 'Cannot reach the Thicket server',
     body: 'Make sure the backend is running (by default on port 8000), then try again.',

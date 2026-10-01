@@ -27,8 +27,18 @@ type LastAction =
   | { kind: 'load'; id: string }
   | { kind: 'demo'; id: string };
 
+/** Where a platform analysis is filed. Null outside an organization. */
+export interface OrgContext {
+  organizationId: string;
+  siteId: string | null;
+  deploymentId: string | null;
+  recorderId: string | null;
+}
+
 export interface Workspace {
   state: WorkspaceState;
+  /** Set by the platform analyze page; sent with the next run. */
+  setOrgContext: (context: OrgContext | null) => void;
   /** Audio source for playback: the local file, or a retained/demo audio URL. */
   audioSrc: string | null;
   selectFile: (file: File | null) => void;
@@ -54,6 +64,7 @@ function analysisParams(
   metadata: Metadata,
   models: string[],
   threshold: number,
+  context: OrgContext | null,
 ): CreateAnalysisParams {
   const coords = coordinatesFrom(metadata);
   const timezone = metadata.timezone.trim() || null;
@@ -66,6 +77,10 @@ function analysisParams(
       metadata.capturedAt && timezone ? zonedLocalToIso(metadata.capturedAt, timezone) : null,
     timezone,
     siteName: metadata.siteName.trim() || null,
+    organizationId: context?.organizationId ?? null,
+    siteId: context?.siteId ?? null,
+    deploymentId: context?.deploymentId ?? null,
+    recorderId: context?.recorderId ?? null,
   };
 }
 
@@ -88,6 +103,7 @@ export function useWorkspace(): Workspace {
   const refreshSeq = useRef(0);
   const objectUrl = useRef<string | null>(null);
   const lastAction = useRef<LastAction | null>(null);
+  const orgContext = useRef<OrgContext | null>(null);
 
   const abortAll = useCallback(() => {
     runCtrl.current?.abort();
@@ -202,7 +218,12 @@ export function useWorkspace(): Workspace {
       lastAction.current = { kind: 'run', models };
 
       const usePreview = previewIsFresh(current.preview?.expires_at) && current.preview !== null;
-      const params = analysisParams(current.metadata, models, current.threshold);
+      const params = analysisParams(
+        current.metadata,
+        models,
+        current.threshold,
+        orgContext.current,
+      );
       const onProgress = (fraction: number) => {
         if (!ctrl.signal.aborted) dispatch({ type: 'run_upload_progress', fraction });
       };
@@ -450,6 +471,10 @@ export function useWorkspace(): Workspace {
 
   const dismissNotice = useCallback(() => dispatch({ type: 'notice', notice: null }), []);
 
+  const setOrgContext = useCallback((context: OrgContext | null) => {
+    orgContext.current = context;
+  }, []);
+
   const refreshHistory = useCallback(() => {
     if (!isDemoMode()) dispatch({ type: 'history', history: readHistory() });
   }, []);
@@ -463,6 +488,7 @@ export function useWorkspace(): Workspace {
 
   return {
     state,
+    setOrgContext,
     audioSrc,
     selectFile,
     clear,

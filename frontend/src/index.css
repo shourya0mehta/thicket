@@ -32,6 +32,14 @@
     --info-soft: 234 242 247;
     --focus: 55 113 87;
     --wash: 223 235 228 / 0.75;
+    /* Chart series by taxon (categorical, fixed order, validated for CVD on this surface). */
+    --viz-bird: #2f7d4f;
+    --viz-amphibian: #b8740c;
+    --viz-insect: #3f6fb5;
+    --viz-mammal: #9b4d8f;
+    --viz-other: #7a8680;
+    /* Text placed inside a filled segment (white on light, dark ink on dark). */
+    --viz-on: #ffffff;
   }
 
   .dark {
@@ -57,6 +65,12 @@
     --info-soft: 22 35 45;
     --focus: 149 186 166;
     --wash: 34 66 53 / 0.32;
+    --viz-bird: #3f9a66;
+    --viz-amphibian: #c08320;
+    --viz-insect: #6190dc;
+    --viz-mammal: #b366b0;
+    --viz-other: #8a9690;
+    --viz-on: #0f1714;
   }
 
   html {
