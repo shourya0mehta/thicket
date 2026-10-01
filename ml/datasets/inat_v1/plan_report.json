@@ -1,0 +1,1036 @@
+{
+ "taxa": {
+  "Pseudacris crucifer": {
+   "id": 24268,
+   "inat_name": "Pseudacris crucifer",
+   "common": "Spring Peeper"
+  },
+  "Lithobates sylvaticus": {
+   "id": 66012,
+   "inat_name": "Lithobates sylvaticus",
+   "common": "Wood Frog"
+  },
+  "Anaxyrus americanus": {
+   "id": 64968,
+   "inat_name": "Anaxyrus americanus",
+   "common": "American Toad"
+  },
+  "Dryophytes versicolor": {
+   "id": 1668923,
+   "inat_name": "Dryophytes versicolor",
+   "common": "Gray Treefrog"
+  },
+  "Dryophytes chrysoscelis": {
+   "id": 1668922,
+   "inat_name": "Dryophytes chrysoscelis",
+   "common": "Cope's Gray Tree Frog"
+  },
+  "Lithobates clamitans": {
+   "id": 65982,
+   "inat_name": "Lithobates clamitans",
+   "common": "Green Frog"
+  },
+  "Lithobates catesbeianus": {
+   "id": 65979,
+   "inat_name": "Lithobates catesbeianus",
+   "common": "American Bullfrog"
+  },
+  "Lithobates pipiens": {
+   "id": 66003,
+   "inat_name": "Lithobates pipiens",
+   "common": "Northern Leopard Frog"
+  },
+  "Lithobates palustris": {
+   "id": 66002,
+   "inat_name": "Lithobates palustris",
+   "common": "Pickerel Frog"
+  },
+  "Lithobates sphenocephalus": {
+   "id": 60341,
+   "inat_name": "Lithobates sphenocephalus",
+   "common": "Southern Leopard Frog"
+  },
+  "Pseudacris triseriata": {
+   "id": 24267,
+   "inat_name": "Pseudacris triseriata",
+   "common": "Western Chorus Frog"
+  },
+  "Pseudacris feriarum": {
+   "id": 24263,
+   "inat_name": "Pseudacris feriarum",
+   "common": "Upland Chorus Frog"
+  },
+  "Anaxyrus fowleri": {
+   "id": 64977,
+   "inat_name": "Anaxyrus fowleri",
+   "common": "Fowler's Toad"
+  },
+  "Acris blanchardi": {
+   "id": 70421,
+   "inat_name": "Acris blanchardi",
+   "common": "Blanchard's Cricket Frog"
+  },
+  "Acris crepitans": {
+   "id": 24230,
+   "inat_name": "Acris crepitans",
+   "common": "Northern Cricket Frog"
+  },
+  "Dryophytes cinereus": {
+   "id": 1668858,
+   "inat_name": "Dryophytes cinereus",
+   "common": "Green Treefrog"
+  },
+  "Gastrophryne carolinensis": {
+   "id": 25078,
+   "inat_name": "Gastrophryne carolinensis",
+   "common": "Eastern Narrow-mouthed Toad"
+  },
+  "Gryllus pennsylvanicus": {
+   "id": 122193,
+   "inat_name": "Gryllus pennsylvanicus",
+   "common": "Fall Field Cricket"
+  },
+  "Oecanthus fultoni": {
+   "id": 130356,
+   "inat_name": "Oecanthus fultoni",
+   "common": "Snowy Tree Cricket"
+  },
+  "Oecanthus nigricornis": {
+   "id": 154605,
+   "inat_name": "Oecanthus nigricornis",
+   "common": "Black-horned Tree Cricket"
+  },
+  "Oecanthus niveus": {
+   "id": 226221,
+   "inat_name": "Oecanthus niveus",
+   "common": "Narrow-winged Tree Cricket"
+  },
+  "Pterophylla camellifolia": {
+   "id": 118951,
+   "inat_name": "Pterophylla camellifolia",
+   "common": "Common True Katydid"
+  },
+  "Microcentrum rhombifolium": {
+   "id": 84752,
+   "inat_name": "Microcentrum rhombifolium",
+   "common": "Greater Anglewing"
+  },
+  "Neoconocephalus robustus": {
+   "id": 225603,
+   "inat_name": "Neoconocephalus robustus",
+   "common": "Robust Conehead"
+  },
+  "Neoconocephalus ensiger": {
+   "id": 225598,
+   "inat_name": "Neoconocephalus ensiger",
+   "common": "Sword-bearing Conehead"
+  },
+  "Amblycorypha oblongifolia": {
+   "id": 213322,
+   "inat_name": "Amblycorypha oblongifolia",
+   "common": "Oblong-winged Katydid"
+  },
+  "Scudderia furcata": {
+   "id": 55957,
+   "inat_name": "Scudderia furcata",
+   "common": "Fork-tailed Bush Katydid"
+  },
+  "Orocharis saltator": {
+   "id": 780312,
+   "inat_name": "Hapithus saltator",
+   "common": "Jumping Bush Cricket"
+  },
+  "Eunemobius carolinus": {
+   "id": 146891,
+   "inat_name": "Eunemobius carolinus",
+   "common": "Carolina Ground Cricket"
+  },
+  "Allonemobius allardi": {
+   "id": 129244,
+   "inat_name": "Allonemobius allardi",
+   "common": "Allard's Ground Cricket"
+  },
+  "Phyllopalpus pulchellus": {
+   "id": 84403,
+   "inat_name": "Phyllopalpus pulchellus",
+   "common": "Red-headed Bush Cricket"
+  },
+  "Neotibicen canicularis": {
+   "id": 469238,
+   "inat_name": "Neotibicen canicularis",
+   "common": "Northern Dog-day Cicada"
+  },
+  "Neotibicen linnei": {
+   "id": 469257,
+   "inat_name": "Neotibicen linnei",
+   "common": "Linne's Cicada"
+  },
+  "Neotibicen pruinosus": {
+   "id": 469268,
+   "inat_name": "Neotibicen pruinosus",
+   "common": "Scissor Grinder"
+  },
+  "Neotibicen tibicen": {
+   "id": 469282,
+   "inat_name": "Neotibicen tibicen",
+   "common": "Swamp Cicada"
+  },
+  "Neotibicen lyricen": {
+   "id": 469259,
+   "inat_name": "Neotibicen lyricen",
+   "common": "Lyric Cicada"
+  },
+  "Magicicada septendecim": {
+   "id": 105098,
+   "inat_name": "Magicicada septendecim",
+   "common": "Pharaoh Cicada"
+  },
+  "Cardinalis cardinalis": {
+   "id": 9083,
+   "inat_name": "Cardinalis cardinalis",
+   "common": "Northern Cardinal"
+  },
+  "Turdus migratorius": {
+   "id": 12727,
+   "inat_name": "Turdus migratorius",
+   "common": "American Robin"
+  },
+  "Melospiza melodia": {
+   "id": 9100,
+   "inat_name": "Melospiza melodia",
+   "common": "Song Sparrow"
+  },
+  "Agelaius phoeniceus": {
+   "id": 9744,
+   "inat_name": "Agelaius phoeniceus",
+   "common": "Red-winged Blackbird"
+  },
+  "Thryothorus ludovicianus": {
+   "id": 7513,
+   "inat_name": "Thryothorus ludovicianus",
+   "common": "Carolina Wren"
+  },
+  "Cyanocitta cristata": {
+   "id": 8229,
+   "inat_name": "Cyanocitta cristata",
+   "common": "Blue Jay"
+  },
+  "Corvus brachyrhynchos": {
+   "id": 8021,
+   "inat_name": "Corvus brachyrhynchos",
+   "common": "American Crow"
+  },
+  "Poecile atricapillus": {
+   "id": 144815,
+   "inat_name": "Poecile atricapillus",
+   "common": "Black-capped Chickadee"
+  },
+  "Baeolophus bicolor": {
+   "id": 13632,
+   "inat_name": "Baeolophus bicolor",
+   "common": "Tufted Titmouse"
+  },
+  "Troglodytes aedon": {
+   "id": 7562,
+   "inat_name": "Troglodytes aedon",
+   "common": "Northern House Wren"
+  },
+  "Dumetella carolinensis": {
+   "id": 14995,
+   "inat_name": "Dumetella carolinensis",
+   "common": "Gray Catbird"
+  },
+  "Mimus polyglottos": {
+   "id": 14886,
+   "inat_name": "Mimus polyglottos",
+   "common": "Northern Mockingbird"
+  },
+  "Vireo olivaceus": {
+   "id": 891704,
+   "inat_name": "Vireo olivaceus",
+   "common": "Red-eyed Vireo"
+  },
+  "Pipilo erythrophthalmus": {
+   "id": 9424,
+   "inat_name": "Pipilo erythrophthalmus",
+   "common": "Eastern Towhee"
+  },
+  "Hylocichla mustelina": {
+   "id": 13270,
+   "inat_name": "Hylocichla mustelina",
+   "common": "Wood Thrush"
+  },
+  "Seiurus aurocapilla": {
+   "id": 62550,
+   "inat_name": "Seiurus aurocapilla",
+   "common": "Ovenbird"
+  },
+  "Geothlypis trichas": {
+   "id": 9721,
+   "inat_name": "Geothlypis trichas",
+   "common": "Common Yellowthroat"
+  },
+  "Setophaga petechia": {
+   "id": 145238,
+   "inat_name": "Setophaga petechia",
+   "common": "Mangrove Yellow Warbler"
+  },
+  "Spinus tristis": {
+   "id": 145310,
+   "inat_name": "Spinus tristis",
+   "common": "American Goldfinch"
+  },
+  "Haemorhous mexicanus": {
+   "id": 199840,
+   "inat_name": "Haemorhous mexicanus",
+   "common": "House Finch"
+  },
+  "Zenaida macroura": {
+   "id": 3454,
+   "inat_name": "Zenaida macroura",
+   "common": "Mourning Dove"
+  },
+  "Dryobates pubescens": {
+   "id": 792988,
+   "inat_name": "Dryobates pubescens",
+   "common": "Downy Woodpecker"
+  },
+  "Melanerpes carolinus": {
+   "id": 18205,
+   "inat_name": "Melanerpes carolinus",
+   "common": "Red-bellied Woodpecker"
+  },
+  "Colaptes auratus": {
+   "id": 18236,
+   "inat_name": "Colaptes auratus",
+   "common": "Northern Flicker"
+  },
+  "Zonotrichia albicollis": {
+   "id": 9184,
+   "inat_name": "Zonotrichia albicollis",
+   "common": "White-throated Sparrow"
+  },
+  "Spizella passerina": {
+   "id": 9135,
+   "inat_name": "Spizella passerina",
+   "common": "Chipping Sparrow"
+  },
+  "Passerina cyanea": {
+   "id": 10227,
+   "inat_name": "Passerina cyanea",
+   "common": "Indigo Bunting"
+  },
+  "Icterus galbula": {
+   "id": 9346,
+   "inat_name": "Icterus galbula",
+   "common": "Baltimore Oriole"
+  },
+  "Contopus virens": {
+   "id": 16100,
+   "inat_name": "Contopus virens",
+   "common": "Eastern Wood-Pewee"
+  },
+  "Sayornis phoebe": {
+   "id": 17008,
+   "inat_name": "Sayornis phoebe",
+   "common": "Eastern Phoebe"
+  },
+  "Strix varia": {
+   "id": 19893,
+   "inat_name": "Strix varia",
+   "common": "Barred Owl"
+  },
+  "Bubo virginianus": {
+   "id": 20044,
+   "inat_name": "Bubo virginianus",
+   "common": "Great Horned Owl"
+  },
+  "Charadrius vociferus": {
+   "id": 4793,
+   "inat_name": "Charadrius vociferus",
+   "common": "Killdeer"
+  },
+  "Branta canadensis": {
+   "id": 7089,
+   "inat_name": "Branta canadensis",
+   "common": "Canada Goose"
+  },
+  "Spizella pusilla": {
+   "id": 9152,
+   "inat_name": "Spizella pusilla",
+   "common": "Field Sparrow"
+  },
+  "Dolichonyx oryzivorus": {
+   "id": 10487,
+   "inat_name": "Dolichonyx oryzivorus",
+   "common": "Bobolink"
+  },
+  "Sturnella magna": {
+   "id": 9528,
+   "inat_name": "Sturnella magna",
+   "common": "Eastern Meadowlark"
+  },
+  "Passerculus sandwichensis": {
+   "id": 9981,
+   "inat_name": "Passerculus sandwichensis",
+   "common": "Savannah Sparrow"
+  },
+  "Ammodramus savannarum": {
+   "id": 10139,
+   "inat_name": "Ammodramus savannarum",
+   "common": "Grasshopper Sparrow"
+  },
+  "Meleagris gallopavo": {
+   "id": 906,
+   "inat_name": "Meleagris gallopavo",
+   "common": "Wild Turkey"
+  }
+ },
+ "report": {
+  "Pseudacris crucifer": {
+   "group": "frog",
+   "resolved": true,
+   "taxon_id": 24268,
+   "n": 220,
+   "scanned": 279,
+   "users": 167
+  },
+  "Lithobates sylvaticus": {
+   "group": "frog",
+   "resolved": true,
+   "taxon_id": 66012,
+   "n": 220,
+   "scanned": 242,
+   "users": 160
+  },
+  "Anaxyrus americanus": {
+   "group": "frog",
+   "resolved": true,
+   "taxon_id": 64968,
+   "n": 220,
+   "scanned": 227,
+   "users": 168
+  },
+  "Dryophytes versicolor": {
+   "group": "frog",
+   "resolved": true,
+   "taxon_id": 1668923,
+   "n": 220,
+   "scanned": 224,
+   "users": 187
+  },
+  "Dryophytes chrysoscelis": {
+   "group": "frog",
+   "resolved": true,
+   "taxon_id": 1668922,
+   "n": 220,
+   "scanned": 261,
+   "users": 174
+  },
+  "Lithobates clamitans": {
+   "group": "frog",
+   "resolved": true,
+   "taxon_id": 65982,
+   "n": 220,
+   "scanned": 233,
+   "users": 185
+  },
+  "Lithobates catesbeianus": {
+   "group": "frog",
+   "resolved": true,
+   "taxon_id": 65979,
+   "n": 220,
+   "scanned": 222,
+   "users": 179
+  },
+  "Lithobates pipiens": {
+   "group": "frog",
+   "resolved": true,
+   "taxon_id": 66003,
+   "n": 220,
+   "scanned": 249,
+   "users": 155
+  },
+  "Lithobates palustris": {
+   "group": "frog",
+   "resolved": true,
+   "taxon_id": 66002,
+   "n": 220,
+   "scanned": 228,
+   "users": 155
+  },
+  "Lithobates sphenocephalus": {
+   "group": "frog",
+   "resolved": true,
+   "taxon_id": 60341,
+   "n": 220,
+   "scanned": 239,
+   "users": 169
+  },
+  "Pseudacris triseriata": {
+   "group": "frog",
+   "resolved": true,
+   "taxon_id": 24267,
+   "n": 220,
+   "scanned": 239,
+   "users": 148
+  },
+  "Pseudacris feriarum": {
+   "group": "frog",
+   "resolved": true,
+   "taxon_id": 24263,
+   "n": 220,
+   "scanned": 250,
+   "users": 168
+  },
+  "Anaxyrus fowleri": {
+   "group": "frog",
+   "resolved": true,
+   "taxon_id": 64977,
+   "n": 220,
+   "scanned": 247,
+   "users": 169
+  },
+  "Acris blanchardi": {
+   "group": "frog",
+   "resolved": true,
+   "taxon_id": 70421,
+   "n": 220,
+   "scanned": 277,
+   "users": 138
+  },
+  "Acris crepitans": {
+   "group": "frog",
+   "resolved": true,
+   "taxon_id": 24230,
+   "n": 220,
+   "scanned": 290,
+   "users": 152
+  },
+  "Dryophytes cinereus": {
+   "group": "frog",
+   "resolved": true,
+   "taxon_id": 1668858,
+   "n": 220,
+   "scanned": 233,
+   "users": 174
+  },
+  "Gastrophryne carolinensis": {
+   "group": "frog",
+   "resolved": true,
+   "taxon_id": 25078,
+   "n": 220,
+   "scanned": 228,
+   "users": 170
+  },
+  "Gryllus pennsylvanicus": {
+   "group": "insect",
+   "resolved": true,
+   "taxon_id": 122193,
+   "n": 220,
+   "scanned": 279,
+   "users": 147
+  },
+  "Oecanthus fultoni": {
+   "group": "insect",
+   "resolved": true,
+   "taxon_id": 130356,
+   "n": 220,
+   "scanned": 253,
+   "users": 160
+  },
+  "Oecanthus nigricornis": {
+   "group": "insect",
+   "resolved": true,
+   "taxon_id": 154605,
+   "n": 23,
+   "scanned": 23,
+   "users": 18
+  },
+  "Oecanthus niveus": {
+   "group": "insect",
+   "resolved": true,
+   "taxon_id": 226221,
+   "n": 60,
+   "scanned": 65,
+   "users": 44
+  },
+  "Pterophylla camellifolia": {
+   "group": "insect",
+   "resolved": true,
+   "taxon_id": 118951,
+   "n": 220,
+   "scanned": 255,
+   "users": 172
+  },
+  "Microcentrum rhombifolium": {
+   "group": "insect",
+   "resolved": true,
+   "taxon_id": 84752,
+   "n": 220,
+   "scanned": 248,
+   "users": 154
+  },
+  "Neoconocephalus robustus": {
+   "group": "insect",
+   "resolved": true,
+   "taxon_id": 225603,
+   "n": 6,
+   "scanned": 6,
+   "users": 5
+  },
+  "Neoconocephalus ensiger": {
+   "group": "insect",
+   "resolved": true,
+   "taxon_id": 225598,
+   "n": 107,
+   "scanned": 312,
+   "users": 64
+  },
+  "Amblycorypha oblongifolia": {
+   "group": "insect",
+   "resolved": true,
+   "taxon_id": 213322,
+   "n": 96,
+   "scanned": 136,
+   "users": 68
+  },
+  "Scudderia furcata": {
+   "group": "insect",
+   "resolved": true,
+   "taxon_id": 55957,
+   "n": 15,
+   "scanned": 15,
+   "users": 12
+  },
+  "Orocharis saltator": {
+   "group": "insect",
+   "resolved": true,
+   "taxon_id": 780312,
+   "n": 220,
+   "scanned": 314,
+   "users": 152
+  },
+  "Eunemobius carolinus": {
+   "group": "insect",
+   "resolved": true,
+   "taxon_id": 146891,
+   "n": 117,
+   "scanned": 147,
+   "users": 66
+  },
+  "Allonemobius allardi": {
+   "group": "insect",
+   "resolved": true,
+   "taxon_id": 129244,
+   "n": 93,
+   "scanned": 105,
+   "users": 58
+  },
+  "Phyllopalpus pulchellus": {
+   "group": "insect",
+   "resolved": true,
+   "taxon_id": 84403,
+   "n": 62,
+   "scanned": 72,
+   "users": 45
+  },
+  "Neotibicen canicularis": {
+   "group": "insect",
+   "resolved": true,
+   "taxon_id": 469238,
+   "n": 220,
+   "scanned": 231,
+   "users": 168
+  },
+  "Neotibicen linnei": {
+   "group": "insect",
+   "resolved": true,
+   "taxon_id": 469257,
+   "n": 220,
+   "scanned": 265,
+   "users": 150
+  },
+  "Neotibicen pruinosus": {
+   "group": "insect",
+   "resolved": true,
+   "taxon_id": 469268,
+   "n": 220,
+   "scanned": 253,
+   "users": 157
+  },
+  "Neotibicen tibicen": {
+   "group": "insect",
+   "resolved": true,
+   "taxon_id": 469282,
+   "n": 220,
+   "scanned": 266,
+   "users": 151
+  },
+  "Neotibicen lyricen": {
+   "group": "insect",
+   "resolved": true,
+   "taxon_id": 469259,
+   "n": 220,
+   "scanned": 271,
+   "users": 130
+  },
+  "Magicicada septendecim": {
+   "group": "insect",
+   "resolved": true,
+   "taxon_id": 105098,
+   "n": 220,
+   "scanned": 488,
+   "users": 120
+  },
+  "Cardinalis cardinalis": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 9083,
+   "n": 30,
+   "scanned": 30,
+   "users": 26
+  },
+  "Turdus migratorius": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 12727,
+   "n": 30,
+   "scanned": 31,
+   "users": 22
+  },
+  "Melospiza melodia": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 9100,
+   "n": 30,
+   "scanned": 30,
+   "users": 25
+  },
+  "Agelaius phoeniceus": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 9744,
+   "n": 30,
+   "scanned": 30,
+   "users": 25
+  },
+  "Thryothorus ludovicianus": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 7513,
+   "n": 30,
+   "scanned": 36,
+   "users": 23
+  },
+  "Cyanocitta cristata": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 8229,
+   "n": 30,
+   "scanned": 31,
+   "users": 25
+  },
+  "Corvus brachyrhynchos": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 8021,
+   "n": 30,
+   "scanned": 30,
+   "users": 24
+  },
+  "Poecile atricapillus": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 144815,
+   "n": 30,
+   "scanned": 54,
+   "users": 26
+  },
+  "Baeolophus bicolor": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 13632,
+   "n": 30,
+   "scanned": 31,
+   "users": 23
+  },
+  "Troglodytes aedon": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 7562,
+   "n": 30,
+   "scanned": 30,
+   "users": 24
+  },
+  "Dumetella carolinensis": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 14995,
+   "n": 30,
+   "scanned": 30,
+   "users": 28
+  },
+  "Mimus polyglottos": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 14886,
+   "n": 30,
+   "scanned": 30,
+   "users": 28
+  },
+  "Vireo olivaceus": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 891704,
+   "n": 30,
+   "scanned": 30,
+   "users": 24
+  },
+  "Pipilo erythrophthalmus": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 9424,
+   "n": 30,
+   "scanned": 34,
+   "users": 22
+  },
+  "Hylocichla mustelina": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 13270,
+   "n": 30,
+   "scanned": 30,
+   "users": 22
+  },
+  "Seiurus aurocapilla": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 62550,
+   "n": 30,
+   "scanned": 41,
+   "users": 25
+  },
+  "Geothlypis trichas": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 9721,
+   "n": 30,
+   "scanned": 31,
+   "users": 23
+  },
+  "Setophaga petechia": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 145238,
+   "n": 1,
+   "scanned": 1,
+   "users": 1
+  },
+  "Spinus tristis": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 145310,
+   "n": 30,
+   "scanned": 30,
+   "users": 29
+  },
+  "Haemorhous mexicanus": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 199840,
+   "n": 30,
+   "scanned": 32,
+   "users": 22
+  },
+  "Zenaida macroura": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 3454,
+   "n": 30,
+   "scanned": 30,
+   "users": 24
+  },
+  "Dryobates pubescens": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 792988,
+   "n": 30,
+   "scanned": 31,
+   "users": 25
+  },
+  "Melanerpes carolinus": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 18205,
+   "n": 30,
+   "scanned": 30,
+   "users": 28
+  },
+  "Colaptes auratus": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 18236,
+   "n": 30,
+   "scanned": 31,
+   "users": 26
+  },
+  "Zonotrichia albicollis": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 9184,
+   "n": 30,
+   "scanned": 36,
+   "users": 25
+  },
+  "Spizella passerina": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 9135,
+   "n": 30,
+   "scanned": 32,
+   "users": 24
+  },
+  "Passerina cyanea": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 10227,
+   "n": 30,
+   "scanned": 31,
+   "users": 28
+  },
+  "Icterus galbula": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 9346,
+   "n": 30,
+   "scanned": 33,
+   "users": 24
+  },
+  "Contopus virens": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 16100,
+   "n": 30,
+   "scanned": 32,
+   "users": 27
+  },
+  "Sayornis phoebe": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 17008,
+   "n": 30,
+   "scanned": 30,
+   "users": 24
+  },
+  "Strix varia": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 19893,
+   "n": 30,
+   "scanned": 30,
+   "users": 28
+  },
+  "Bubo virginianus": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 20044,
+   "n": 30,
+   "scanned": 30,
+   "users": 29
+  },
+  "Charadrius vociferus": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 4793,
+   "n": 30,
+   "scanned": 30,
+   "users": 23
+  },
+  "Branta canadensis": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 7089,
+   "n": 30,
+   "scanned": 31,
+   "users": 26
+  },
+  "Spizella pusilla": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 9152,
+   "n": 30,
+   "scanned": 30,
+   "users": 29
+  },
+  "Dolichonyx oryzivorus": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 10487,
+   "n": 30,
+   "scanned": 30,
+   "users": 24
+  },
+  "Sturnella magna": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 9528,
+   "n": 30,
+   "scanned": 30,
+   "users": 25
+  },
+  "Passerculus sandwichensis": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 9981,
+   "n": 30,
+   "scanned": 30,
+   "users": 28
+  },
+  "Ammodramus savannarum": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 10139,
+   "n": 30,
+   "scanned": 30,
+   "users": 21
+  },
+  "Meleagris gallopavo": {
+   "group": "bird",
+   "resolved": true,
+   "taxon_id": 906,
+   "n": 30,
+   "scanned": 30,
+   "users": 25
+  },
+  "other_anura": {
+   "group": "other_anura",
+   "resolved": true,
+   "taxon_id": 20979,
+   "n": 400,
+   "distinct_taxa": 60
+  },
+  "other_orthoptera": {
+   "group": "other_orthoptera",
+   "resolved": true,
+   "taxon_id": 47651,
+   "n": 400,
+   "distinct_taxa": 88
+  },
+  "other_cicadas": {
+   "group": "other_cicadas",
+   "resolved": true,
+   "taxon_id": 50186,
+   "n": 150,
+   "distinct_taxa": 38
+  },
+  "mammals": {
+   "group": "mammals",
+   "resolved": true,
+   "taxon_id": 40151,
+   "n": 200,
+   "distinct_taxa": 49
+  }
+ },
+ "n_rows": 9060
+}

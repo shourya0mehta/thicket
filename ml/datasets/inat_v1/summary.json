@@ -1,0 +1,25 @@
+{
+ "frog": {
+  "ok": 3739,
+  "too_short": 1
+ },
+ "insect": {
+  "ok": 2999
+ },
+ "bird": {
+  "ok": 1170,
+  "too_short": 1
+ },
+ "other_anura": {
+  "ok": 400
+ },
+ "other_orthoptera": {
+  "ok": 400
+ },
+ "other_cicadas": {
+  "ok": 150
+ },
+ "mammals": {
+  "ok": 200
+ }
+}
