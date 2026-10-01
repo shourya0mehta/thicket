@@ -1,5 +1,64 @@
 {
   "$defs": {
+    "Accumulation": {
+      "additionalProperties": false,
+      "properties": {
+        "note": {
+          "default": "Cumulative distinct species counted across recordings in time order. Flattening suggests the common vocal species have been found; it is not a completeness estimate.",
+          "title": "Note",
+          "type": "string"
+        },
+        "points": {
+          "items": {
+            "$ref": "#/$defs/AccumulationPoint"
+          },
+          "title": "Points",
+          "type": "array"
+        },
+        "site_id": {
+          "title": "Site Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "site_id",
+        "points"
+      ],
+      "title": "Accumulation",
+      "type": "object"
+    },
+    "AccumulationPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "captured_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Captured At"
+        },
+        "cumulative_species": {
+          "title": "Cumulative Species",
+          "type": "integer"
+        },
+        "recording_index": {
+          "title": "Recording Index",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "recording_index",
+        "captured_at",
+        "cumulative_species"
+      ],
+      "title": "AccumulationPoint",
+      "type": "object"
+    },
     "AcousticIndices": {
       "additionalProperties": false,
       "description": "Signal-level soundscape indices, independent of any species model.",
@@ -44,6 +103,421 @@
         "temporal_entropy"
       ],
       "title": "AcousticIndices",
+      "type": "object"
+    },
+    "Alert": {
+      "additionalProperties": false,
+      "properties": {
+        "acknowledged_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Acknowledged By"
+        },
+        "category": {
+          "enum": [
+            "ecology",
+            "quality",
+            "recorder"
+          ],
+          "title": "Category",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "deployment_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Deployment Id"
+        },
+        "detail": {
+          "description": "Plain-language explanation with the numbers behind it.",
+          "title": "Detail",
+          "type": "string"
+        },
+        "evidence": {
+          "additionalProperties": true,
+          "description": "Machine-readable numbers: observed, baseline median, MAD, n, window.",
+          "title": "Evidence",
+          "type": "object"
+        },
+        "first_seen_at": {
+          "format": "date-time",
+          "title": "First Seen At",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/AlertKind"
+        },
+        "last_seen_at": {
+          "format": "date-time",
+          "title": "Last Seen At",
+          "type": "string"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "occurrences": {
+          "default": 1,
+          "title": "Occurrences",
+          "type": "integer"
+        },
+        "organization_id": {
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "recorder_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Recorder Id"
+        },
+        "recording_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Recording Ids",
+          "type": "array"
+        },
+        "severity": {
+          "$ref": "#/$defs/AlertSeverity"
+        },
+        "site_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Site Id"
+        },
+        "snoozed_until": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Snoozed Until"
+        },
+        "species": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SpeciesRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "status": {
+          "$ref": "#/$defs/AlertStatus"
+        },
+        "suggested_action": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Suggested Action"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "kind",
+        "category",
+        "severity",
+        "status",
+        "title",
+        "detail",
+        "evidence",
+        "first_seen_at",
+        "last_seen_at",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "Alert",
+      "type": "object"
+    },
+    "AlertKind": {
+      "enum": [
+        "richness_drop",
+        "activity_drop",
+        "new_species_for_site",
+        "priority_species_detected",
+        "expected_species_missing",
+        "species_surge",
+        "low_quality_streak",
+        "speech_detected",
+        "muffled_audio",
+        "level_drift",
+        "recording_gap",
+        "clipping_increase",
+        "channel_imbalance",
+        "dc_offset",
+        "battery_low",
+        "temperature_extreme",
+        "clock_suspect",
+        "schedule_deviation"
+      ],
+      "title": "AlertKind",
+      "type": "string"
+    },
+    "AlertPage": {
+      "additionalProperties": false,
+      "properties": {
+        "counts_by_category": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Counts By Category",
+          "type": "object"
+        },
+        "counts_by_status": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Counts By Status",
+          "type": "object"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/Alert"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "total": {
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "items",
+        "total",
+        "counts_by_status",
+        "counts_by_category"
+      ],
+      "title": "AlertPage",
+      "type": "object"
+    },
+    "AlertRules": {
+      "additionalProperties": false,
+      "description": "Per-organization tuning. Defaults are conservative; alerts need a baseline first.",
+      "properties": {
+        "activity_drop_mad": {
+          "default": 3.0,
+          "exclusiveMinimum": 0,
+          "title": "Activity Drop Mad",
+          "type": "number"
+        },
+        "battery_low_v": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "Per recorder make. Below this a battery alert opens.",
+          "title": "Battery Low V",
+          "type": "object"
+        },
+        "consecutive_recordings": {
+          "default": 3,
+          "description": "How many recordings in a row must agree.",
+          "minimum": 1,
+          "title": "Consecutive Recordings",
+          "type": "integer"
+        },
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "expected_species_min_presence": {
+          "default": 0.5,
+          "description": "Historical presence fraction for a species to be expected this week.",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Expected Species Min Presence",
+          "type": "number"
+        },
+        "expected_species_missing_recordings": {
+          "default": 6,
+          "minimum": 2,
+          "title": "Expected Species Missing Recordings",
+          "type": "integer"
+        },
+        "gap_min_hours": {
+          "default": 2.0,
+          "exclusiveMinimum": 0,
+          "title": "Gap Min Hours",
+          "type": "number"
+        },
+        "gap_multiplier": {
+          "default": 3.0,
+          "description": "Gap longer than this many median intervals is a recording gap.",
+          "exclusiveMinimum": 1,
+          "title": "Gap Multiplier",
+          "type": "number"
+        },
+        "low_quality_streak": {
+          "default": 3,
+          "minimum": 2,
+          "title": "Low Quality Streak",
+          "type": "integer"
+        },
+        "min_baseline_recordings": {
+          "default": 8,
+          "description": "Recordings needed before ecology alerts fire.",
+          "minimum": 3,
+          "title": "Min Baseline Recordings",
+          "type": "integer"
+        },
+        "priority_species": {
+          "description": "Scientific names.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Priority Species",
+          "type": "array"
+        },
+        "richness_drop_mad": {
+          "default": 3.0,
+          "description": "Robust z (MAD units) below baseline median.",
+          "exclusiveMinimum": 0,
+          "title": "Richness Drop Mad",
+          "type": "number"
+        },
+        "species_surge_mad": {
+          "default": 4.0,
+          "exclusiveMinimum": 0,
+          "title": "Species Surge Mad",
+          "type": "number"
+        },
+        "temperature_max_c": {
+          "default": 50.0,
+          "title": "Temperature Max C",
+          "type": "number"
+        },
+        "temperature_min_c": {
+          "default": -20.0,
+          "title": "Temperature Min C",
+          "type": "number"
+        }
+      },
+      "title": "AlertRules",
+      "type": "object"
+    },
+    "AlertSeverity": {
+      "enum": [
+        "info",
+        "watch",
+        "warning"
+      ],
+      "title": "AlertSeverity",
+      "type": "string"
+    },
+    "AlertStatus": {
+      "enum": [
+        "open",
+        "acknowledged",
+        "resolved",
+        "snoozed"
+      ],
+      "title": "AlertStatus",
+      "type": "string"
+    },
+    "AlertUpdate": {
+      "additionalProperties": false,
+      "properties": {
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "snoozed_until": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Snoozed Until"
+        },
+        "status": {
+          "$ref": "#/$defs/AlertStatus"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "AlertUpdate",
       "type": "object"
     },
     "Analysis": {
@@ -638,6 +1112,860 @@
       "title": "Assets",
       "type": "object"
     },
+    "AuthConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_domains": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Allowed Domains",
+          "type": "array"
+        },
+        "google_client_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Google Client Id"
+        },
+        "mode": {
+          "$ref": "#/$defs/AuthMode"
+        },
+        "sign_in_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Where the sign-in button sends the browser.",
+          "title": "Sign In Url"
+        }
+      },
+      "required": [
+        "mode"
+      ],
+      "title": "AuthConfig",
+      "type": "object"
+    },
+    "AuthMode": {
+      "enum": [
+        "disabled",
+        "dev",
+        "google"
+      ],
+      "title": "AuthMode",
+      "type": "string"
+    },
+    "BatchItem": {
+      "additionalProperties": false,
+      "properties": {
+        "analysis_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Analysis Id"
+        },
+        "captured_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Captured At"
+        },
+        "captured_at_source": {
+          "$ref": "#/$defs/CapturedAtSource",
+          "default": "unknown"
+        },
+        "error_code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error Code"
+        },
+        "error_message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error Message"
+        },
+        "filename": {
+          "title": "Filename",
+          "type": "string"
+        },
+        "recording_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Recording Id"
+        },
+        "status": {
+          "$ref": "#/$defs/BatchItemStatus"
+        },
+        "telemetry": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Telemetry"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "filename",
+        "status"
+      ],
+      "title": "BatchItem",
+      "type": "object"
+    },
+    "BatchItemStatus": {
+      "enum": [
+        "queued",
+        "processing",
+        "completed",
+        "failed",
+        "skipped"
+      ],
+      "title": "BatchItemStatus",
+      "type": "string"
+    },
+    "BatchJob": {
+      "additionalProperties": false,
+      "properties": {
+        "completed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Completed At"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "deployment_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Deployment Id"
+        },
+        "done": {
+          "title": "Done",
+          "type": "integer"
+        },
+        "failed": {
+          "title": "Failed",
+          "type": "integer"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/BatchItem"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "organization_id": {
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "settings": {
+          "additionalProperties": true,
+          "description": "Effective models, threshold, timezone, parse options.",
+          "title": "Settings",
+          "type": "object"
+        },
+        "sidecars_parsed": {
+          "description": "Summary or config files that were read.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Sidecars Parsed",
+          "type": "array"
+        },
+        "site_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Site Id"
+        },
+        "skipped": {
+          "title": "Skipped",
+          "type": "integer"
+        },
+        "status": {
+          "enum": [
+            "queued",
+            "processing",
+            "completed",
+            "completed_with_errors",
+            "failed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "total": {
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "site_id",
+        "deployment_id",
+        "status",
+        "total",
+        "done",
+        "failed",
+        "skipped",
+        "items",
+        "settings",
+        "created_at"
+      ],
+      "title": "BatchJob",
+      "type": "object"
+    },
+    "CapturedAtSource": {
+      "enum": [
+        "filename",
+        "file_metadata",
+        "user",
+        "browser_last_modified",
+        "unknown"
+      ],
+      "title": "CapturedAtSource",
+      "type": "string"
+    },
+    "Dashboard": {
+      "additionalProperties": false,
+      "properties": {
+        "activity_heatmap": {
+          "items": {
+            "$ref": "#/$defs/HeatCell"
+          },
+          "title": "Activity Heatmap",
+          "type": "array"
+        },
+        "baseline_note": {
+          "description": "Plain text on how much history the baselines have.",
+          "title": "Baseline Note",
+          "type": "string"
+        },
+        "by_taxon": {
+          "items": {
+            "$ref": "#/$defs/TaxonCount"
+          },
+          "title": "By Taxon",
+          "type": "array"
+        },
+        "detection_events": {
+          "title": "Detection Events",
+          "type": "integer"
+        },
+        "generated_at": {
+          "format": "date-time",
+          "title": "Generated At",
+          "type": "string"
+        },
+        "indices_by_day": {
+          "items": {
+            "$ref": "#/$defs/IndexPoint"
+          },
+          "title": "Indices By Day",
+          "type": "array"
+        },
+        "minutes_recorded": {
+          "title": "Minutes Recorded",
+          "type": "number"
+        },
+        "open_alerts": {
+          "title": "Open Alerts",
+          "type": "integer"
+        },
+        "organization_id": {
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "period_end": {
+          "format": "date",
+          "title": "Period End",
+          "type": "string"
+        },
+        "period_start": {
+          "format": "date",
+          "title": "Period Start",
+          "type": "string"
+        },
+        "quality": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "usable / usable_with_warnings / not_usable counts",
+          "title": "Quality",
+          "type": "object"
+        },
+        "recordings": {
+          "title": "Recordings",
+          "type": "integer"
+        },
+        "richness_by_day": {
+          "items": {
+            "$ref": "#/$defs/DayPoint"
+          },
+          "title": "Richness By Day",
+          "type": "array"
+        },
+        "site_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Site Ids",
+          "type": "array"
+        },
+        "species": {
+          "items": {
+            "$ref": "#/$defs/SpeciesRollup"
+          },
+          "title": "Species",
+          "type": "array"
+        },
+        "species_counted": {
+          "title": "Species Counted",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "organization_id",
+        "period_start",
+        "period_end",
+        "site_ids",
+        "recordings",
+        "minutes_recorded",
+        "species_counted",
+        "detection_events",
+        "richness_by_day",
+        "species",
+        "by_taxon",
+        "activity_heatmap",
+        "indices_by_day",
+        "quality",
+        "open_alerts",
+        "baseline_note",
+        "generated_at"
+      ],
+      "title": "Dashboard",
+      "type": "object"
+    },
+    "DayPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "format": "date",
+          "title": "Date",
+          "type": "string"
+        },
+        "detection_events": {
+          "title": "Detection Events",
+          "type": "integer"
+        },
+        "events_per_minute": {
+          "title": "Events Per Minute",
+          "type": "number"
+        },
+        "minutes": {
+          "title": "Minutes",
+          "type": "number"
+        },
+        "recordings": {
+          "title": "Recordings",
+          "type": "integer"
+        },
+        "shannon_index": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Shannon Index"
+        },
+        "site_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Site Id"
+        },
+        "species_richness": {
+          "title": "Species Richness",
+          "type": "integer"
+        },
+        "usable_fraction": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Usable Fraction"
+        }
+      },
+      "required": [
+        "date",
+        "recordings",
+        "minutes",
+        "species_richness",
+        "detection_events",
+        "events_per_minute"
+      ],
+      "title": "DayPoint",
+      "type": "object"
+    },
+    "Deployment": {
+      "additionalProperties": false,
+      "description": "A recorder placed at a site for a period. Health baselines are per deployment.",
+      "properties": {
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "ended_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ended At"
+        },
+        "expected_clip_seconds": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Clip Seconds"
+        },
+        "expected_interval_minutes": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Expected time between recordings; inferred when null.",
+          "title": "Expected Interval Minutes"
+        },
+        "gain_setting": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gain Setting"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "mount_height_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mount Height M"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "organization_id": {
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "orientation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Orientation"
+        },
+        "recorder_id": {
+          "title": "Recorder Id",
+          "type": "string"
+        },
+        "schedule_description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Human text, e.g. 1 min every 5 min, dawn and dusk.",
+          "title": "Schedule Description"
+        },
+        "site_id": {
+          "title": "Site Id",
+          "type": "string"
+        },
+        "started_at": {
+          "format": "date-time",
+          "title": "Started At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "recorder_id",
+        "site_id",
+        "started_at",
+        "created_at"
+      ],
+      "title": "Deployment",
+      "type": "object"
+    },
+    "DeploymentCreate": {
+      "additionalProperties": false,
+      "properties": {
+        "ended_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ended At"
+        },
+        "expected_clip_seconds": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Clip Seconds"
+        },
+        "expected_interval_minutes": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Interval Minutes"
+        },
+        "gain_setting": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gain Setting"
+        },
+        "mount_height_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mount Height M"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "orientation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Orientation"
+        },
+        "recorder_id": {
+          "title": "Recorder Id",
+          "type": "string"
+        },
+        "schedule_description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Schedule Description"
+        },
+        "site_id": {
+          "title": "Site Id",
+          "type": "string"
+        },
+        "started_at": {
+          "format": "date-time",
+          "title": "Started At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "recorder_id",
+        "site_id",
+        "started_at"
+      ],
+      "title": "DeploymentCreate",
+      "type": "object"
+    },
+    "DeploymentUpdate": {
+      "additionalProperties": false,
+      "properties": {
+        "ended_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ended At"
+        },
+        "expected_clip_seconds": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Clip Seconds"
+        },
+        "expected_interval_minutes": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Interval Minutes"
+        },
+        "gain_setting": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gain Setting"
+        },
+        "mount_height_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mount Height M"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "orientation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Orientation"
+        },
+        "schedule_description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Schedule Description"
+        }
+      },
+      "title": "DeploymentUpdate",
+      "type": "object"
+    },
     "DetectionEvent": {
       "additionalProperties": false,
       "description": "One consolidated detection event at the requested decision threshold.\n\n``scientific_name``, ``common_name`` and ``taxon`` are the species the event\ncounts under: the model's label, or the reviewer's correction when an event\nwas corrected to a label the models know. ``detected_*`` always hold the\nmodel's own label, so a correction never hides what the model said.",
@@ -767,6 +2095,32 @@
       "title": "DetectionEvent",
       "type": "object"
     },
+    "DevLogin": {
+      "additionalProperties": false,
+      "properties": {
+        "email": {
+          "title": "Email",
+          "type": "string"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        }
+      },
+      "required": [
+        "email"
+      ],
+      "title": "DevLogin",
+      "type": "object"
+    },
     "ErrorCode": {
       "enum": [
         "unsupported_file_type",
@@ -892,6 +2246,114 @@
       "title": "ExportMetadata",
       "type": "object"
     },
+    "Gap": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "format": "date-time",
+          "title": "End",
+          "type": "string"
+        },
+        "expected_recordings": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Recordings"
+        },
+        "hours": {
+          "title": "Hours",
+          "type": "number"
+        },
+        "start": {
+          "format": "date-time",
+          "title": "Start",
+          "type": "string"
+        }
+      },
+      "required": [
+        "start",
+        "end",
+        "hours"
+      ],
+      "title": "Gap",
+      "type": "object"
+    },
+    "HabitatType": {
+      "enum": [
+        "pasture",
+        "hayfield",
+        "cropland",
+        "shrubland",
+        "forest",
+        "wetland",
+        "riparian_buffer",
+        "pond",
+        "farmstead",
+        "other"
+      ],
+      "title": "HabitatType",
+      "type": "string"
+    },
+    "HealthCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "baseline": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Baseline"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "good",
+            "watch",
+            "attention",
+            "unknown"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": [
+        "name",
+        "status",
+        "message"
+      ],
+      "title": "HealthCheck",
+      "type": "object"
+    },
     "HealthResponse": {
       "additionalProperties": false,
       "properties": {
@@ -931,6 +2393,273 @@
         "ffmpeg"
       ],
       "title": "HealthResponse",
+      "type": "object"
+    },
+    "HeatCell": {
+      "additionalProperties": false,
+      "properties": {
+        "events_per_minute": {
+          "title": "Events Per Minute",
+          "type": "number"
+        },
+        "hour": {
+          "maximum": 23,
+          "minimum": 0,
+          "title": "Hour",
+          "type": "integer"
+        },
+        "recordings": {
+          "title": "Recordings",
+          "type": "integer"
+        },
+        "weekday": {
+          "description": "0 = Monday",
+          "maximum": 6,
+          "minimum": 0,
+          "title": "Weekday",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "weekday",
+        "hour",
+        "recordings",
+        "events_per_minute"
+      ],
+      "title": "HeatCell",
+      "type": "object"
+    },
+    "IndexPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "acoustic_complexity_index": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Acoustic Complexity Index"
+        },
+        "acoustic_diversity_index": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Acoustic Diversity Index"
+        },
+        "bioacoustic_index": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bioacoustic Index"
+        },
+        "date": {
+          "format": "date",
+          "title": "Date",
+          "type": "string"
+        },
+        "ndsi": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ndsi"
+        },
+        "site_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Site Id"
+        }
+      },
+      "required": [
+        "date"
+      ],
+      "title": "IndexPoint",
+      "type": "object"
+    },
+    "Invite": {
+      "additionalProperties": false,
+      "properties": {
+        "accept_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Only returned to the inviter at creation.",
+          "title": "Accept Url"
+        },
+        "accepted_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Accepted At"
+        },
+        "email": {
+          "title": "Email",
+          "type": "string"
+        },
+        "expires_at": {
+          "format": "date-time",
+          "title": "Expires At",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "invited_by": {
+          "title": "Invited By",
+          "type": "string"
+        },
+        "organization_id": {
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/Role"
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "email",
+        "role",
+        "invited_by",
+        "expires_at"
+      ],
+      "title": "Invite",
+      "type": "object"
+    },
+    "InviteCreate": {
+      "additionalProperties": false,
+      "properties": {
+        "email": {
+          "title": "Email",
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/Role",
+          "default": "viewer"
+        }
+      },
+      "required": [
+        "email"
+      ],
+      "title": "InviteCreate",
+      "type": "object"
+    },
+    "Me": {
+      "additionalProperties": false,
+      "properties": {
+        "auth_mode": {
+          "$ref": "#/$defs/AuthMode"
+        },
+        "organizations": {
+          "items": {
+            "$ref": "#/$defs/Organization"
+          },
+          "title": "Organizations",
+          "type": "array"
+        },
+        "roles": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Role"
+          },
+          "description": "organization_id -> role",
+          "title": "Roles",
+          "type": "object"
+        },
+        "unread_notifications": {
+          "default": 0,
+          "title": "Unread Notifications",
+          "type": "integer"
+        },
+        "user": {
+          "$ref": "#/$defs/User"
+        }
+      },
+      "required": [
+        "user",
+        "organizations",
+        "roles",
+        "auth_mode"
+      ],
+      "title": "Me",
+      "type": "object"
+    },
+    "Membership": {
+      "additionalProperties": false,
+      "properties": {
+        "joined_at": {
+          "format": "date-time",
+          "title": "Joined At",
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/Role"
+        },
+        "user": {
+          "$ref": "#/$defs/User"
+        }
+      },
+      "required": [
+        "user",
+        "role",
+        "joined_at"
+      ],
+      "title": "Membership",
+      "type": "object"
+    },
+    "MembershipUpdate": {
+      "additionalProperties": false,
+      "properties": {
+        "role": {
+          "$ref": "#/$defs/Role"
+        }
+      },
+      "required": [
+        "role"
+      ],
+      "title": "MembershipUpdate",
       "type": "object"
     },
     "Metrics": {
@@ -1204,6 +2933,426 @@
       "title": "ModelsResponse",
       "type": "object"
     },
+    "Notification": {
+      "additionalProperties": false,
+      "properties": {
+        "alert": {
+          "$ref": "#/$defs/Alert"
+        },
+        "channel": {
+          "enum": [
+            "in_app",
+            "email"
+          ],
+          "title": "Channel",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "read_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Read At"
+        },
+        "sent_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sent At"
+        }
+      },
+      "required": [
+        "id",
+        "alert",
+        "channel",
+        "created_at"
+      ],
+      "title": "Notification",
+      "type": "object"
+    },
+    "NotificationPage": {
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/Notification"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "unread": {
+          "title": "Unread",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "items",
+        "unread"
+      ],
+      "title": "NotificationPage",
+      "type": "object"
+    },
+    "NotificationPrefs": {
+      "additionalProperties": false,
+      "properties": {
+        "categories": {
+          "items": {
+            "enum": [
+              "ecology",
+              "quality",
+              "recorder"
+            ],
+            "type": "string"
+          },
+          "title": "Categories",
+          "type": "array"
+        },
+        "email_digest": {
+          "default": "daily",
+          "enum": [
+            "immediate",
+            "daily",
+            "weekly",
+            "off"
+          ],
+          "title": "Email Digest",
+          "type": "string"
+        },
+        "email_enabled": {
+          "default": false,
+          "title": "Email Enabled",
+          "type": "boolean"
+        },
+        "min_severity": {
+          "$ref": "#/$defs/AlertSeverity",
+          "default": "watch"
+        }
+      },
+      "title": "NotificationPrefs",
+      "type": "object"
+    },
+    "Organization": {
+      "additionalProperties": false,
+      "properties": {
+        "country": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Country"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/OrganizationKind"
+        },
+        "member_count": {
+          "default": 0,
+          "title": "Member Count",
+          "type": "integer"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "region": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "State or province, e.g. NY.",
+          "title": "Region"
+        },
+        "site_count": {
+          "default": 0,
+          "title": "Site Count",
+          "type": "integer"
+        },
+        "slug": {
+          "title": "Slug",
+          "type": "string"
+        },
+        "timezone": {
+          "description": "IANA zone used for day boundaries in rollups.",
+          "title": "Timezone",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "slug",
+        "kind",
+        "timezone",
+        "created_at"
+      ],
+      "title": "Organization",
+      "type": "object"
+    },
+    "OrganizationCreate": {
+      "additionalProperties": false,
+      "properties": {
+        "country": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Country"
+        },
+        "kind": {
+          "$ref": "#/$defs/OrganizationKind",
+          "default": "farm"
+        },
+        "name": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "region": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region"
+        },
+        "timezone": {
+          "default": "America/New_York",
+          "title": "Timezone",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "OrganizationCreate",
+      "type": "object"
+    },
+    "OrganizationKind": {
+      "enum": [
+        "farm",
+        "ranch",
+        "land_trust",
+        "restoration_project",
+        "agency",
+        "research",
+        "other"
+      ],
+      "title": "OrganizationKind",
+      "type": "string"
+    },
+    "OrganizationUpdate": {
+      "additionalProperties": false,
+      "properties": {
+        "country": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Country"
+        },
+        "kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OrganizationKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "region": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region"
+        },
+        "timezone": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timezone"
+        }
+      },
+      "title": "OrganizationUpdate",
+      "type": "object"
+    },
+    "Phenology": {
+      "additionalProperties": false,
+      "properties": {
+        "cells": {
+          "items": {
+            "$ref": "#/$defs/PhenologyCell"
+          },
+          "title": "Cells",
+          "type": "array"
+        },
+        "first_detection_by_year": {
+          "additionalProperties": {
+            "format": "date",
+            "type": "string"
+          },
+          "title": "First Detection By Year",
+          "type": "object"
+        },
+        "last_detection_by_year": {
+          "additionalProperties": {
+            "format": "date",
+            "type": "string"
+          },
+          "title": "Last Detection By Year",
+          "type": "object"
+        },
+        "organization_id": {
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "site_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Site Ids",
+          "type": "array"
+        },
+        "species": {
+          "$ref": "#/$defs/SpeciesRef"
+        },
+        "taxon": {
+          "$ref": "#/$defs/Taxon"
+        }
+      },
+      "required": [
+        "organization_id",
+        "site_ids",
+        "species",
+        "taxon",
+        "cells",
+        "first_detection_by_year",
+        "last_detection_by_year"
+      ],
+      "title": "Phenology",
+      "type": "object"
+    },
+    "PhenologyCell": {
+      "additionalProperties": false,
+      "properties": {
+        "events_per_minute": {
+          "title": "Events Per Minute",
+          "type": "number"
+        },
+        "iso_week": {
+          "maximum": 53,
+          "minimum": 1,
+          "title": "Iso Week",
+          "type": "integer"
+        },
+        "presence_fraction": {
+          "title": "Presence Fraction",
+          "type": "number"
+        },
+        "recordings": {
+          "title": "Recordings",
+          "type": "integer"
+        },
+        "recordings_with_detection": {
+          "title": "Recordings With Detection",
+          "type": "integer"
+        },
+        "year": {
+          "title": "Year",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "year",
+        "iso_week",
+        "recordings",
+        "recordings_with_detection",
+        "presence_fraction",
+        "events_per_minute"
+      ],
+      "title": "PhenologyCell",
+      "type": "object"
+    },
     "Preview": {
       "additionalProperties": false,
       "description": "Result of POST /api/v1/previews: decode, facts, QC and spectrogram, no model.",
@@ -1444,6 +3593,448 @@
       "title": "RawDetection",
       "type": "object"
     },
+    "Recorder": {
+      "additionalProperties": false,
+      "properties": {
+        "active_deployment_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Active Deployment Id"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "firmware": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Firmware"
+        },
+        "health": {
+          "default": "unknown",
+          "enum": [
+            "good",
+            "watch",
+            "attention",
+            "unknown"
+          ],
+          "title": "Health",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "last_recording_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Recording At"
+        },
+        "make": {
+          "$ref": "#/$defs/RecorderMake"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "organization_id": {
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "serial": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Serial"
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "label",
+        "make",
+        "created_at"
+      ],
+      "title": "Recorder",
+      "type": "object"
+    },
+    "RecorderCreate": {
+      "additionalProperties": false,
+      "properties": {
+        "firmware": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Firmware"
+        },
+        "label": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "make": {
+          "$ref": "#/$defs/RecorderMake",
+          "default": "other"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "serial": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Serial"
+        }
+      },
+      "required": [
+        "label"
+      ],
+      "title": "RecorderCreate",
+      "type": "object"
+    },
+    "RecorderHealth": {
+      "additionalProperties": false,
+      "properties": {
+        "baseline_note": {
+          "title": "Baseline Note",
+          "type": "string"
+        },
+        "battery": {
+          "items": {
+            "$ref": "#/$defs/SeriesPoint"
+          },
+          "title": "Battery",
+          "type": "array"
+        },
+        "checks": {
+          "items": {
+            "$ref": "#/$defs/HealthCheck"
+          },
+          "title": "Checks",
+          "type": "array"
+        },
+        "clipping_fraction": {
+          "items": {
+            "$ref": "#/$defs/SeriesPoint"
+          },
+          "title": "Clipping Fraction",
+          "type": "array"
+        },
+        "deployment": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Deployment"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expected_last_7d": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Expected Last 7D"
+        },
+        "gaps": {
+          "items": {
+            "$ref": "#/$defs/Gap"
+          },
+          "title": "Gaps",
+          "type": "array"
+        },
+        "high_band_fraction": {
+          "description": "band_fraction_4_8k + band_fraction_8k_plus per recording.",
+          "items": {
+            "$ref": "#/$defs/SeriesPoint"
+          },
+          "title": "High Band Fraction",
+          "type": "array"
+        },
+        "last_recording_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Recording At"
+        },
+        "level_dbfs": {
+          "items": {
+            "$ref": "#/$defs/SeriesPoint"
+          },
+          "title": "Level Dbfs",
+          "type": "array"
+        },
+        "median_interval_minutes": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Median Interval Minutes"
+        },
+        "open_alerts": {
+          "items": {
+            "$ref": "#/$defs/Alert"
+          },
+          "title": "Open Alerts",
+          "type": "array"
+        },
+        "recorder": {
+          "$ref": "#/$defs/Recorder"
+        },
+        "recordings_last_7d": {
+          "title": "Recordings Last 7D",
+          "type": "integer"
+        },
+        "spectral_centroid_hz": {
+          "items": {
+            "$ref": "#/$defs/SeriesPoint"
+          },
+          "title": "Spectral Centroid Hz",
+          "type": "array"
+        },
+        "status": {
+          "enum": [
+            "good",
+            "watch",
+            "attention",
+            "unknown"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "temperature": {
+          "items": {
+            "$ref": "#/$defs/SeriesPoint"
+          },
+          "title": "Temperature",
+          "type": "array"
+        },
+        "uptime_fraction_7d": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Uptime Fraction 7D"
+        }
+      },
+      "required": [
+        "recorder",
+        "deployment",
+        "status",
+        "checks",
+        "last_recording_at",
+        "recordings_last_7d",
+        "expected_last_7d",
+        "uptime_fraction_7d",
+        "median_interval_minutes",
+        "battery",
+        "temperature",
+        "level_dbfs",
+        "high_band_fraction",
+        "spectral_centroid_hz",
+        "clipping_fraction",
+        "gaps",
+        "open_alerts",
+        "baseline_note"
+      ],
+      "title": "RecorderHealth",
+      "type": "object"
+    },
+    "RecorderMake": {
+      "enum": [
+        "audiomoth",
+        "song_meter",
+        "phone",
+        "handheld",
+        "other"
+      ],
+      "title": "RecorderMake",
+      "type": "string"
+    },
+    "RecorderUpdate": {
+      "additionalProperties": false,
+      "properties": {
+        "firmware": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Firmware"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "make": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecorderMake"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "serial": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Serial"
+        }
+      },
+      "title": "RecorderUpdate",
+      "type": "object"
+    },
     "RecordingInfo": {
       "additionalProperties": false,
       "properties": {
@@ -1611,6 +4202,686 @@
       "title": "RecordingInfo",
       "type": "object"
     },
+    "RecordingPage": {
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/RecordingSummary"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "page": {
+          "title": "Page",
+          "type": "integer"
+        },
+        "page_size": {
+          "title": "Page Size",
+          "type": "integer"
+        },
+        "total": {
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "items",
+        "total",
+        "page",
+        "page_size"
+      ],
+      "title": "RecordingPage",
+      "type": "object"
+    },
+    "RecordingSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "analysis_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Analysis Id"
+        },
+        "analysis_status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AnalysisStatus"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "captured_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Captured At"
+        },
+        "captured_at_source": {
+          "$ref": "#/$defs/CapturedAtSource"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "decision_threshold": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Decision Threshold"
+        },
+        "deployment_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Deployment Id"
+        },
+        "duration_seconds": {
+          "title": "Duration Seconds",
+          "type": "number"
+        },
+        "filename": {
+          "title": "Filename",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "latitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Latitude"
+        },
+        "longitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Longitude"
+        },
+        "organization_id": {
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "quality_status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QualityStatus"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "recorder_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Recorder Id"
+        },
+        "site_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Site Id"
+        },
+        "site_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Site Name"
+        },
+        "species_richness": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Species Richness"
+        },
+        "telemetry": {
+          "$ref": "#/$defs/Telemetry"
+        },
+        "timezone": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Timezone"
+        },
+        "total_detection_events": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Total Detection Events"
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "site_id",
+        "site_name",
+        "deployment_id",
+        "recorder_id",
+        "filename",
+        "duration_seconds",
+        "captured_at",
+        "captured_at_source",
+        "timezone",
+        "latitude",
+        "longitude",
+        "telemetry",
+        "analysis_id",
+        "analysis_status",
+        "quality_status",
+        "species_richness",
+        "total_detection_events",
+        "decision_threshold",
+        "created_at"
+      ],
+      "title": "RecordingSummary",
+      "type": "object"
+    },
+    "Report": {
+      "additionalProperties": false,
+      "properties": {
+        "analysis_count": {
+          "title": "Analysis Count",
+          "type": "integer"
+        },
+        "checksum_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Checksum Sha256"
+        },
+        "completed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Completed At"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "created_by": {
+          "title": "Created By",
+          "type": "string"
+        },
+        "error_message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error Message"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "json_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Json Url"
+        },
+        "missing_fields": {
+          "description": "Template fields left blank.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Missing Fields",
+          "type": "array"
+        },
+        "organization_id": {
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "page_count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Page Count"
+        },
+        "pdf_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pdf Url"
+        },
+        "period_end": {
+          "format": "date",
+          "title": "Period End",
+          "type": "string"
+        },
+        "period_start": {
+          "format": "date",
+          "title": "Period Start",
+          "type": "string"
+        },
+        "site_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Site Ids",
+          "type": "array"
+        },
+        "status": {
+          "enum": [
+            "queued",
+            "rendering",
+            "ready",
+            "failed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "template": {
+          "$ref": "#/$defs/ReportTemplateKey"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "template",
+        "title",
+        "status",
+        "created_by",
+        "created_at",
+        "period_start",
+        "period_end",
+        "site_ids",
+        "analysis_count"
+      ],
+      "title": "Report",
+      "type": "object"
+    },
+    "ReportCreate": {
+      "additionalProperties": false,
+      "properties": {
+        "baseline_end": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Baseline End"
+        },
+        "baseline_start": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Baseline Start"
+        },
+        "decision_threshold": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Defaults to each analysis's own threshold.",
+          "title": "Decision Threshold"
+        },
+        "fields": {
+          "additionalProperties": true,
+          "description": "Values for ReportTemplate.fields.",
+          "title": "Fields",
+          "type": "object"
+        },
+        "include_raw_manifest": {
+          "default": true,
+          "title": "Include Raw Manifest",
+          "type": "boolean"
+        },
+        "include_review_log": {
+          "default": true,
+          "title": "Include Review Log",
+          "type": "boolean"
+        },
+        "period_end": {
+          "format": "date",
+          "title": "Period End",
+          "type": "string"
+        },
+        "period_start": {
+          "format": "date",
+          "title": "Period Start",
+          "type": "string"
+        },
+        "site_ids": {
+          "description": "Empty means all sites.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Site Ids",
+          "type": "array"
+        },
+        "template": {
+          "$ref": "#/$defs/ReportTemplateKey"
+        },
+        "title": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "template",
+        "title",
+        "period_start",
+        "period_end"
+      ],
+      "title": "ReportCreate",
+      "type": "object"
+    },
+    "ReportField": {
+      "additionalProperties": false,
+      "properties": {
+        "example": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Example"
+        },
+        "group": {
+          "title": "Group",
+          "type": "string"
+        },
+        "help": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Help"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "options": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Options"
+        },
+        "required": {
+          "default": false,
+          "title": "Required",
+          "type": "boolean"
+        },
+        "templates": {
+          "items": {
+            "$ref": "#/$defs/ReportTemplateKey"
+          },
+          "title": "Templates",
+          "type": "array"
+        },
+        "type": {
+          "enum": [
+            "string",
+            "text",
+            "date",
+            "datetime",
+            "number",
+            "integer",
+            "boolean",
+            "enum",
+            "list",
+            "file"
+          ],
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "type",
+        "group",
+        "templates",
+        "label"
+      ],
+      "title": "ReportField",
+      "type": "object"
+    },
+    "ReportList": {
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/Report"
+          },
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "title": "ReportList",
+      "type": "object"
+    },
+    "ReportTemplate": {
+      "additionalProperties": false,
+      "properties": {
+        "audience": {
+          "title": "Audience",
+          "type": "string"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "fields": {
+          "items": {
+            "$ref": "#/$defs/ReportField"
+          },
+          "title": "Fields",
+          "type": "array"
+        },
+        "key": {
+          "$ref": "#/$defs/ReportTemplateKey"
+        },
+        "pages": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Pages",
+          "type": "array"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "title",
+        "audience",
+        "description",
+        "pages",
+        "fields"
+      ],
+      "title": "ReportTemplate",
+      "type": "object"
+    },
+    "ReportTemplateKey": {
+      "enum": [
+        "evidence",
+        "nrcs",
+        "aem",
+        "certification",
+        "credit"
+      ],
+      "title": "ReportTemplateKey",
+      "type": "string"
+    },
+    "ReportTemplates": {
+      "additionalProperties": false,
+      "properties": {
+        "templates": {
+          "items": {
+            "$ref": "#/$defs/ReportTemplate"
+          },
+          "title": "Templates",
+          "type": "array"
+        }
+      },
+      "required": [
+        "templates"
+      ],
+      "title": "ReportTemplates",
+      "type": "object"
+    },
     "ReviewStatus": {
       "enum": [
         "unreviewed",
@@ -1620,6 +4891,524 @@
       ],
       "title": "ReviewStatus",
       "type": "string"
+    },
+    "Role": {
+      "enum": [
+        "owner",
+        "manager",
+        "reviewer",
+        "viewer"
+      ],
+      "title": "Role",
+      "type": "string"
+    },
+    "SeriesPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "t": {
+          "format": "date-time",
+          "title": "T",
+          "type": "string"
+        },
+        "v": {
+          "title": "V",
+          "type": "number"
+        }
+      },
+      "required": [
+        "t",
+        "v"
+      ],
+      "title": "SeriesPoint",
+      "type": "object"
+    },
+    "Site": {
+      "additionalProperties": false,
+      "properties": {
+        "area_hectares": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Area Hectares"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "fsa_field_number": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fsa Field Number"
+        },
+        "habitat_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HabitatType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "latitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Latitude"
+        },
+        "longitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Longitude"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "organization_id": {
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "paddock_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Paddock Id"
+        },
+        "stats": {
+          "$ref": "#/$defs/SiteStats"
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "name",
+        "created_at",
+        "stats"
+      ],
+      "title": "Site",
+      "type": "object"
+    },
+    "SiteComparison": {
+      "additionalProperties": false,
+      "properties": {
+        "period_end": {
+          "format": "date",
+          "title": "Period End",
+          "type": "string"
+        },
+        "period_start": {
+          "format": "date",
+          "title": "Period Start",
+          "type": "string"
+        },
+        "rows": {
+          "items": {
+            "$ref": "#/$defs/SiteComparisonRow"
+          },
+          "title": "Rows",
+          "type": "array"
+        }
+      },
+      "required": [
+        "period_start",
+        "period_end",
+        "rows"
+      ],
+      "title": "SiteComparison",
+      "type": "object"
+    },
+    "SiteComparisonRow": {
+      "additionalProperties": false,
+      "properties": {
+        "events_per_minute": {
+          "title": "Events Per Minute",
+          "type": "number"
+        },
+        "minutes": {
+          "title": "Minutes",
+          "type": "number"
+        },
+        "recordings": {
+          "title": "Recordings",
+          "type": "integer"
+        },
+        "shannon_index": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Shannon Index"
+        },
+        "site": {
+          "$ref": "#/$defs/Site"
+        },
+        "species_richness": {
+          "title": "Species Richness",
+          "type": "integer"
+        },
+        "top_species": {
+          "items": {
+            "$ref": "#/$defs/SpeciesRef"
+          },
+          "title": "Top Species",
+          "type": "array"
+        },
+        "usable_fraction": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Usable Fraction"
+        }
+      },
+      "required": [
+        "site",
+        "recordings",
+        "minutes",
+        "species_richness",
+        "events_per_minute",
+        "shannon_index",
+        "top_species",
+        "usable_fraction"
+      ],
+      "title": "SiteComparisonRow",
+      "type": "object"
+    },
+    "SiteCreate": {
+      "additionalProperties": false,
+      "properties": {
+        "area_hectares": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Area Hectares"
+        },
+        "fsa_field_number": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fsa Field Number"
+        },
+        "habitat_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HabitatType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "latitude": {
+          "anyOf": [
+            {
+              "maximum": 90,
+              "minimum": -90,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Latitude"
+        },
+        "longitude": {
+          "anyOf": [
+            {
+              "maximum": 180,
+              "minimum": -180,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Longitude"
+        },
+        "name": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "paddock_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Paddock Id"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "SiteCreate",
+      "type": "object"
+    },
+    "SiteStats": {
+      "additionalProperties": false,
+      "properties": {
+        "first_recording_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "First Recording At"
+        },
+        "health": {
+          "default": "unknown",
+          "enum": [
+            "good",
+            "watch",
+            "attention",
+            "unknown"
+          ],
+          "title": "Health",
+          "type": "string"
+        },
+        "last_recording_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Recording At"
+        },
+        "minutes_recorded": {
+          "default": 0,
+          "title": "Minutes Recorded",
+          "type": "number"
+        },
+        "open_alerts": {
+          "default": 0,
+          "title": "Open Alerts",
+          "type": "integer"
+        },
+        "recordings": {
+          "default": 0,
+          "title": "Recordings",
+          "type": "integer"
+        },
+        "species_counted": {
+          "default": 0,
+          "title": "Species Counted",
+          "type": "integer"
+        }
+      },
+      "title": "SiteStats",
+      "type": "object"
+    },
+    "SiteUpdate": {
+      "additionalProperties": false,
+      "properties": {
+        "area_hectares": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Area Hectares"
+        },
+        "fsa_field_number": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fsa Field Number"
+        },
+        "habitat_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HabitatType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "latitude": {
+          "anyOf": [
+            {
+              "maximum": 90,
+              "minimum": -90,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Latitude"
+        },
+        "longitude": {
+          "anyOf": [
+            {
+              "maximum": 180,
+              "minimum": -180,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Longitude"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "paddock_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Paddock Id"
+        }
+      },
+      "title": "SiteUpdate",
+      "type": "object"
     },
     "SpeciesRef": {
       "additionalProperties": false,
@@ -1638,6 +5427,104 @@
         "common_name"
       ],
       "title": "SpeciesRef",
+      "type": "object"
+    },
+    "SpeciesRollup": {
+      "additionalProperties": false,
+      "properties": {
+        "common_name": {
+          "title": "Common Name",
+          "type": "string"
+        },
+        "detection_events": {
+          "title": "Detection Events",
+          "type": "integer"
+        },
+        "first_detected_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "First Detected At"
+        },
+        "is_priority": {
+          "default": false,
+          "title": "Is Priority",
+          "type": "boolean"
+        },
+        "last_detected_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Detected At"
+        },
+        "max_confidence": {
+          "title": "Max Confidence",
+          "type": "number"
+        },
+        "plausibility": {
+          "default": "unknown",
+          "enum": [
+            "plausible",
+            "unlikely",
+            "unknown"
+          ],
+          "title": "Plausibility",
+          "type": "string"
+        },
+        "presence_fraction": {
+          "description": "recordings_with_detection / recordings_total",
+          "title": "Presence Fraction",
+          "type": "number"
+        },
+        "recordings_total": {
+          "title": "Recordings Total",
+          "type": "integer"
+        },
+        "recordings_with_detection": {
+          "title": "Recordings With Detection",
+          "type": "integer"
+        },
+        "scientific_name": {
+          "title": "Scientific Name",
+          "type": "string"
+        },
+        "site_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Site Ids",
+          "type": "array"
+        },
+        "taxon": {
+          "$ref": "#/$defs/Taxon"
+        }
+      },
+      "required": [
+        "scientific_name",
+        "common_name",
+        "taxon",
+        "detection_events",
+        "recordings_with_detection",
+        "recordings_total",
+        "presence_fraction",
+        "max_confidence",
+        "first_detected_at",
+        "last_detected_at",
+        "site_ids"
+      ],
+      "title": "SpeciesRollup",
       "type": "object"
     },
     "SpeciesSummary": {
@@ -1730,9 +5617,200 @@
       ],
       "title": "Taxon",
       "type": "string"
+    },
+    "TaxonCount": {
+      "additionalProperties": false,
+      "properties": {
+        "detection_events": {
+          "title": "Detection Events",
+          "type": "integer"
+        },
+        "species": {
+          "title": "Species",
+          "type": "integer"
+        },
+        "taxon": {
+          "$ref": "#/$defs/Taxon"
+        }
+      },
+      "required": [
+        "taxon",
+        "detection_events",
+        "species"
+      ],
+      "title": "TaxonCount",
+      "type": "object"
+    },
+    "Telemetry": {
+      "additionalProperties": false,
+      "description": "Device readings parsed from the file (AudioMoth WAV comment, Song Meter summary).",
+      "properties": {
+        "battery_v": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Battery V"
+        },
+        "device_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Device Id"
+        },
+        "gain": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gain"
+        },
+        "source": {
+          "default": "none",
+          "enum": [
+            "audiomoth_comment",
+            "song_meter_summary",
+            "guano",
+            "none"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "temperature_c": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Temperature C"
+        }
+      },
+      "title": "Telemetry",
+      "type": "object"
+    },
+    "UploadedFile": {
+      "additionalProperties": false,
+      "properties": {
+        "byte_size": {
+          "title": "Byte Size",
+          "type": "integer"
+        },
+        "content_type": {
+          "title": "Content Type",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "filename": {
+          "title": "Filename",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "organization_id": {
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "filename",
+        "content_type",
+        "byte_size",
+        "url",
+        "created_at"
+      ],
+      "title": "UploadedFile",
+      "type": "object"
+    },
+    "User": {
+      "additionalProperties": false,
+      "properties": {
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "email": {
+          "title": "Email",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "last_login_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Login At"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "picture_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Picture Url"
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "name",
+        "created_at"
+      ],
+      "title": "User",
+      "type": "object"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "ThicketAPI",
+  "x-platform-schema-version": "0.1.0",
   "x-schema-version": "1.2.0"
 }
