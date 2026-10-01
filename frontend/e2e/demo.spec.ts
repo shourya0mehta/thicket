@@ -91,7 +91,7 @@ test('demo mode shows a read-only dashboard when demo/platform.json exists', asy
   await page.route(/tile\.openstreetmap\.org/, (route) => route.fulfill({ status: 404 }));
 
   await page.goto('/');
-  await expect(page.getByTestId('demo-banner')).toBeVisible();
+  await expect(page.getByTestId('demo-banner')).toContainText('sample data');
   await expect(page.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeVisible();
   await expect(page.getByTestId('kpi-row')).toBeVisible();
   // Read-only: no uploads, no alert actions, no sign out.

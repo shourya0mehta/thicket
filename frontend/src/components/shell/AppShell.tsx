@@ -369,7 +369,7 @@ export function AppShell({
           </div>
         </div>
       </header>
-      {demo ? <DemoBanner /> : null}
+      {demo ? <DemoBanner sampleFarm /> : null}
 
       <div className="mx-auto flex w-full max-w-[96rem] flex-1">
         <nav

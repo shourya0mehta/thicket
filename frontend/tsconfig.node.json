@@ -25,6 +25,7 @@
     "playwright.config.ts",
     "tailwind.config.ts",
     "e2e",
+    "scripts",
     "src/test/fixtures",
     "src/api/generated.ts"
   ]
