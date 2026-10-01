@@ -24,10 +24,10 @@ from __future__ import annotations
 import math
 
 import numpy as np
-from scipy.signal import welch
 
 from thicket.api.platform_schemas import SignalProfile
 from thicket.domain.quality import DB_FLOOR, LevelStats, to_dbfs
+from thicket.domain.spectral import welch_psd
 
 BAND_EDGES_HZ = (0.0, 1000.0, 4000.0, 8000.0)
 PSD_NPERSEG = 4096
@@ -37,11 +37,10 @@ def band_fractions_and_centroid(
     mono: np.ndarray, sample_rate: int
 ) -> tuple[tuple[float, float, float, float], float]:
     """Welch PSD energy fractions per band and the spectral centroid (Hz)."""
-    x = np.asarray(mono, dtype=np.float64)
+    x = np.asarray(mono)
     if x.size < 64:
         return (0.0, 0.0, 0.0, 0.0), 0.0
-    nperseg = min(PSD_NPERSEG, x.size)
-    f, p = welch(x, fs=sample_rate, nperseg=nperseg, detrend="constant")
+    f, p = welch_psd(x, sample_rate, nperseg=PSD_NPERSEG)
     keep = f > 0
     f, p = f[keep], p[keep]
     total = float(np.sum(p))

@@ -37,9 +37,9 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 
 import numpy as np
-from scipy.signal import welch
 
 from thicket.api.schemas import QualityCheck, QualityReport, QualityStatus
+from thicket.domain.spectral import frame_blocks, welch_psd
 
 log = logging.getLogger(__name__)
 
@@ -146,24 +146,28 @@ def level_stats(samples: np.ndarray) -> LevelStats:
 
 def silence_fraction(mono: np.ndarray, sample_rate: int) -> float:
     """Share of 50 ms frames whose RMS is below -60 dBFS."""
-    x = np.asarray(mono, dtype=np.float64)
+    x = np.asarray(mono)
     if x.size == 0:
         return 1.0
     frame = max(1, int(round(SILENCE_FRAME_SECONDS * sample_rate)))
-    n = x.size // frame
-    frames = x[None, :] if n == 0 else x[: n * frame].reshape(n, frame)
-    rms = np.sqrt(np.mean(frames * frames, axis=1))
     threshold = 10 ** (SILENCE_FRAME_DBFS / 20.0)
-    return float(np.mean(rms < threshold))
+    if x.size < frame:  # one partial frame
+        y = np.asarray(x, dtype=np.float64)
+        return float(np.sqrt(np.mean(y * y)) < threshold)
+    quiet = total = 0
+    for frames in frame_blocks(x, frame):  # bounded memory on long recordings
+        rms = np.sqrt(np.mean(frames * frames, axis=1))
+        quiet += int(np.count_nonzero(rms < threshold))
+        total += rms.size
+    return quiet / total
 
 
 def low_frequency_fraction(mono: np.ndarray, sample_rate: int) -> float:
     """Share of Welch PSD energy below 200 Hz (DC bin excluded)."""
-    x = np.asarray(mono, dtype=np.float64)
+    x = np.asarray(mono)
     if x.size < 64:
         return 0.0
-    nperseg = min(4096, x.size)
-    f, p = welch(x, fs=sample_rate, nperseg=nperseg, detrend="constant")
+    f, p = welch_psd(x, sample_rate, nperseg=4096)
     keep = f > 0
     total = float(np.sum(p[keep]))
     if total <= 0 or not math.isfinite(total):
