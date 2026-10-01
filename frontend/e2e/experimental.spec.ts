@@ -10,7 +10,8 @@ test('experimental models appear with a badge, explanation and disabled state', 
 
   const group = page.getByRole('radiogroup', { name: 'Model' });
   await expect(group.getByRole('radio')).toHaveCount(4); // BirdNET, frogs/insects, Perch, Combined
-  await expect(page.getByRole('radio', { name: /Birds and more/ })).toBeChecked();
+  // With more than one ready model the app runs them together by default.
+  await expect(page.getByRole('radio', { name: /Combined/ })).toBeChecked();
 
   const disabled = page.getByRole('radio', { name: /Frogs and insects/ });
   await expect(disabled).toBeDisabled();
